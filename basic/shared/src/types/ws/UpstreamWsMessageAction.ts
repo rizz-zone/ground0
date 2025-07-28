@@ -1,3 +1,5 @@
-export enum UpstreamWsMessageAction {
+/* v8 ignore start */
+
+export const enum UpstreamWsMessageAction {
 	Init
 }

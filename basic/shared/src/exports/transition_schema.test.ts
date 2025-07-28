@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { type } from 'arktype'
 import { createTransitionSchema } from './transition_schema'
-import { TransitionImpact } from '../types/transitions/Transition'
+import { TransitionImpact } from '../types/transitions/TransitionImpact'
 
 describe('createTransitionSchema', () => {
 	it('accepts a regular zod transition schema', () => {
@@ -13,7 +13,7 @@ describe('createTransitionSchema', () => {
 			}),
 			z.object({
 				action: z.literal(3),
-				impact: z.literal(TransitionImpact.SomethingElse),
+				impact: z.literal(TransitionImpact.OptimisticPush),
 				data: z.object({
 					foo: z.string(),
 					bar: z.number()
@@ -30,7 +30,7 @@ describe('createTransitionSchema', () => {
 			impact: type.enumerated(TransitionImpact.LocalOnly)
 		}).or({
 			action: type.enumerated(3),
-			impact: type.enumerated(TransitionImpact.SomethingElse),
+			impact: type.enumerated(TransitionImpact.OptimisticPush),
 			data: {
 				foo: 'string',
 				bar: 'number'
