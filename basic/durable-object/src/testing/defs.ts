@@ -4,7 +4,7 @@ import {
 	type TestingTransition
 } from '@ground0/shared'
 
-export const defs: SyncEngineDefinition<TestingTransition> = {
+export const defs = {
 	version: {
 		current: '1.0.0'
 	},
@@ -14,4 +14,4 @@ export const defs: SyncEngineDefinition<TestingTransition> = {
 			3: () => {}
 		}
 	}
-}
+} as unknown as SyncEngineDefinition<TestingTransition>
