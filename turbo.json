@@ -3,11 +3,15 @@
 	"tasks": {
 		"build": {
 			"dependsOn": ["^build"],
-			"outputs": ["dist/**", "coverage/**"]
+			"outputs": ["dist/**"]
 		},
 		"test": {
 			"dependsOn": ["@ground0/shared#build", "^test"],
-			"outputs": ["dist/**", "coverage/**"]
+			"outputs": ["coverage/**"]
+		},
+		"lint": {
+			"dependsOn": ["@ground0/shared#build", "^lint"],
+			"outputs": []
 		},
 		"test:watch": {
 			"persistent": true,
@@ -19,7 +23,7 @@
 		},
 		"check-types": {
 			"dependsOn": ["^check-types"],
-			"outputs": ["dist/**", "coverage/**"]
+			"outputs": []
 		}
 	}
 }

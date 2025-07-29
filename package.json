@@ -23,7 +23,7 @@
   "scripts": {
     "style": "prettier -c .",
     "style:write": "prettier -w .",
-    "lint": "eslint .",
+    "lint": "turbo lint",
     "test": "turbo test",
     "test:watch": "turbo test:watch",
     "build": "turbo build",

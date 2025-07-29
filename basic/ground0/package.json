@@ -12,7 +12,8 @@
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch --no-clean",
-    "check-types": "tsc"
+    "check-types": "tsc",
+    "lint": "eslint ."
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
