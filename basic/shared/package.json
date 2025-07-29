@@ -10,8 +10,9 @@
     "typescript": "^5.8.3"
   },
   "devDependencies": {
+    "@types/semver": "^7.7.0",
     "arktype": "^2.1.20",
-    "@types/semver": "^7.7.0"
+    "drizzle-kit": "^0.31.4"
   },
   "scripts": {
     "test": "vitest run --coverage",

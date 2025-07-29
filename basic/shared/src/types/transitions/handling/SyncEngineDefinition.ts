@@ -23,6 +23,6 @@ export type SyncEngineDefinition<T extends Transition> = {
 		sharedHandlers: SharedHandlers<T>
 	}
 	db: {
-		schema: GeneratedMigrationSchema
+		migrations: GeneratedMigrationSchema
 	}
 }

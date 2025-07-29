@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-describe('test', () => {
+vi.describe('test', () => {
 	it('works', () => {
 		expect(true).toBeTruthy()
 	})
