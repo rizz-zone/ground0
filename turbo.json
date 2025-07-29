@@ -6,7 +6,7 @@
 			"outputs": ["dist/**", "coverage/**"]
 		},
 		"test": {
-			"dependsOn": ["^test"],
+			"dependsOn": ["@ground0/shared#build", "^test"],
 			"outputs": ["dist/**", "coverage/**"]
 		},
 		"test:watch": {
