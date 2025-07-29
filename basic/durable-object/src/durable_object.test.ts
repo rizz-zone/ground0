@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { SampleObject } from './testing/sample_object'
 
-vi.describe('test', () => {
-	it('works', () => {
-		expect(true).toBeTruthy()
+describe('constructor', () => {
+	it('assigns this.db', () => {
+		const backend = new SampleObject()
 	})
 })

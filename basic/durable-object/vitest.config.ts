@@ -1,16 +1,25 @@
-import { configDefaults, defineConfig } from 'vitest/config'
+import { configDefaults } from 'vitest/config'
+import { defineWorkersConfig } from '@cloudflare/vitest-pool-workers/config'
 import tsconfigPaths from 'vite-tsconfig-paths'
 
-export default defineConfig({
+// @ts-expect-error The plugin is definitely fine, it's just disliked in this community for some reason
+export default defineWorkersConfig({
 	test: {
+		poolOptions: {
+			workers: {
+				miniflare: {
+					compatibilityDate: '2025-07-01'
+				}
+			}
+		},
 		exclude: [...configDefaults.exclude, '**/*.config.ts'],
 		coverage: {
 			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 			exclude: [...configDefaults.coverage.exclude!, '**/*.config.ts'],
-			reporter: ['lcov', 'text']
+			reporter: ['lcov', 'text'],
+			provider: 'istanbul'
 		},
 		globals: true
 	},
-	// @ts-expect-error There's some kind of type conflict but the plugin definitely works
 	plugins: [tsconfigPaths()]
 })

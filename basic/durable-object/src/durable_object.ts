@@ -60,7 +60,7 @@ export abstract class SyncEngineBackend<
 	 */
 	protected checkFetch?: (request: Request) => Response | undefined
 
-	private db: DrizzleSqliteDODatabase<Record<string, unknown>>
+	protected db: DrizzleSqliteDODatabase<Record<string, unknown>>
 
 	constructor(ctx: DurableObjectState, env: object) {
 		super(ctx, env)
@@ -73,7 +73,9 @@ export abstract class SyncEngineBackend<
 				response: '!'
 			})
 
-		ctx.blockConcurrencyWhile(() => migrate(this.db, this.engineDef.db.schema))
+		ctx.blockConcurrencyWhile(() =>
+			migrate(this.db, this.engineDef.db.migrations)
+		)
 	}
 
 	override async fetch(request: Request) {
