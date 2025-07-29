@@ -17,10 +17,22 @@ describe('data validating to true', () => {
 	})
 })
 describe('data validating to false', () => {
+	test('empty message', () => {
+		const initMessage = {}
+		expect(isUpstreamWsMessage(initMessage)).toBe(false)
+		expect(UpstreamWsMessageSchema.safeParse(initMessage).success).toBe(false)
+	})
 	test('init message with bad version format', () => {
 		const initMessage: UpstreamWsMessage = {
 			action: UpstreamWsMessageAction.Init,
 			version: 'v1'
+		}
+		expect(isUpstreamWsMessage(initMessage)).toBe(false)
+		expect(UpstreamWsMessageSchema.safeParse(initMessage).success).toBe(false)
+	})
+	test('init message with no version', () => {
+		const initMessage: Omit<UpstreamWsMessage, 'version'> = {
+			action: UpstreamWsMessageAction.Init
 		}
 		expect(isUpstreamWsMessage(initMessage)).toBe(false)
 		expect(UpstreamWsMessageSchema.safeParse(initMessage).success).toBe(false)
