@@ -7,6 +7,7 @@ import { runInDurableObject } from 'cloudflare:test'
 import { migrate } from 'drizzle-orm/durable-sqlite/migrator'
 import type { SampleObject } from './testing/sample_object'
 import { SyncEngineBackend } from './durable_object'
+import { WsCloseCode } from '@ground0/shared'
 
 // If we don't do this, env.* won't have our SAMPLE_OBJECT binding.
 declare module 'cloudflare:test' {
@@ -219,6 +220,29 @@ describe('fetch handler', () => {
 			const response = await instance.fetch(request)
 			expect(response).toBe(desiredResponse)
 			expect(checkFetch).toHaveBeenCalledExactlyOnceWith(request)
+		})
+	})
+})
+describe('websocket message handler', () => {
+	let socket: WebSocket
+	beforeEach(async () => {
+		await runInDurableObject(stub, (_, ctx) => {
+			socket = new WebSocketPair()[0]
+			ctx.acceptWebSocket(socket)
+		})
+	})
+	it('rejects ArrayBuffers', async () => {
+		const closeMock = vi.spyOn(socket, 'close')
+		const sendMock = vi.spyOn(socket, 'send')
+		await runInDurableObject(stub, async (instance) => {
+			await vi.waitUntil(() => socket.readyState === WebSocket.OPEN, {
+				interval: 5,
+				timeout: 1000
+			})
+			await instance.webSocketMessage(socket, new ArrayBuffer())
+			expect(closeMock).toHaveBeenCalledOnce()
+			expect(closeMock.mock.lastCall?.[0]).toEqual(WsCloseCode.InvalidMessage)
+			expect(sendMock).not.toHaveBeenCalled()
 		})
 	})
 })
