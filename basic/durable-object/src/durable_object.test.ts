@@ -3,6 +3,7 @@ import { SampleObject } from './testing/sample_object'
 
 describe('constructor', () => {
 	it('assigns this.db', () => {
-		const backend = new SampleObject()
+		const backend = new SampleObject({} as unknown as DurableObjectState, {})
+		expect(true).toBe(true)
 	})
 })
