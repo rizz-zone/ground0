@@ -19,7 +19,8 @@
     "build": "tsdown",
     "dev": "tsdown --watch --no-clean",
     "check-types": "tsc",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "generate-test-types": "cd ./src/testing/ && wrangler types -c ./sample_wrangler.jsonc"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

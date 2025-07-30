@@ -68,10 +68,9 @@ export abstract class SyncEngineBackend<
 
 		// This allows us to respond to client pings.
 		if (!this.ctx.getWebSocketAutoResponse())
-			this.ctx.setWebSocketAutoResponse({
-				request: '?',
-				response: '!'
-			})
+			this.ctx.setWebSocketAutoResponse(
+				new WebSocketRequestResponsePair('?', '!')
+			)
 
 		ctx.blockConcurrencyWhile(() =>
 			migrate(this.db, this.engineDef.db.migrations)
