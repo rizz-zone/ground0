@@ -31,6 +31,7 @@
     "superjson": "^2.2.2",
     "semver": "^7.7.2",
     "@cloudflare/workers-types": "^4.20250712.0",
-    "@ground0/shared": "workspace:*"
+    "@ground0/shared": "workspace:*",
+    "drizzle-orm": "catalog:drizzle"
   }
 }

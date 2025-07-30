@@ -32,8 +32,15 @@
   },
   "sideEffects": false,
   "type": "module",
-  "workspaces": ["basic/*", "adapters/*", "sample_integrations/*/*"],
+  "workspaces": {
+    "packages": ["basic/*", "adapters/*", "sample_integrations/*/*"],
+    "catalogs": {
+      "drizzle": {
+        "drizzle-orm": "^0.44.3"
+      }
+    }
+  },
   "dependencies": {
-    "drizzle-orm": "^0.44.3"
+    
   }
 }
