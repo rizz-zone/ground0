@@ -31,9 +31,5 @@
 			"@/*": ["./src/*"]
 		}
 	},
-	"include": [
-		"src/**/*.ts",
-		"../shared/src/testing/shared_def/defs.ts",
-		"../shared/src/testing/shared_def/drizzle.config.ts"
-	]
+	"include": ["src/**/*.ts"]
 }

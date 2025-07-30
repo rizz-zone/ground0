@@ -8,3 +8,5 @@ bun.lock
 
 # Generated files
 dist/
+drizzle/
+worker-configuration.d.ts
