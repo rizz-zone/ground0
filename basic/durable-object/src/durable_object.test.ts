@@ -7,7 +7,13 @@ import { runInDurableObject } from 'cloudflare:test'
 import { migrate } from 'drizzle-orm/durable-sqlite/migrator'
 import type { SampleObject } from './testing/sample_object'
 import { SyncEngineBackend } from './durable_object'
-import { WsCloseCode } from '@ground0/shared'
+import {
+	isUpstreamWsMessage,
+	UpstreamWsMessageAction,
+	WsCloseCode,
+	type UpstreamWsMessage
+} from '@ground0/shared'
+import SuperJSON from 'superjson'
 
 // If we don't do this, env.* won't have our SAMPLE_OBJECT binding.
 declare module 'cloudflare:test' {
@@ -231,18 +237,178 @@ describe('websocket message handler', () => {
 			ctx.acceptWebSocket(socket)
 		})
 	})
-	it('rejects ArrayBuffers', async () => {
-		const closeMock = vi.spyOn(socket, 'close')
-		const sendMock = vi.spyOn(socket, 'send')
-		await runInDurableObject(stub, async (instance) => {
-			await vi.waitUntil(() => socket.readyState === WebSocket.OPEN, {
-				interval: 5,
-				timeout: 1000
+	const wsOpen = () =>
+		vi.waitUntil(() => socket.readyState === WebSocket.OPEN, {
+			interval: 5,
+			timeout: 1000
+		})
+	describe('message validation', () => {
+		it('rejects ArrayBuffers', async () => {
+			const closeMock = vi.spyOn(socket, 'close')
+			const sendMock = vi.spyOn(socket, 'send')
+			await runInDurableObject(stub, async (instance) => {
+				await wsOpen()
+				await instance.webSocketMessage(socket, new ArrayBuffer())
+				expect(closeMock).toHaveBeenCalledOnce()
+				expect(closeMock.mock.lastCall?.[0]).toEqual(WsCloseCode.InvalidMessage)
+				expect(sendMock).not.toHaveBeenCalled()
 			})
-			await instance.webSocketMessage(socket, new ArrayBuffer())
-			expect(closeMock).toHaveBeenCalledOnce()
-			expect(closeMock.mock.lastCall?.[0]).toEqual(WsCloseCode.InvalidMessage)
-			expect(sendMock).not.toHaveBeenCalled()
+		})
+		it('rejects non-JSON', async () => {
+			const closeMock = vi.spyOn(socket, 'close')
+			const sendMock = vi.spyOn(socket, 'send')
+			await runInDurableObject(stub, async (instance) => {
+				await wsOpen()
+				await instance.webSocketMessage(socket, 'not json :)')
+				expect(closeMock).toHaveBeenCalledOnce()
+				expect(closeMock.mock.lastCall?.[0]).toEqual(WsCloseCode.InvalidMessage)
+				expect(sendMock).not.toHaveBeenCalled()
+			})
+		})
+		it("rejects messages that don't match the schema", async ({ skip }) => {
+			const badMessage: UpstreamWsMessage = {
+				action: UpstreamWsMessageAction.Init,
+				version: 'aunuyn'
+			}
+			// If the invalid message passes validation, there are tests that
+			// fail elsewhere to signal the issue. We should keep this test
+			// focused on whether the Durable Object works, not whether the
+			// message validation works.
+			if (isUpstreamWsMessage(badMessage)) return skip()
+
+			const closeMock = vi.spyOn(socket, 'close')
+			const sendMock = vi.spyOn(socket, 'send')
+			await runInDurableObject(stub, async (instance) => {
+				await wsOpen()
+				await instance.webSocketMessage(socket, SuperJSON.stringify(badMessage))
+				expect(closeMock).toHaveBeenCalledOnce()
+				expect(closeMock.mock.lastCall?.[0]).toEqual(WsCloseCode.InvalidMessage)
+				expect(sendMock).not.toHaveBeenCalled()
+			})
+		})
+	})
+	describe('init message handling', () => {
+		describe('version comparison', () => {
+			describe('major version >0', () => {
+				it('closes on higher major version', async () => {
+					const closeMock = vi.spyOn(socket, 'close')
+					const sendMock = vi.spyOn(socket, 'send')
+					await runInDurableObject(stub, async (instance) => {
+						await wsOpen()
+						await instance.webSocketMessage(
+							socket,
+							SuperJSON.stringify({
+								action: UpstreamWsMessageAction.Init,
+								version: '2.0.0'
+							} satisfies UpstreamWsMessage)
+						)
+						expect(closeMock).toHaveBeenCalledOnce()
+						expect(closeMock.mock.lastCall?.[0]).toEqual(
+							WsCloseCode.Incompatible
+						)
+						expect(sendMock).not.toHaveBeenCalled()
+					})
+				})
+				it('closes on lower major version', async () => {
+					const closeMock = vi.spyOn(socket, 'close')
+					const sendMock = vi.spyOn(socket, 'send')
+					await runInDurableObject(stub, async (instance) => {
+						await wsOpen()
+						await instance.webSocketMessage(
+							socket,
+							SuperJSON.stringify({
+								action: UpstreamWsMessageAction.Init,
+								version: '0.0.1'
+							} satisfies UpstreamWsMessage)
+						)
+						expect(closeMock).toHaveBeenCalledOnce()
+						expect(closeMock.mock.lastCall?.[0]).toEqual(
+							WsCloseCode.Incompatible
+						)
+						expect(sendMock).not.toHaveBeenCalled()
+					})
+				})
+				it('does not close on matching major version', async () => {
+					const closeMock = vi.spyOn(socket, 'close')
+					await runInDurableObject(stub, async (instance) => {
+						await wsOpen()
+						await instance.webSocketMessage(
+							socket,
+							SuperJSON.stringify({
+								action: UpstreamWsMessageAction.Init,
+								version: '1.2.3'
+							} satisfies UpstreamWsMessage)
+						)
+						expect(closeMock).not.toHaveBeenCalled()
+					})
+				})
+			})
+			describe('major version =0', () => {
+				it('closes on higher minor version', async () => {
+					const closeMock = vi.spyOn(socket, 'close')
+					const sendMock = vi.spyOn(socket, 'send')
+					await runInDurableObject(stub, async (instance) => {
+						// @ts-expect-error We have to modify the engineDef because the
+						// only alternative is to create a different object.
+						instance.engineDef.version.current = '0.2.3'
+
+						await wsOpen()
+						await instance.webSocketMessage(
+							socket,
+							SuperJSON.stringify({
+								action: UpstreamWsMessageAction.Init,
+								version: '0.3.0'
+							} satisfies UpstreamWsMessage)
+						)
+						expect(closeMock).toHaveBeenCalledOnce()
+						expect(closeMock.mock.lastCall?.[0]).toEqual(
+							WsCloseCode.Incompatible
+						)
+						expect(sendMock).not.toHaveBeenCalled()
+					})
+				})
+				it('closes on lower minor version', async () => {
+					const closeMock = vi.spyOn(socket, 'close')
+					const sendMock = vi.spyOn(socket, 'send')
+					await runInDurableObject(stub, async (instance) => {
+						// @ts-expect-error We have to modify the engineDef because the
+						// only alternative is to create a different object.
+						instance.engineDef.version.current = '0.2.3'
+
+						await wsOpen()
+						await instance.webSocketMessage(
+							socket,
+							SuperJSON.stringify({
+								action: UpstreamWsMessageAction.Init,
+								version: '0.1.0'
+							} satisfies UpstreamWsMessage)
+						)
+						expect(closeMock).toHaveBeenCalledOnce()
+						expect(closeMock.mock.lastCall?.[0]).toEqual(
+							WsCloseCode.Incompatible
+						)
+						expect(sendMock).not.toHaveBeenCalled()
+					})
+				})
+				it('does not close on matching minor version', async () => {
+					const closeMock = vi.spyOn(socket, 'close')
+					await runInDurableObject(stub, async (instance) => {
+						// @ts-expect-error We have to modify the engineDef because the
+						// only alternative is to create a different object.
+						instance.engineDef.version.current = '0.2.3'
+
+						await wsOpen()
+						await instance.webSocketMessage(
+							socket,
+							SuperJSON.stringify({
+								action: UpstreamWsMessageAction.Init,
+								version: '0.2.1'
+							} satisfies UpstreamWsMessage)
+						)
+						expect(closeMock).not.toHaveBeenCalled()
+					})
+				})
+			})
 		})
 	})
 })

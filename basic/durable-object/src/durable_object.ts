@@ -10,6 +10,7 @@ import {
 } from '@ground0/shared'
 import SuperJSON from 'superjson'
 import semverMajor from 'semver/functions/major'
+import semverMinor from 'semver/functions/minor'
 import {
 	drizzle,
 	type DrizzleSqliteDODatabase
@@ -66,7 +67,14 @@ export abstract class SyncEngineBackend<
 		super(ctx, env)
 		this.db = drizzle(ctx.storage, { logger: false })
 
-		// This allows us to respond to client pings.
+		// We need Itanbul to ignore this because it's hard to test
+		// constructors, and we test that this works by ensuring that a pair is
+		// set after the fact, not by mocking `ctx`. It is largely irrelevant
+		// whether we call setWebSocketAutoResponse when there's already a pair
+		// set, but it's very relevant whether one is set in the first place,
+		// and we check for the worst case in testing.
+
+		/* istanbul ignore if -- @preserve */
 		if (!this.ctx.getWebSocketAutoResponse())
 			this.ctx.setWebSocketAutoResponse(
 				new WebSocketRequestResponsePair('?', '!')
@@ -130,9 +138,16 @@ export abstract class SyncEngineBackend<
 
 		switch (decoded.action) {
 			case UpstreamWsMessageAction.Init: {
+				// Close the connection if:
+				// - The major version is mismatched
+				// - The major version is 0 and the minor version is
+				//   mismatched, as minor is treated as major on 0.x.x versions
 				if (
 					semverMajor(decoded.version) !==
-					semverMajor(this.engineDef.version.current)
+						semverMajor(this.engineDef.version.current) ||
+					(semverMajor(this.engineDef.version.current) === 0 &&
+						semverMinor(this.engineDef.version.current) !==
+							semverMinor(decoded.version))
 				)
 					return ws.close(WsCloseCode.Incompatible)
 				break
