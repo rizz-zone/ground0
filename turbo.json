@@ -22,7 +22,7 @@
 			"cache": false
 		},
 		"check-types": {
-			"dependsOn": ["^check-types"],
+			"dependsOn": ["@ground0/shared#build", "^check-types"],
 			"outputs": []
 		}
 	}
