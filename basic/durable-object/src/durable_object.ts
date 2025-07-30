@@ -40,7 +40,7 @@ export abstract class SyncEngineBackend<
 	 * @param request The request that comes into the Worker
 	 * @returns A string for the ID of the Durable Object instance if the request is allowed to continue, or a response if it is rejected
 	 */
-	protected static preCheckFetch: (request: Request) => string | Response = (
+	public static preCheckFetch: (request: Request) => string | Response = (
 		request
 	) => {
 		const engineName = new URL(request.url).searchParams.get('engine_name')
@@ -78,6 +78,19 @@ export abstract class SyncEngineBackend<
 	}
 
 	override async fetch(request: Request) {
+		{
+			const upgradeHeader = request.headers.get('Upgrade')
+			const connectionHeader = request.headers.get('Connection')
+
+			if (
+				!connectionHeader ||
+				connectionHeader.toLowerCase() !== 'upgrade' ||
+				!upgradeHeader ||
+				!upgradeHeader.split(' ').includes('websocket')
+			)
+				return new Response('Upgrade Required', { status: 426 })
+		}
+
 		if (this.checkFetch) {
 			const potentialResponse = this.checkFetch(request)
 			if (potentialResponse) return potentialResponse
@@ -86,7 +99,7 @@ export abstract class SyncEngineBackend<
 		// Create two ends of a WebSocket connection
 		const webSocketPair = new WebSocketPair()
 		const [client, server] = Object.values(webSocketPair)
-		if (!server) return new Response(null, { status: 500 })
+		if (!client || !server) return new Response(null, { status: 500 })
 
 		// Accept the server one
 		this.ctx.acceptWebSocket(server)
