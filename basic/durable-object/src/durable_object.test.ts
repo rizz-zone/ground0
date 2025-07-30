@@ -188,4 +188,37 @@ describe('fetch handler', () => {
 			}
 		})
 	})
+	it('calls checkFetch if defined', async () => {
+		await runInDurableObject(stub, async (instance) => {
+			const checkFetch = vi.fn()
+			const request = new Request('http://example.com/', {
+				headers: {
+					Connection: 'Upgrade',
+					Upgrade: 'websocket'
+				}
+			})
+			// @ts-expect-error We could use a different class, but that would be inconvenient
+			instance.checkFetch = checkFetch
+			const response = await instance.fetch(request)
+			expect(response.status).toBe(101)
+			expect(checkFetch).toHaveBeenCalledExactlyOnceWith(request)
+		})
+	})
+	it('returns response from checkFetch if it exists', async () => {
+		await runInDurableObject(stub, async (instance) => {
+			const desiredResponse = new Response("I'm a teapot", { status: 418 })
+			const checkFetch = vi.fn(() => desiredResponse)
+			const request = new Request('http://example.com/', {
+				headers: {
+					Connection: 'Upgrade',
+					Upgrade: 'websocket'
+				}
+			})
+			// @ts-expect-error We could use a different class, but that would be inconvenient
+			instance.checkFetch = checkFetch
+			const response = await instance.fetch(request)
+			expect(response).toBe(desiredResponse)
+			expect(checkFetch).toHaveBeenCalledExactlyOnceWith(request)
+		})
+	})
 })
