@@ -7,9 +7,6 @@ export default defineWorkersConfig({
 	test: {
 		poolOptions: {
 			workers: {
-				/*miniflare: {
-					compatibilityDate: '2025-07-01'
-				}*/
 				wrangler: { configPath: './src/testing/sample_wrangler.jsonc' }
 			}
 		},
