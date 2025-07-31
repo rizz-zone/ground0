@@ -10,11 +10,14 @@ import {
 	int
 } from 'zod/mini'
 
-export const TransitionSchema = object({
+// Slightly unusual naming for this repo, but required because of
+// TransitionSchema.ts which is more relevant to consumers (this is, in
+// comparison, really only important for internal Durable Object code)
+export const TransitionZodSchema = object({
 	action: union([string(), int()]),
 	impact: zEnum(TransitionImpact),
 	data: optional(looseObject({}))
 })
-export type Transition = z.infer<typeof TransitionSchema>
+export type Transition = z.infer<typeof TransitionZodSchema>
 export const isTransition = (obj: unknown): obj is Transition =>
-	TransitionSchema.safeParse(obj).success
+	TransitionZodSchema.safeParse(obj).success

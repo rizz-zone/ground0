@@ -10,7 +10,7 @@ import {
 } from 'zod/mini'
 import { UpstreamWsMessageAction } from './UpstreamWsMessageAction'
 import semverValid from 'semver/functions/valid'
-import { TransitionSchema } from '../transitions/Transition'
+import { TransitionZodSchema } from '../transitions/Transition'
 import { TransitionImpact } from '../transitions/TransitionImpact'
 
 export const UpstreamWsMessageSchema = discriminatedUnion('action', [
@@ -20,7 +20,7 @@ export const UpstreamWsMessageSchema = discriminatedUnion('action', [
 	}),
 	object({
 		action: literal(UpstreamWsMessageAction.Transition),
-		data: extend(TransitionSchema, {
+		data: extend(TransitionZodSchema, {
 			impact: union([literal(TransitionImpact.OptimisticPush)])
 		})
 	})
