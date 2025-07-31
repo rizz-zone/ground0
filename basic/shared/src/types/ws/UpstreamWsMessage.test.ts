@@ -135,7 +135,7 @@ describe('invalid messages', () => {
 			expect(UpstreamWsMessageSchema.safeParse(initMessage).success).toBe(false)
 		})
 		test('irrelevant transition', () => {
-			const initMessage: UpstreamWsMessage = {
+			const initMessage = {
 				action: UpstreamWsMessageAction.Transition,
 				data: {
 					action: 19,
