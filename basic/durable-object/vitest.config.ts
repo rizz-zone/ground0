@@ -15,8 +15,12 @@ export default defineWorkersConfig({
 		},
 		exclude: [...configDefaults.exclude, '**/*.config.ts'],
 		coverage: {
-			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-			exclude: [...configDefaults.coverage.exclude!, '**/*.config.ts'],
+			exclude: [
+				// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+				...configDefaults.coverage.exclude!,
+				'**/*.config.ts',
+				'**/testing/**'
+			],
 			reporter: ['lcov', 'text'],
 			provider: 'istanbul'
 		},

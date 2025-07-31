@@ -1,5 +1,3 @@
-/* istanbul ignore file -- @preserve */
-
 import { SyncEngineBackend } from '@/durable_object'
 import { type TestingTransition, defs } from '@ground0/shared'
 
