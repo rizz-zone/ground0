@@ -6,6 +6,7 @@ import {
 	refine,
 	string,
 	union,
+	uuidv4,
 	type z
 } from 'zod/mini'
 import { UpstreamWsMessageAction } from './UpstreamWsMessageAction'
@@ -20,6 +21,7 @@ export const UpstreamWsMessageSchema = discriminatedUnion('action', [
 	}),
 	object({
 		action: literal(UpstreamWsMessageAction.Transition),
+		id: uuidv4(),
 		data: extend(TransitionZodSchema, {
 			impact: union([literal(TransitionImpact.OptimisticPush)])
 		})

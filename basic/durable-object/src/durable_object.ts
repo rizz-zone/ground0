@@ -7,7 +7,8 @@ import {
 	type UpstreamWsMessage,
 	WsCloseCode,
 	type BackendHandlers,
-	TransitionImpact
+	TransitionImpact,
+	type UUID
 } from '@ground0/shared'
 import SuperJSON from 'superjson'
 import semverMajor from 'semver/functions/major'
@@ -18,12 +19,12 @@ import {
 } from 'drizzle-orm/durable-sqlite'
 import { migrate } from 'drizzle-orm/durable-sqlite/migrator'
 import type { StandardSchemaV1 } from '@standard-schema/spec'
+import { sql } from 'drizzle-orm'
 
 export abstract class SyncEngineBackend<
 	T extends Transition
 > extends DurableObject {
-	// All handlers are defined here, since engineDef has engineDef.transitions.sharedHandlers
-
+	// Handling and general definition
 	/**
 	 * The `SyncEngineDefinition` that is shared between the client and the server.
 	 */
@@ -32,6 +33,11 @@ export abstract class SyncEngineBackend<
 	 * `BackendHandlers` for transitions that run code specific to the Durable Object.
 	 */
 	protected abstract backendHandlers: BackendHandlers<T>
+
+	// Configuration options
+	protected readonly disconnectOnInvalidTransition: boolean = false
+	protected readonly logInvalidTransitions: boolean = true
+
 	/**
 	 * A function to:
 	 *
@@ -82,9 +88,13 @@ export abstract class SyncEngineBackend<
 				new WebSocketRequestResponsePair('?', '!')
 			)
 
-		ctx.blockConcurrencyWhile(() =>
-			migrate(this.db, this.engineDef.db.migrations)
-		)
+		ctx.blockConcurrencyWhile(async () => {
+			await migrate(this.db, this.engineDef.db.migrations)
+			await this.db.run(sql`
+				CREATE TABLE IF NOT EXISTS ${sql.identifier('__ground0_connections')} (
+				  id STRING PRIMARY KEY NOT NULL
+				)`)
+		})
 	}
 
 	override async fetch(request: Request) {
@@ -166,22 +176,45 @@ export abstract class SyncEngineBackend<
 						issues: ReadonlyArray<StandardSchemaV1.Issue> | undefined
 					): data is T => Boolean(issues))(data, issues)
 				) {
-					console.error('Invalid transition sent:\n', data)
-					console.error('\nIssues:')
-					for (const issue in issues) console.error(' - ' + issue)
+					if (this.logInvalidTransitions) {
+						console.error('Invalid transition sent:\n', data)
+						console.error('\nIssues:')
+						for (const issue in issues) console.error(' - ' + issue)
+						console.error()
+					}
+					if (this.disconnectOnInvalidTransition)
+						ws.close(WsCloseCode.InvalidMessage)
 					return
 				}
 
 				// Do the right thing depending on impact
-				this.processTransition(data, ws)
+				await this.processTransition(data, decoded.id as UUID, ws)
 			}
 		}
 	}
 
-	private async processTransition(transition: T, responsibleSocket: WebSocket) {
+	private async processTransition(
+		transition: T,
+		transitionId: UUID,
+		responsibleSocket: WebSocket
+	) {
 		switch (transition.impact) {
 			case TransitionImpact.OptimisticPush: {
-				// no idea
+				const handler =
+					this.backendHandlers[transition.action as keyof BackendHandlers<T>]
+				if (!handler) {
+					console.error(`No handler found for action: ${transition.action}`)
+					return
+				}
+
+				const confirmed = await handler.confirm({
+					data: transition.data,
+					rawSocket: responsibleSocket,
+					connectionId: 'not yet implemented', // TODO: Participate in IDs
+					transition: (_: Transition) => undefined,
+					transitionId
+				})
+				return confirmed
 			}
 		}
 	}

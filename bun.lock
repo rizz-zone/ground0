@@ -76,6 +76,7 @@
         "zod": "^4.0.2",
       },
       "devDependencies": {
+        "@cloudflare/workers-types": "^4.20250801.0",
         "@types/semver": "^7.7.0",
         "arktype": "^2.1.20",
         "drizzle-kit": "^0.31.4",
@@ -1128,6 +1129,8 @@
     "@eslint-community/eslint-utils/eslint-visitor-keys": ["eslint-visitor-keys@3.4.3", "", {}, "sha512-wpc+LXeiyiisxPlEkUzU6svyS1frIO3Mgxj1fdy7Pm8Ygzguax2N3Fa/D/ag1WqbOprdI+uY6wMUl8/a2G+iag=="],
 
     "@eslint/plugin-kit/@eslint/core": ["@eslint/core@0.15.0", "", { "dependencies": { "@types/json-schema": "^7.0.15" } }, "sha512-b7ePw78tEWWkpgZCDYkbqDOP8dmM6qe+AOC6iuJqlq1R/0ahMAeH3qynpnqKFGkMltrp44ohV4ubGyvLX28tzw=="],
+
+    "@ground0/shared/@cloudflare/workers-types": ["@cloudflare/workers-types@4.20250801.0", "", {}, "sha512-BQmMdoOGClY23TesgkR1PeGrPvPsSFD/zW7pDzWZHkOEsqkPk2A91h52bP8GbtKYTl1vdaYjQgJlGsP6Ih4G0w=="],
 
     "@humanfs/node/@humanwhocodes/retry": ["@humanwhocodes/retry@0.3.1", "", {}, "sha512-JBxkERygn7Bv/GbN5Rv8Ul6LVknS+5Bp6RgDC/O8gEBU/yeH5Ui5C/OlWrTb6qct7LjjfT6Re2NxB0ln0yYybA=="],
 
