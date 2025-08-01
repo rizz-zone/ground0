@@ -48,3 +48,11 @@ export class InternalStateError extends Error {
 		Object.setPrototypeOf(this, InternalStateError.prototype)
 	}
 }
+export class EndOfTheUniverseError extends Error {
+	constructor(message: string) {
+		super(message)
+		this.name = 'EndOfTheUniverseError'
+
+		Object.setPrototypeOf(this, EndOfTheUniverseError.prototype)
+	}
+}

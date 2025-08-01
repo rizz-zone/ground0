@@ -8,7 +8,8 @@ import {
 	WsCloseCode,
 	type BackendHandlers,
 	TransitionImpact,
-	type UUID
+	type DownstreamWsMessage,
+	DownstreamWsMessageAction
 } from '@ground0/shared'
 import SuperJSON from 'superjson'
 import semverMajor from 'semver/functions/major'
@@ -20,6 +21,10 @@ import {
 import { migrate } from 'drizzle-orm/durable-sqlite/migrator'
 import type { StandardSchemaV1 } from '@standard-schema/spec'
 import { sql } from 'drizzle-orm'
+
+function send(ws: WebSocket, json: DownstreamWsMessage) {
+	if (ws.readyState === WebSocket.OPEN) ws.send(SuperJSON.stringify(json))
+}
 
 export abstract class SyncEngineBackend<
 	T extends Transition
@@ -188,15 +193,15 @@ export abstract class SyncEngineBackend<
 				}
 
 				// Do the right thing depending on impact
-				await this.processTransition(data, decoded.id as UUID, ws)
+				await this.processTransition(data, decoded.id, ws)
 			}
 		}
 	}
 
 	private async processTransition(
 		transition: T,
-		transitionId: UUID,
-		responsibleSocket: WebSocket
+		transitionId: number,
+		ws: WebSocket
 	) {
 		switch (transition.impact) {
 			case TransitionImpact.OptimisticPush: {
@@ -209,12 +214,17 @@ export abstract class SyncEngineBackend<
 
 				const confirmed = await handler.confirm({
 					data: transition.data,
-					rawSocket: responsibleSocket,
+					rawSocket: ws,
 					connectionId: 'not yet implemented', // TODO: Participate in IDs
 					transition: (_: Transition) => undefined,
 					transitionId
 				})
-				return confirmed
+				send(ws, {
+					action: confirmed
+						? DownstreamWsMessageAction.OptimisticResolve
+						: DownstreamWsMessageAction.OptimisticCancel,
+					id: transitionId
+				})
 			}
 		}
 	}
