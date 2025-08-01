@@ -11,7 +11,7 @@ describe('valid messages', () => {
 	test('init', () => {
 		const initMessage: UpstreamWsMessage = {
 			action: UpstreamWsMessageAction.Init,
-			version: '1.2.3'
+			version: 'v1.2.3'
 		}
 		expect(isUpstreamWsMessage(initMessage)).toBe(true)
 		expect(UpstreamWsMessageSchema.safeParse(initMessage).success).toBe(true)
