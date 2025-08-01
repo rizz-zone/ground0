@@ -6,7 +6,8 @@ import {
 	isUpstreamWsMessage,
 	type UpstreamWsMessage,
 	WsCloseCode,
-	type BackendHandlers
+	type BackendHandlers,
+	TransitionImpact
 } from '@ground0/shared'
 import SuperJSON from 'superjson'
 import semverMajor from 'semver/functions/major'
@@ -16,6 +17,7 @@ import {
 	type DrizzleSqliteDODatabase
 } from 'drizzle-orm/durable-sqlite'
 import { migrate } from 'drizzle-orm/durable-sqlite/migrator'
+import type { StandardSchemaV1 } from '@standard-schema/spec'
 
 export abstract class SyncEngineBackend<
 	T extends Transition
@@ -151,6 +153,35 @@ export abstract class SyncEngineBackend<
 				)
 					return ws.close(WsCloseCode.Incompatible)
 				break
+			}
+			case UpstreamWsMessageAction.Transition: {
+				const data = decoded.data
+
+				// Only allow the transition if it meets the consumer's schema
+				const issues = (await this.engineDef.transitions.schema.validate(data))
+					.issues
+				if (
+					!((
+						data: object,
+						issues: ReadonlyArray<StandardSchemaV1.Issue> | undefined
+					): data is T => Boolean(issues))(data, issues)
+				) {
+					console.error('Invalid transition sent:\n', data)
+					console.error('\nIssues:')
+					for (const issue in issues) console.error(' - ' + issue)
+					return
+				}
+
+				// Do the right thing depending on impact
+				this.processTransition(data, ws)
+			}
+		}
+	}
+
+	private async processTransition(transition: T, responsibleSocket: WebSocket) {
+		switch (transition.impact) {
+			case TransitionImpact.OptimisticPush: {
+				// no idea
 			}
 		}
 	}

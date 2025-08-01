@@ -8,6 +8,7 @@
   "packageManager": "bun@1.2.18",
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.8.58",
+    "@standard-schema/spec": "^1.0.0",
     "@vitest/coverage-istanbul": "^3.2.4"
   },
   "peerDependencies": {
