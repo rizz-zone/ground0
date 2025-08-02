@@ -1,3 +1,10 @@
+import {
+	InternalStateError,
+	UpstreamWsMessageAction,
+	WORKER_MACHINE_RUNNING_WITHOUT_PROPER_INIT,
+	type UpstreamWsMessage
+} from '@ground0/shared'
+import SuperJSON from 'superjson'
 import { assign, setup } from 'xstate'
 
 export const clientMachine = setup({
@@ -5,7 +12,9 @@ export const clientMachine = setup({
 		context: {} as {
 			socket?: WebSocket
 			wsUrl?: string
+			socketInterval?: ReturnType<typeof setInterval>
 			dbName?: string
+			version?: string
 		},
 		events: {} as
 			| { type: 'init'; wsUrl: string; dbName: string }
@@ -14,12 +23,15 @@ export const clientMachine = setup({
 			| { type: 'db connected' }
 			| { type: 'db cannot connect' }
 			| { type: 'leader lock acquired' }
+			| { type: 'socket ping time' }
 	},
 	actions: {
 		establishSocket: assign(({ context, self }) => {
 			if (!context.wsUrl) return {}
 			const socket = new WebSocket(context.wsUrl)
-			socket.onopen = () => self.send({ type: 'ws connected' })
+			socket.onopen = () => {
+				self.send({ type: 'ws connected' })
+			}
 			return { socket }
 		}),
 		establishDb: assign(() => ({})),
@@ -35,7 +47,29 @@ export const clientMachine = setup({
 			navigator.locks.request(
 				'leader',
 				() => new Promise(() => self.send({ type: 'leader lock acquired' }))
+			),
+		wsInitMessage: ({ context }) => {
+			const { socket, version } = context
+			if (!version)
+				throw new InternalStateError(WORKER_MACHINE_RUNNING_WITHOUT_PROPER_INIT)
+			if (!socket || socket.readyState !== WebSocket.OPEN) return
+			socket.send(
+				SuperJSON.stringify({
+					action: UpstreamWsMessageAction.Init,
+					version
+				} satisfies UpstreamWsMessage)
 			)
+		},
+		createPingInterval: assign(({ context, self }) => {
+			const { socket } = context
+			if (!socket || socket.readyState !== WebSocket.OPEN) return {}
+			return {
+				socketInterval: setInterval(
+					() => self.send({ type: 'socket ping time' }),
+					(5 * 1000) / 3
+				)
+			}
+		})
 	}
 }).createMachine({
 	type: 'parallel',
@@ -55,6 +89,7 @@ export const clientMachine = setup({
 					}
 				},
 				connected: {
+					entry: ['wsInitMessage', 'createPingInterval'],
 					on: {
 						'ws connection issue': {
 							target: 'disconnected'

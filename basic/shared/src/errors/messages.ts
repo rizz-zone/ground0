@@ -10,6 +10,7 @@ const createInitString = (item: string, reportSnake: string) =>
 
 export const TEST_ONLY = `Testing function run outside of Vitest. ${INTERNAL_PROCESS} ${reportAt('test_only_fn_used')}`
 export const MAP_DESTRUCTOR_INCONSISTENCY = `Port manager assumed a port existed, but it was not present. ${INTERNAL_PROCESS} ${reportAt('static_map_inconsistent')}`
+export const WORKER_MACHINE_RUNNING_WITHOUT_PROPER_INIT = `The worker state machine is running post-init code, but seems to lack data provided during init. ${INTERNAL_PROCESS} ${reportAt('worker_machine_improper_init')}`
 export const DOUBLE_SHAREDWORKER_PORT_INIT = createInitString(
 	'SharedWorker port',
 	'sw_double_init'
