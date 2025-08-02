@@ -1,8 +1,9 @@
 import {
 	discriminatedUnion,
+	int,
 	literal,
-	number,
 	object,
+	positive,
 	union,
 	type z
 } from 'zod/mini'
@@ -14,7 +15,7 @@ export const DownstreamWsMessageSchema = discriminatedUnion('action', [
 			literal(DownstreamWsMessageAction.OptimisticResolve),
 			literal(DownstreamWsMessageAction.OptimisticCancel)
 		]),
-		id: number()
+		id: int().check(positive())
 	})
 ])
 export type DownstreamWsMessage = z.infer<typeof DownstreamWsMessageSchema>

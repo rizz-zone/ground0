@@ -6,13 +6,14 @@ import {
 	refine,
 	string,
 	union,
-	number,
-	type z
+	type z,
+	positive
 } from 'zod/mini'
 import { UpstreamWsMessageAction } from './UpstreamWsMessageAction'
 import semverValid from 'semver/functions/valid'
 import { TransitionZodSchema } from '../transitions/Transition'
 import { TransitionImpact } from '../transitions/TransitionImpact'
+import { int } from 'zod'
 
 export const UpstreamWsMessageSchema = discriminatedUnion('action', [
 	object({
@@ -21,7 +22,7 @@ export const UpstreamWsMessageSchema = discriminatedUnion('action', [
 	}),
 	object({
 		action: literal(UpstreamWsMessageAction.Transition),
-		id: number(),
+		id: int().check(positive()),
 		data: extend(TransitionZodSchema, {
 			impact: union([literal(TransitionImpact.OptimisticPush)])
 		})
