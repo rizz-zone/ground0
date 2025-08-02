@@ -84,9 +84,13 @@ export const clientMachine = setup({
 				dissatisfiedPings: 0
 			}
 		}),
-		acceptPing: assign(({ context }) => ({
-			dissatisfiedPings: context.dissatisfiedPings - 1
-		})),
+		acceptPing: assign(({ context, self }) => {
+			const { dissatisfiedPings } = context
+			if (dissatisfiedPings === 2) self.send({ type: 'socket has stabilised' })
+			return {
+				dissatisfiedPings: dissatisfiedPings - 1
+			}
+		}),
 		clearPingInterval: assign(({ context }) => {
 			if (context.socketInterval) clearInterval(context.socketInterval)
 			return {
