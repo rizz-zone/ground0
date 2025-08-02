@@ -15,6 +15,7 @@ export const clientMachine = setup({
 			socketInterval?: ReturnType<typeof setInterval>
 			dbName?: string
 			version?: string
+			dissatisfiedPings: number
 		},
 		events: {} as
 			| { type: 'init'; wsUrl: string; dbName: string }
@@ -24,6 +25,9 @@ export const clientMachine = setup({
 			| { type: 'db cannot connect' }
 			| { type: 'leader lock acquired' }
 			| { type: 'socket ping time' }
+			| { type: 'ping received' }
+			| { type: 'socket has destabilised' }
+			| { type: 'socket has stabilised' }
 	},
 	actions: {
 		establishSocket: assign(({ context, self }) => {
@@ -31,6 +35,15 @@ export const clientMachine = setup({
 			const socket = new WebSocket(context.wsUrl)
 			socket.onopen = () => {
 				self.send({ type: 'ws connected' })
+			}
+			socket.onmessage = (event) => {
+				if (
+					context.socket !== socket ||
+					socket.readyState !== WebSocket.OPEN ||
+					typeof event.data !== 'string'
+				)
+					return
+				if (event.data === '!') self.send({ type: 'ping received' })
 			}
 			return { socket }
 		}),
@@ -67,18 +80,55 @@ export const clientMachine = setup({
 				socketInterval: setInterval(
 					() => self.send({ type: 'socket ping time' }),
 					(5 * 1000) / 3
-				)
+				),
+				dissatisfiedPings: 0
+			}
+		}),
+		acceptPing: assign(({ context }) => ({
+			dissatisfiedPings: context.dissatisfiedPings - 1
+		})),
+		clearPingInterval: assign(({ context }) => {
+			if (context.socketInterval) clearInterval(context.socketInterval)
+			return {
+				socketInterval: undefined
+			}
+		}),
+		handlePingInterval: assign(({ context, self }) => {
+			// Neither of these things should ever happen, but who knows?
+			if (
+				!context.socketInterval ||
+				context.socket?.readyState !== WebSocket.OPEN
+			)
+				return {}
+
+			if (context.dissatisfiedPings === 3) {
+				// It's been ~5 seconds with no ping responses, so we can
+				// consider the socket dead.
+				self.send({ type: 'ws connection issue' })
+				return {}
+			}
+			if (context.dissatisfiedPings === 1)
+				self.send({ type: 'socket has destabilised' })
+
+			// The ping message is `?`
+			context.socket.send('?')
+
+			return {
+				dissatisfiedPings: context.dissatisfiedPings + 1
 			}
 		})
 	}
 }).createMachine({
 	type: 'parallel',
+	context: {
+		dissatisfiedPings: 0
+	},
 	states: {
 		websocket: {
 			initial: 'disconnected',
 			states: {
 				disconnected: {
-					entry: 'establishSocket',
+					entry: ['clearPingInterval', 'establishSocket'],
 					on: {
 						init: {
 							actions: ['initWsUrl', 'establishSocket']
@@ -93,6 +143,29 @@ export const clientMachine = setup({
 					on: {
 						'ws connection issue': {
 							target: 'disconnected'
+						},
+						'socket ping time': {
+							actions: ['handlePingInterval']
+						},
+						'ping received': {
+							actions: ['acceptPing']
+						}
+					},
+					initial: 'stable',
+					states: {
+						stable: {
+							on: {
+								'socket has destabilised': {
+									target: 'unstable'
+								}
+							}
+						},
+						unstable: {
+							on: {
+								'socket has stabilised': {
+									target: 'stable'
+								}
+							}
 						}
 					}
 				}
