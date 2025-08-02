@@ -1,7 +1,12 @@
 import {
 	InternalStateError,
+	isDownstreamWsMessage,
 	UpstreamWsMessageAction,
 	WORKER_MACHINE_RUNNING_WITHOUT_PROPER_INIT,
+	type DownstreamWsMessage,
+	type LocalHandlers,
+	type SyncEngineDefinition,
+	type Transition,
 	type UpstreamWsMessage
 } from '@ground0/shared'
 import SuperJSON from 'superjson'
@@ -14,11 +19,18 @@ export const clientMachine = setup({
 			wsUrl?: string
 			socketInterval?: ReturnType<typeof setInterval>
 			dbName?: string
-			version?: string
+			engineDef?: SyncEngineDefinition<Transition>
 			dissatisfiedPings: number
+			localHandlers?: LocalHandlers<Transition>
 		},
 		events: {} as
-			| { type: 'init'; wsUrl: string; dbName: string }
+			| {
+					type: 'init'
+					wsUrl: string
+					dbName: string
+					engineDef: SyncEngineDefinition<Transition>
+					localHandlers: LocalHandlers<Transition>
+			  }
 			| { type: 'ws connected' }
 			| { type: 'ws connection issue' }
 			| { type: 'db connected' }
@@ -28,6 +40,8 @@ export const clientMachine = setup({
 			| { type: 'ping received' }
 			| { type: 'socket has destabilised' }
 			| { type: 'socket has stabilised' }
+			| { type: 'transition'; transition: Transition }
+			| { type: 'incoming ws message'; payload: DownstreamWsMessage }
 	},
 	actions: {
 		establishSocket: assign(({ context, self }) => {
@@ -43,9 +57,33 @@ export const clientMachine = setup({
 					typeof event.data !== 'string'
 				)
 					return
-				if (event.data === '!') self.send({ type: 'ping received' })
+				// The pong message is `!`
+				if (event.data === '!') return self.send({ type: 'ping received' })
+
+				// Attempt to decode as a downstream message
+				let decoded
+				try {
+					decoded = SuperJSON.parse(event.data)
+				} catch {
+					console.error("well that's bad") // TODO: Handle this situation Correctly
+					return
+				}
+				if (!isDownstreamWsMessage(decoded)) {
+					console.error("well that's also bad") // TODO: Also handle this situation Correctly
+					return
+				}
 			}
 			return { socket }
+		}),
+		handleWsMessage: assign(({ event, context }) => {
+			if (
+				event.type !== 'incoming ws message' ||
+				!context.socket ||
+				context.socket?.readyState == WebSocket.OPEN
+			)
+				return {}
+			// TODO: do d'handling
+			return {}
 		}),
 		establishDb: assign(() => ({})),
 		initWsUrl: assign(({ event }) => {
@@ -54,7 +92,15 @@ export const clientMachine = setup({
 		}),
 		initDbName: assign(({ event }) => {
 			if (event.type !== 'init') /* v8 ignore next */ return {}
-			return { dbName: `${event.dbName}.sqlite` }
+			return { dbName: event.dbName }
+		}),
+		initEngineDef: assign(({ event }) => {
+			if (event.type !== 'init') /* v8 ignore next */ return {}
+			return { engineDef: event.engineDef }
+		}),
+		initLocalHandlers: assign(({ event }) => {
+			if (event.type !== 'init') /* v8 ignore next */ return {}
+			return { localHandlers: event.localHandlers }
 		}),
 		requestLock: ({ self }) =>
 			navigator.locks.request(
@@ -62,14 +108,14 @@ export const clientMachine = setup({
 				() => new Promise(() => self.send({ type: 'leader lock acquired' }))
 			),
 		wsInitMessage: ({ context }) => {
-			const { socket, version } = context
-			if (!version)
+			const { socket, engineDef } = context
+			if (!engineDef)
 				throw new InternalStateError(WORKER_MACHINE_RUNNING_WITHOUT_PROPER_INIT)
 			if (!socket || socket.readyState !== WebSocket.OPEN) return
 			socket.send(
 				SuperJSON.stringify({
 					action: UpstreamWsMessageAction.Init,
-					version
+					version: engineDef.version.current
 				} satisfies UpstreamWsMessage)
 			)
 		},
@@ -153,6 +199,9 @@ export const clientMachine = setup({
 						},
 						'ping received': {
 							actions: ['acceptPing']
+						},
+						'incoming ws message': {
+							actions: ['handleWsMessage']
 						}
 					},
 					initial: 'stable',
