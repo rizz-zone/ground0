@@ -7,7 +7,7 @@ import {
 	string,
 	union,
 	type z,
-	positive
+	gte
 } from 'zod/mini'
 import { UpstreamWsMessageAction } from './UpstreamWsMessageAction'
 import semverValid from 'semver/functions/valid'
@@ -22,7 +22,7 @@ export const UpstreamWsMessageSchema = discriminatedUnion('action', [
 	}),
 	object({
 		action: literal(UpstreamWsMessageAction.Transition),
-		id: int().check(positive()),
+		id: int().check(gte(0)),
 		data: extend(TransitionZodSchema, {
 			impact: union([literal(TransitionImpact.OptimisticPush)])
 		})

@@ -17,10 +17,28 @@ describe('valid messages', () => {
 		expect(UpstreamWsMessageSchema.safeParse(initMessage).success).toBe(true)
 	})
 	describe('transition', () => {
+		test('when id =0', () => {
+			const initMessage: UpstreamWsMessage = {
+				action: UpstreamWsMessageAction.Transition,
+				id: 0,
+				data: {
+					action: 'some string action',
+					impact: TransitionImpact.OptimisticPush,
+					data: {
+						foo: '35',
+						bar: 35,
+						baz: new Date(35)
+					}
+				}
+			}
+			expect(isUpstreamWsMessage(initMessage)).toBe(true)
+			expect(UpstreamWsMessageSchema.safeParse(initMessage).success).toBe(true)
+		})
 		describe('with string action', () => {
 			test('with data', () => {
 				const initMessage: UpstreamWsMessage = {
 					action: UpstreamWsMessageAction.Transition,
+					id: 25,
 					data: {
 						action: 'some string action',
 						impact: TransitionImpact.OptimisticPush,
@@ -39,6 +57,7 @@ describe('valid messages', () => {
 			test('without data', () => {
 				const initMessage: UpstreamWsMessage = {
 					action: UpstreamWsMessageAction.Transition,
+					id: 25,
 					data: {
 						action: 'some string action',
 						impact: TransitionImpact.OptimisticPush
@@ -54,6 +73,7 @@ describe('valid messages', () => {
 			test('with data', () => {
 				const initMessage: UpstreamWsMessage = {
 					action: UpstreamWsMessageAction.Transition,
+					id: 25,
 					data: {
 						action: 19,
 						impact: TransitionImpact.OptimisticPush,
@@ -72,6 +92,7 @@ describe('valid messages', () => {
 			test('without data', () => {
 				const initMessage: UpstreamWsMessage = {
 					action: UpstreamWsMessageAction.Transition,
+					id: 25,
 					data: {
 						action: 19,
 						impact: TransitionImpact.OptimisticPush
@@ -126,6 +147,7 @@ describe('invalid messages', () => {
 		test('non-integer number action', () => {
 			const initMessage: UpstreamWsMessage = {
 				action: UpstreamWsMessageAction.Transition,
+				id: 25,
 				data: {
 					action: 19.3,
 					impact: TransitionImpact.OptimisticPush
@@ -137,6 +159,7 @@ describe('invalid messages', () => {
 		test('irrelevant transition', () => {
 			const initMessage = {
 				action: UpstreamWsMessageAction.Transition,
+				id: 25,
 				data: {
 					action: 19,
 					impact: TransitionImpact.LocalOnly
@@ -148,6 +171,7 @@ describe('invalid messages', () => {
 		test('nonexistent transition impact', () => {
 			const initMessage = {
 				action: UpstreamWsMessageAction.Transition,
+				id: 25,
 				data: {
 					action: 19,
 					impact: Number.MAX_SAFE_INTEGER
@@ -155,6 +179,36 @@ describe('invalid messages', () => {
 			}
 			expect(isUpstreamWsMessage(initMessage)).toBe(false)
 			expect(UpstreamWsMessageSchema.safeParse(initMessage).success).toBe(false)
+		})
+		describe('id issues', () => {
+			test('non-integer', () => {
+				const initMessage: UpstreamWsMessage = {
+					action: UpstreamWsMessageAction.Transition,
+					id: 25.3,
+					data: {
+						action: 19,
+						impact: Number.MAX_SAFE_INTEGER
+					}
+				}
+				expect(isUpstreamWsMessage(initMessage)).toBe(false)
+				expect(UpstreamWsMessageSchema.safeParse(initMessage).success).toBe(
+					false
+				)
+			})
+			test('negative', () => {
+				const initMessage = {
+					action: UpstreamWsMessageAction.Transition,
+					id: -1,
+					data: {
+						action: 19,
+						impact: Number.MAX_SAFE_INTEGER
+					}
+				}
+				expect(isUpstreamWsMessage(initMessage)).toBe(false)
+				expect(UpstreamWsMessageSchema.safeParse(initMessage).success).toBe(
+					false
+				)
+			})
 		})
 	})
 })

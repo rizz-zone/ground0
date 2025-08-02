@@ -11,7 +11,7 @@ describe('valid messages', () => {
 		test('resolve', () => {
 			const message: DownstreamWsMessage = {
 				action: DownstreamWsMessageAction.OptimisticResolve,
-				id: 25
+				id: 0
 			}
 			expect(isDownstreamWsMessage(message)).toBe(true)
 			expect(DownstreamWsMessageSchema.safeParse(message).success).toBe(true)
@@ -19,7 +19,7 @@ describe('valid messages', () => {
 		test('cancel', () => {
 			const message: DownstreamWsMessage = {
 				action: DownstreamWsMessageAction.OptimisticCancel,
-				id: 25
+				id: 0
 			}
 			expect(isDownstreamWsMessage(message)).toBe(true)
 			expect(DownstreamWsMessageSchema.safeParse(message).success).toBe(true)
@@ -34,16 +34,16 @@ describe('invalid messages', () => {
 					action: DownstreamWsMessageAction.OptimisticResolve,
 					id: 25.2
 				}
-				expect(isDownstreamWsMessage(message)).toBe(true)
-				expect(DownstreamWsMessageSchema.safeParse(message).success).toBe(true)
+				expect(isDownstreamWsMessage(message)).toBe(false)
+				expect(DownstreamWsMessageSchema.safeParse(message).success).toBe(false)
 			})
 			test('with negative number', () => {
 				const message: DownstreamWsMessage = {
 					action: DownstreamWsMessageAction.OptimisticResolve,
 					id: -1
 				}
-				expect(isDownstreamWsMessage(message)).toBe(true)
-				expect(DownstreamWsMessageSchema.safeParse(message).success).toBe(true)
+				expect(isDownstreamWsMessage(message)).toBe(false)
+				expect(DownstreamWsMessageSchema.safeParse(message).success).toBe(false)
 			})
 		})
 		describe('cancel', () => {
@@ -52,16 +52,16 @@ describe('invalid messages', () => {
 					action: DownstreamWsMessageAction.OptimisticCancel,
 					id: 25.2
 				}
-				expect(isDownstreamWsMessage(message)).toBe(true)
-				expect(DownstreamWsMessageSchema.safeParse(message).success).toBe(true)
+				expect(isDownstreamWsMessage(message)).toBe(false)
+				expect(DownstreamWsMessageSchema.safeParse(message).success).toBe(false)
 			})
 			test('with negative number', () => {
 				const message: DownstreamWsMessage = {
 					action: DownstreamWsMessageAction.OptimisticCancel,
 					id: -1
 				}
-				expect(isDownstreamWsMessage(message)).toBe(true)
-				expect(DownstreamWsMessageSchema.safeParse(message).success).toBe(true)
+				expect(isDownstreamWsMessage(message)).toBe(false)
+				expect(DownstreamWsMessageSchema.safeParse(message).success).toBe(false)
 			})
 		})
 	})
