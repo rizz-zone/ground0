@@ -40,6 +40,8 @@ export abstract class TransitionRunner<Impact extends TransitionImpact> {
 		)
 			this.onWsConnected()
 	}
+	// TODO: method to tell the machine we're done
+	protected markComplete() {}
 
 	protected readonly id: number
 	protected readonly transitionObj: Transition
