@@ -2,6 +2,7 @@ import {
 	DownstreamWsMessageAction,
 	InternalStateError,
 	isDownstreamWsMessage,
+	TransitionImpact,
 	UpstreamWsMessageAction,
 	WORKER_MACHINE_RUNNING_WITHOUT_PROPER_INIT,
 	type DownstreamWsMessage,
@@ -182,6 +183,10 @@ export const clientMachine = setup({
 		}),
 		screenTransition: ({ event, self }) => {
 			if (event.type !== 'transition') return
+			switch (event.transition.impact) {
+				case TransitionImpact.LocalOnly:
+					return
+			}
 		}
 	}
 }).createMachine({
