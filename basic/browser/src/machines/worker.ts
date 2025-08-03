@@ -1,4 +1,5 @@
 import {
+	DownstreamWsMessageAction,
 	InternalStateError,
 	isDownstreamWsMessage,
 	UpstreamWsMessageAction,
@@ -72,6 +73,9 @@ export const clientMachine = setup({
 					console.error("well that's also bad") // TODO: Also handle this situation Correctly
 					return
 				}
+
+				// Handle it!
+				self.send({ type: 'incoming ws message', payload: decoded })
 			}
 			return { socket }
 		}),
@@ -82,8 +86,17 @@ export const clientMachine = setup({
 				context.socket?.readyState == WebSocket.OPEN
 			)
 				return {}
-			// TODO: do d'handling
-			return {}
+
+			const { payload } = event
+			switch (payload.action) {
+				case DownstreamWsMessageAction.OptimisticResolve:
+				case DownstreamWsMessageAction.OptimisticCancel:
+					console.error('not implemented') // TODO: implement this when optimistic transitions get registered
+					return {}
+				default:
+					console.warn('No matched case') // TODO: Proper message
+					return {}
+			}
 		}),
 		establishDb: assign(() => ({})),
 		initWsUrl: assign(({ event }) => {
@@ -166,12 +179,20 @@ export const clientMachine = setup({
 			return {
 				dissatisfiedPings: context.dissatisfiedPings + 1
 			}
-		})
+		}),
+		screenTransition: ({ event, self }) => {
+			if (event.type !== 'transition') return
+		}
 	}
 }).createMachine({
 	type: 'parallel',
 	context: {
 		dissatisfiedPings: 0
+	},
+	on: {
+		transition: {
+			actions: ['screenTransition']
+		}
 	},
 	states: {
 		websocket: {
