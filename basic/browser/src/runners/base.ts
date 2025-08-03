@@ -1,5 +1,7 @@
 import type { LocalDatabase } from '@/types/LocalDatabase'
+import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import type { ResourceStatus } from '@/types/status/ResourceStatus'
+import { WsResourceStatus } from '@/types/status/WsResourceStatus'
 import type { Transition, TransitionImpact } from '@ground0/shared'
 
 type SomeResources = Partial<{
@@ -12,28 +14,48 @@ export abstract class TransitionRunner<Impact extends TransitionImpact> {
 	protected db?: LocalDatabase
 	protected resourceStatus: ResourceStatus
 
-	public abstract onSomeResourceConnection(
-		newStatus: ResourceStatus,
-		changed: 'ws' | 'db'
-	): unknown
-	public syncResources(changed: SomeResources) {
+	public abstract init(): unknown
+	public abstract onDbConnected(): unknown
+	public abstract onDbConfirmedNeverConnecting(): unknown
+	public abstract onWsConnected(): unknown
+
+	public syncResources(changed: SomeResources, newStatus: ResourceStatus) {
+		const beforeStatus = { ...this.resourceStatus }
 		if (changed.ws) this.ws = changed.ws
 		if (changed.db) this.db = changed.db
+
+		if (
+			beforeStatus.db === DbResourceStatus.Disconnected &&
+			newStatus.db === DbResourceStatus.ConnectedAndMigrated
+		)
+			this.onDbConnected()
+		if (
+			beforeStatus.db === DbResourceStatus.Disconnected &&
+			newStatus.db === DbResourceStatus.NeverConnecting
+		)
+			this.onDbConfirmedNeverConnecting()
+		if (
+			beforeStatus.ws === WsResourceStatus.Disconnected &&
+			newStatus.db === DbResourceStatus.ConnectedAndMigrated
+		)
+			this.onWsConnected()
 	}
+
 	protected readonly id: number
-	protected constructor(
-		internallyNecessary: {
-			initialResources: SomeResources
-			resourceStatus: ResourceStatus
-			id: number
-		},
-		_: Transition & { impact: Impact }
-	) {
-		this.resourceStatus = internallyNecessary.resourceStatus
-		this.id = internallyNecessary.id
-		if (internallyNecessary.initialResources.ws)
-			this.ws = internallyNecessary.initialResources.ws
-		if (internallyNecessary.initialResources.db)
-			this.db = internallyNecessary.initialResources.db
+	protected readonly transitionObj: Transition
+
+	public constructor(ingredients: {
+		initialResources: SomeResources
+		resourceStatus: ResourceStatus
+		id: number
+		transition: Transition & { impact: Impact }
+	}) {
+		this.resourceStatus = ingredients.resourceStatus
+		this.transitionObj = ingredients.transition
+		this.id = ingredients.id
+		if (ingredients.initialResources.ws)
+			this.ws = ingredients.initialResources.ws
+		if (ingredients.initialResources.db)
+			this.db = ingredients.initialResources.db
 	}
 }
