@@ -28,8 +28,9 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
+    "@ground0/shared": "workspace:*",
+    "drizzle-orm": "^0.44.4",
     "superjson": "^2.2.2",
-    "xstate": "^5.20.1",
-    "@ground0/shared": "workspace:*"
+    "xstate": "^5.20.1"
   }
 }

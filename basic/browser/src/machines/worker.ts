@@ -24,6 +24,7 @@ export const clientMachine = setup({
 			engineDef?: SyncEngineDefinition<Transition>
 			dissatisfiedPings: number
 			localHandlers?: LocalHandlers<Transition>
+			nextTransitionId: number
 		},
 		events: {} as
 			| {
@@ -181,18 +182,23 @@ export const clientMachine = setup({
 				dissatisfiedPings: context.dissatisfiedPings + 1
 			}
 		}),
-		screenTransition: ({ event, self }) => {
-			if (event.type !== 'transition') return
+		screenTransition: assign(({ event, self, context }) => {
+			if (event.type !== 'transition') return {}
 			switch (event.transition.impact) {
 				case TransitionImpact.LocalOnly:
-					return
+					break
 			}
-		}
+
+			return {
+				nextTransitionId: context.nextTransitionId + 1
+			}
+		})
 	}
 }).createMachine({
 	type: 'parallel',
 	context: {
-		dissatisfiedPings: 0
+		dissatisfiedPings: 0,
+		nextTransitionId: 0
 	},
 	on: {
 		transition: {
