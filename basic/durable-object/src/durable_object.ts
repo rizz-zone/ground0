@@ -127,7 +127,7 @@ export abstract class SyncEngineBackend<
 		if (!client || !server) return new Response(null, { status: 500 })
 
 		// Accept the server one
-		this.ctx.acceptWebSocket(server)
+		this.ctx.acceptWebSocket(server, [crypto.randomUUID()])
 
 		return new Response(null, {
 			status: 101,
