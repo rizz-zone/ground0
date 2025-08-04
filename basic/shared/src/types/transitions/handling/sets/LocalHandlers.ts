@@ -27,7 +27,7 @@ export type LocalHandlers<T extends Transition> = {
 					| {
 							editMemoryModel: GeneralHandlingFunction<T>
 							revertMemoryModel: GeneralHandlingFunction<T>
-							ditDb: GeneralHandlingFunction<T>
+							editDb: GeneralHandlingFunction<T>
 							revertDb: GeneralHandlingFunction<T>
 					  }
 			: never
