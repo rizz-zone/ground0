@@ -9,7 +9,8 @@ import {
 	type BackendHandlers,
 	TransitionImpact,
 	type DownstreamWsMessage,
-	DownstreamWsMessageAction
+	DownstreamWsMessageAction,
+	type UUID
 } from '@ground0/shared'
 import SuperJSON from 'superjson'
 import semverMajor from 'semver/functions/major'
@@ -75,6 +76,7 @@ export abstract class SyncEngineBackend<
 	protected checkFetch?: (request: Request) => Response | undefined
 
 	protected db: DrizzleSqliteDODatabase<Record<string, unknown>>
+	private initialisedSockets: UUID[] = []
 
 	constructor(ctx: DurableObjectState, env: object) {
 		super(ctx, env)
@@ -99,6 +101,10 @@ export abstract class SyncEngineBackend<
 				CREATE TABLE IF NOT EXISTS ${sql.identifier('__ground0_connections')} (
 				  id STRING PRIMARY KEY NOT NULL
 				)`)
+			const h = await this.db.run(sql`
+				SELECT * FROM ${sql.identifier('__ground0_connections')}
+			`)
+			console.log(h)
 		})
 	}
 
@@ -167,6 +173,10 @@ export abstract class SyncEngineBackend<
 							semverMinor(decoded.version))
 				)
 					return ws.close(WsCloseCode.Incompatible)
+
+				// Allow traffic to start going to the socket if it's not
+				// allowed already. If it is allowed already, close it.
+
 				break
 			}
 			case UpstreamWsMessageAction.Transition: {
