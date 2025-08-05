@@ -22,10 +22,15 @@ import {
 import { migrate } from 'drizzle-orm/durable-sqlite/migrator'
 import type { StandardSchemaV1 } from '@standard-schema/spec'
 import { sql } from 'drizzle-orm'
+import { sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
 function send(ws: WebSocket, json: DownstreamWsMessage) {
 	if (ws.readyState === WebSocket.OPEN) ws.send(SuperJSON.stringify(json))
 }
+
+const connectionsTable = sqliteTable('__ground0_connections', {
+	id: text().primaryKey().notNull()
+})
 
 export abstract class SyncEngineBackend<
 	T extends Transition
@@ -101,10 +106,12 @@ export abstract class SyncEngineBackend<
 				CREATE TABLE IF NOT EXISTS ${sql.identifier('__ground0_connections')} (
 				  id STRING PRIMARY KEY NOT NULL
 				)`)
-			const h = await this.db.run(sql`
-				SELECT * FROM ${sql.identifier('__ground0_connections')}
-			`)
-			console.log(h)
+			;(await this.db.select().from(connectionsTable).values()).forEach(
+				(entry) => {
+					if (!entry[0] || typeof entry[0] !== 'string') return
+					this.initialisedSockets.push(entry[0] as UUID)
+				}
+			)
 		})
 	}
 
@@ -176,6 +183,10 @@ export abstract class SyncEngineBackend<
 
 				// Allow traffic to start going to the socket if it's not
 				// allowed already. If it is allowed already, close it.
+				const id = this.ctx.getTags(ws)[0]
+				if (!id) return ws.close(WsCloseCode.NoTagsApplied)
+				await this.db.insert(connectionsTable).values({ id }).run()
+				this.initialisedSockets.push(id as UUID)
 
 				break
 			}
