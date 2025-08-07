@@ -1,11 +1,25 @@
-import type { LocalDatabase } from '@/types/LocalDatabase'
 import type { SomeActorRef } from '@/types/SomeActorRef'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import type { ResourceStatus } from '@/types/status/ResourceStatus'
 import { WsResourceStatus } from '@/types/status/WsResourceStatus'
-import type { Transition, TransitionImpact } from '@ground0/shared'
+import type {
+	LocalHandlers,
+	Transition,
+	TransitionImpact,
+	LocalDatabase
+} from '@ground0/shared'
 import type { EventObject } from 'xstate'
 
+export type Ingredients<Impact extends TransitionImpact> = {
+	initialResources: SomeResources
+	resourceStatus: ResourceStatus
+	id: number
+	transition: Transition & { impact: Impact }
+	actorRef: SomeActorRef
+	localHandler: LocalHandlers<
+		Transition & { impact: Impact }
+	>[keyof LocalHandlers<Transition & { impact: Impact }>]
+}
 type SomeResources = Partial<{
 	ws: WebSocket
 	db: LocalDatabase
@@ -16,7 +30,6 @@ export abstract class TransitionRunner<Impact extends TransitionImpact> {
 	protected db?: LocalDatabase
 	protected resourceStatus: ResourceStatus
 
-	public abstract init(): unknown
 	public abstract onDbConnected(): unknown
 	public abstract onDbConfirmedNeverConnecting(): unknown
 	public abstract onWsConnected(): unknown
@@ -52,14 +65,10 @@ export abstract class TransitionRunner<Impact extends TransitionImpact> {
 	protected readonly id: number
 	protected readonly transitionObj: Transition
 	private readonly actorRef: SomeActorRef
+	protected readonly localHandler: Ingredients<Impact>['localHandler']
 
-	public constructor(ingredients: {
-		initialResources: SomeResources
-		resourceStatus: ResourceStatus
-		id: number
-		transition: Transition & { impact: Impact }
-		actorRef: SomeActorRef
-	}) {
+	protected constructor(ingredients: Ingredients<Impact>) {
+		this.localHandler = ingredients.localHandler
 		this.actorRef = ingredients.actorRef
 		this.resourceStatus = ingredients.resourceStatus
 		this.transitionObj = ingredients.transition

@@ -13,7 +13,8 @@
     "@cloudflare/workers-types": "^4.20250801.0",
     "@types/semver": "^7.7.0",
     "arktype": "^2.1.20",
-    "drizzle-kit": "^0.31.4"
+    "drizzle-kit": "^0.31.4",
+    "drizzle-orm": "^0.44.4"
   },
   "scripts": {
     "test": "vitest run --coverage",
