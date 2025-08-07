@@ -33,7 +33,7 @@ const resetListener = () => {
 	ctx.onconnect = undefined
 }
 
-const consoleErrorMock = vi.spyOn(console, 'error')
+const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {})
 const setTimeoutMock = vi.spyOn(globalThis, 'setTimeout')
 const clearTimeoutMock = vi.spyOn(globalThis, 'clearTimeout')
 beforeEach(vi.clearAllMocks)
