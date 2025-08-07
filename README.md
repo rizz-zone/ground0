@@ -8,4 +8,4 @@
 >
 > You can watch this repository to be notified when the first beta release is available.
 
-An opinionated programmable sync layer for ground0 reactive UI applications using Durable Objects as a backend.
+An opinionated programmable sync layer for local-first reactive UI applications using Durable Objects as a backend.
