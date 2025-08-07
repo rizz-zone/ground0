@@ -1,8 +1,10 @@
 import type { LocalDatabase } from '@/types/LocalDatabase'
+import type { SomeActorRef } from '@/types/SomeActorRef'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import type { ResourceStatus } from '@/types/status/ResourceStatus'
 import { WsResourceStatus } from '@/types/status/WsResourceStatus'
 import type { Transition, TransitionImpact } from '@ground0/shared'
+import type { EventObject } from 'xstate'
 
 type SomeResources = Partial<{
 	ws: WebSocket
@@ -40,18 +42,25 @@ export abstract class TransitionRunner<Impact extends TransitionImpact> {
 		)
 			this.onWsConnected()
 	}
-	// TODO: method to tell the machine we're done
-	protected markComplete() {}
+	protected markComplete() {
+		this.actorRef.send({
+			type: 'transition complete',
+			id: this.id
+		} as unknown as EventObject)
+	}
 
 	protected readonly id: number
 	protected readonly transitionObj: Transition
+	private readonly actorRef: SomeActorRef
 
 	public constructor(ingredients: {
 		initialResources: SomeResources
 		resourceStatus: ResourceStatus
 		id: number
 		transition: Transition & { impact: Impact }
+		actorRef: SomeActorRef
 	}) {
+		this.actorRef = ingredients.actorRef
 		this.resourceStatus = ingredients.resourceStatus
 		this.transitionObj = ingredients.transition
 		this.id = ingredients.id
