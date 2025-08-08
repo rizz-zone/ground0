@@ -36,6 +36,7 @@ export abstract class TransitionRunner<Impact extends TransitionImpact> {
 
 	public syncResources(changed: SomeResources, newStatus: ResourceStatus) {
 		const beforeStatus = { ...this.resourceStatus }
+		this.resourceStatus = newStatus
 		if (changed.ws) this.ws = changed.ws
 		if (changed.db) this.db = changed.db
 
@@ -51,7 +52,7 @@ export abstract class TransitionRunner<Impact extends TransitionImpact> {
 			this.onDbConfirmedNeverConnecting()
 		if (
 			beforeStatus.ws === WsResourceStatus.Disconnected &&
-			newStatus.db === DbResourceStatus.ConnectedAndMigrated
+			newStatus.ws === WsResourceStatus.Connected
 		)
 			this.onWsConnected()
 	}
