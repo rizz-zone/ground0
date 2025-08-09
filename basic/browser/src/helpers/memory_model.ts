@@ -26,5 +26,5 @@ export function createMemoryModel<Schema extends object>(
 	initial: Schema,
 	_announceTransformation: unknown
 ) {
-	return newReactiveProxy(initial, [])
+	return newReactiveProxy(initial, []) as Schema
 }
