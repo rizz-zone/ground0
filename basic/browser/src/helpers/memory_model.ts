@@ -19,7 +19,8 @@ function newReactiveProxy<Schema extends object>(
 			// TODO: Complete this
 			return false
 		}
-	})
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	} as ProxyHandler<Record<PropertyKey, any>>)
 }
 export function createMemoryModel<Schema extends object>(
 	initial: Schema,
