@@ -7,6 +7,10 @@ function newReactiveProxy<Schema extends object>(
 			// TODO: Complete this
 		},
 		set(target, prop, newValue) {
+			if (typeof prop === 'object') {
+				target[prop] = newReactiveProxy(prop, path) // TODO: fix path
+				return false
+			}
 			target[prop] = newValue
 			// TODO: Announce the transformation
 			return false
