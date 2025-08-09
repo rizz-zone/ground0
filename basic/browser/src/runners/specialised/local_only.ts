@@ -10,7 +10,6 @@ export class LocalOnlyTransitionRunner extends TransitionRunner<TransitionImpact
 
 		if (this.resourceStatus.db === DbResourceStatus.ConnectedAndMigrated)
 			this.onDbConnected()
-		// TODO: always do memory model here
 	}
 	public override onDbConnected(): void {
 		if (!this.db || !('editDb' in this.localHandler)) return
@@ -20,6 +19,7 @@ export class LocalOnlyTransitionRunner extends TransitionRunner<TransitionImpact
 		})
 		if (response instanceof Promise)
 			response.then(this.closeIfPossible.bind(this))
+		else this.closeIfPossible()
 	}
 	public override onDbConfirmedNeverConnecting(): void {
 		this.closeIfPossible()
