@@ -1,15 +1,32 @@
+type TransformationBroadcastFunction = (transformation: object) => unknown
+
 function newReactiveProxy<Schema extends object>(
 	initial: Schema,
-	path: PropertyKey[]
+	path: PropertyKey[],
+	announceTransformation: TransformationBroadcastFunction
 ) {
+	// TODO: Run through initial and recursively turn any contained object values into more proxies
 	return new Proxy(initial, {
-		get(_target, _prop, _receiver) {
-			// TODO: Complete this
+		get(target, prop, _receiver) {
+			const item = target[prop]
+			if (typeof item === 'function')
+				return (...props: unknown[]) => {
+					item(...props)
+					// TODO: Check if this proxy's target is recursively equal to
+					// the original. If not, re-announce ourselves
+				}
 		},
 		set(target, prop, newValue) {
-			if (typeof prop === 'object') {
-				target[prop] = newReactiveProxy(prop, path) // TODO: fix path
-				return false
+			if (typeof newValue === 'object') {
+				const newPath = [...path]
+				newPath.push(prop)
+				target[prop] = newReactiveProxy(
+					newValue,
+					newPath,
+					announceTransformation
+				)
+				// TODO: Announce
+				return true
 			}
 			target[prop] = newValue
 			// TODO: Announce the transformation
@@ -28,7 +45,7 @@ function newReactiveProxy<Schema extends object>(
 }
 export function createMemoryModel<Schema extends object>(
 	initial: Schema,
-	_announceTransformation: unknown
+	announceTransformation: TransformationBroadcastFunction
 ) {
-	return newReactiveProxy(initial, []) as Schema
+	return newReactiveProxy(initial, [], announceTransformation) as Schema
 }
