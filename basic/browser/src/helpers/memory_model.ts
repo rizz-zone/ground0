@@ -1,14 +1,34 @@
 type TransformationBroadcastFunction = (transformation: object) => unknown
+type RecursionLimitingMap = WeakMap<object, object>
 
-function newReactiveProxy<Schema extends object>(
-	initial: Schema,
-	path: PropertyKey[],
+function newReactiveProxy<Schema extends object>({
+	initial,
+	path,
+	recursionLimitingMap,
+	announceTransformation
+}: {
+	initial: Schema
+	path: PropertyKey[]
+	recursionLimitingMap: RecursionLimitingMap
 	announceTransformation: TransformationBroadcastFunction
-) {
-	// TODO: Run through initial and recursively turn any contained object values into more proxies
-	return new Proxy(initial, {
-		get(target, prop, _receiver) {
-			const item = target[prop]
+}) {
+	{
+		// These lines are necessary because if there is an unusual chain of
+		// references present in `initial`, it would otherwise cause an
+		// infinite recursive loop. Nobody should really be doing that anyway,
+		// but accidents do happen.
+		const potentialProxyToEarlyReturn = recursionLimitingMap.get(initial)
+		if (typeof potentialProxyToEarlyReturn !== 'undefined') {
+			console.warn(
+				'A circular reference has been made inside of your memory model! ground0 can handle this, but it is generally preferable for your memory model to have a simple tree structure. https://ground0.rizz.zone/circular-refs'
+			)
+			return potentialProxyToEarlyReturn
+		}
+	}
+
+	const proxy = new Proxy(initial, {
+		get(target, prop, receiver) {
+			const item = Reflect.get(target, prop, receiver)
 			if (typeof item === 'function')
 				return (...props: unknown[]) => {
 					item(...props)
@@ -16,19 +36,25 @@ function newReactiveProxy<Schema extends object>(
 					// the original. If not, re-announce ourselves
 				}
 		},
-		set(target, prop, newValue) {
+		set(target, prop, newValue, receiver) {
 			if (typeof newValue === 'object') {
 				const newPath = [...path]
 				newPath.push(prop)
-				target[prop] = newReactiveProxy(
-					newValue,
-					newPath,
-					announceTransformation
+				Reflect.set(
+					target,
+					prop,
+					newReactiveProxy({
+						initial: newValue,
+						path: newPath,
+						recursionLimitingMap,
+						announceTransformation
+					}),
+					receiver
 				)
 				// TODO: Announce
 				return true
 			}
-			target[prop] = newValue
+			Reflect.set(target, prop, newValue, receiver)
 			// TODO: Announce the transformation
 			return false
 		},
@@ -42,10 +68,26 @@ function newReactiveProxy<Schema extends object>(
 		}
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	} as ProxyHandler<Record<PropertyKey, any>>)
+
+	// Ensure this item is mapped so that an infinite loop cannot happen
+	recursionLimitingMap.set(initial, proxy)
+
+	// TODO: Run through initial and recursively turn any contained object
+	// values into more proxies
+
+	return proxy
 }
 export function createMemoryModel<Schema extends object>(
 	initial: Schema,
 	announceTransformation: TransformationBroadcastFunction
 ) {
-	return newReactiveProxy(initial, [], announceTransformation) as Schema
+	// The `recurisonLimitingMap` doesn't help in most normal situations, but
+	// if an outer object contains itself, it prevents an infinite loop.
+	const recursionLimitingMap: RecursionLimitingMap = new WeakMap()
+	return newReactiveProxy({
+		initial,
+		path: [],
+		recursionLimitingMap,
+		announceTransformation
+	}) as Schema
 }
