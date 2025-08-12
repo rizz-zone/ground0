@@ -1,4 +1,5 @@
 import type { Transformation } from '@/types/memory_model/Tranformation'
+import { TransformationAction } from '@/types/memory_model/TransformationAction'
 
 type TransformationBroadcastFunction = (
 	transformation: Transformation
@@ -31,7 +32,9 @@ function newReactiveProxy<Schema extends object>({
 	}
 
 	const proxy = new Proxy(initial, {
-		set(target, prop, newValue, receiver) {
+		// We omit receiver because the main thread won't have one. This will
+		// lead to more consistent behaviour, and less random sync bugs.
+		set(target, prop, newValue) {
 			if (typeof newValue === 'object') {
 				const newPath = [...path]
 				newPath.push(prop)
@@ -43,21 +46,47 @@ function newReactiveProxy<Schema extends object>({
 						path: newPath,
 						recursionLimitingMap,
 						announceTransformation
-					}),
-					receiver
+					})
 				)
-			} else Reflect.set(target, prop, newValue, receiver)
+			} else Reflect.set(target, prop, newValue)
 
-			announceTransformation({ path, newValue })
+			const targetPath = [...path]
+			targetPath.push(prop)
+			announceTransformation({
+				action: TransformationAction.Set,
+				path: targetPath,
+				newValue
+			})
 			return true
 		},
-		deleteProperty(_target, _prop) {
-			// TODO: Complete this
-			return false
+		deleteProperty(target, prop) {
+			Reflect.deleteProperty(target, prop)
+
+			const targetPath = [...path]
+			targetPath.push(prop)
+			announceTransformation({
+				action: TransformationAction.Delete,
+				path: targetPath
+			})
+			return true
 		},
-		defineProperty(_target, _prop, _attributes) {
-			// TODO: Complete this
-			return false
+		defineProperty(target, prop, attributes) {
+			Reflect.defineProperty(target, prop, attributes)
+
+			// While we'll do the operation, we won't let the consumer think
+			// this means everything worked (because it didn't)
+			console.warn(
+				'defineProperty was used on your memory model! This only impacts the copy of the memory model that your worker has, so it may be out of sync now. https://ground0.rizz.zone/non-sync-methods'
+			)
+			return true
+		},
+		preventExtensions(target) {
+			Reflect.preventExtensions(target)
+
+			console.warn(
+				'preventExtensions was used on your memory model! This only impacts the copy of the memory model that your worker has, so it may be out of sync now. https://ground0.rizz.zone/non-sync-methods'
+			)
+			return true
 		}
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	} as ProxyHandler<Record<PropertyKey, any>>)
@@ -65,8 +94,25 @@ function newReactiveProxy<Schema extends object>({
 	// Ensure this item is mapped so that an infinite loop cannot happen
 	recursionLimitingMap.set(initial, proxy)
 
-	// TODO: Run through initial and recursively turn any contained object
-	// values into more proxies
+	// Loop through iniital to ensure all nested objects are reactive proxies
+	for (const key in initial) {
+		const current = (initial as Record<PropertyKey, unknown>)[key]
+		if (current !== null && typeof current === 'object') {
+			const newPath = [...path]
+			newPath.push(key)
+			Reflect.set(
+				initial as object,
+				key,
+				newReactiveProxy({
+					initial: current as Record<PropertyKey, unknown>,
+					path: newPath,
+					recursionLimitingMap,
+					announceTransformation
+				})
+			)
+		}
+	}
+	// TODO: Announce the initial state of the memory model
 
 	return proxy
 }
@@ -78,7 +124,10 @@ export function createMemoryModel<Schema extends object>(
 	// if an outer object contains itself, it prevents an infinite loop.
 	const recursionLimitingMap: RecursionLimitingMap = new WeakMap()
 	return newReactiveProxy({
-		initial,
+		// Create a structured clone so that the consumer can't find any way to
+		// do a strange thing with `initial` that confuses our Perfect and
+		// Rock-Solid memory model's sync
+		initial: structuredClone(initial),
 		path: [],
 		recursionLimitingMap,
 		announceTransformation
