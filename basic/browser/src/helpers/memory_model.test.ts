@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryModel } from './memory_model'
 
 const structuredCloneMock = vi.spyOn(globalThis, 'structuredClone')
-const consoleWarnMock = vi.spyOn(console, 'warn')
+const consoleWarnMock = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
 describe('init', () => {
 	afterEach(vi.clearAllMocks)
