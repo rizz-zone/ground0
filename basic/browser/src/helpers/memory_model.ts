@@ -1,4 +1,8 @@
-type TransformationBroadcastFunction = (transformation: object) => unknown
+import type { Transformation } from '@/types/memory_model/Tranformation'
+
+type TransformationBroadcastFunction = (
+	transformation: Transformation
+) => unknown
 type RecursionLimitingMap = WeakMap<object, object>
 
 function newReactiveProxy<Schema extends object>({
@@ -27,9 +31,6 @@ function newReactiveProxy<Schema extends object>({
 	}
 
 	const proxy = new Proxy(initial, {
-		get(target, prop, receiver) {
-			const item = Reflect.get(target, prop, receiver)
-		},
 		set(target, prop, newValue, receiver) {
 			if (typeof newValue === 'object') {
 				const newPath = [...path]
@@ -45,12 +46,10 @@ function newReactiveProxy<Schema extends object>({
 					}),
 					receiver
 				)
-				// TODO: Announce
-				return true
-			}
-			Reflect.set(target, prop, newValue, receiver)
-			// TODO: Announce the transformation
-			return false
+			} else Reflect.set(target, prop, newValue, receiver)
+
+			announceTransformation({ path, newValue })
+			return true
 		},
 		deleteProperty(_target, _prop) {
 			// TODO: Complete this
