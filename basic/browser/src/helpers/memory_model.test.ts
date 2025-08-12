@@ -48,5 +48,6 @@ describe('init', () => {
 		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 		proxy.initial!.initial!.initial!.initial!.initial!.initial! = 10
 		expect(proxy.initial).toBe(10)
+		expect(announceTransition).toHaveBeenCalledOnce()
 	})
 })
