@@ -29,12 +29,6 @@ function newReactiveProxy<Schema extends object>({
 	const proxy = new Proxy(initial, {
 		get(target, prop, receiver) {
 			const item = Reflect.get(target, prop, receiver)
-			if (typeof item === 'function')
-				return (...props: unknown[]) => {
-					item(...props)
-					// TODO: Check if this proxy's target is recursively equal to
-					// the original. If not, re-announce ourselves
-				}
 		},
 		set(target, prop, newValue, receiver) {
 			if (typeof newValue === 'object') {
