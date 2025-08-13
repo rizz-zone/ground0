@@ -1,8 +1,9 @@
-import type { LocalDatabase, TransitionImpact } from '@ground0/shared'
+import type { TransitionImpact } from '@ground0/shared'
 import { TransitionRunner, type Ingredients } from './base'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import { WsResourceStatus } from '@/types/status/WsResourceStatus'
+import type { LocalDatabase } from '../../../shared/dist/types/LocalDatabase'
 
 const onDbConnected = vi.fn()
 const onDbConfirmedNeverConnecting = vi.fn()
