@@ -18,8 +18,6 @@ export type Ingredients<
 > = {
 	initialResources: SomeResources
 	initialMemoryModel: MemoryModel
-	announceTransformation: (transformation: Transformation) => unknown
-	announceComplete: () => unknown
 	resourceStatus: ResourceStatus
 	id: number
 	transition: Transition & { impact: Impact }
@@ -68,11 +66,21 @@ export abstract class TransitionRunner<
 		)
 			this.onWsConnected()
 	}
+
+	// Communication with the object
 	protected markComplete() {
+		if (this.previouslyCompleted) return
+		this.previouslyCompleted = true
 		this.actorRef.send({
 			type: 'transition complete',
 			id: this.id
-		} as unknown as EventObject)
+		} as EventObject)
+	}
+	private announceTransformation(transformation: Transformation) {
+		this.actorRef.send({
+			type: 'announce transformation',
+			transformation
+		} as EventObject)
 	}
 
 	protected readonly id: number
@@ -83,15 +91,13 @@ export abstract class TransitionRunner<
 		Impact
 	>['localHandler']
 	protected readonly memoryModel: MemoryModel
-	protected readonly announceComplete: () => unknown
 	protected previouslyCompleted = false
 
 	protected constructor(ingredients: Ingredients<MemoryModel, Impact>) {
 		this.localHandler = ingredients.localHandler
-		this.announceComplete = ingredients.announceComplete
 		this.memoryModel = createMemoryModel(
 			ingredients.initialMemoryModel,
-			ingredients.announceTransformation
+			this.announceTransformation.bind(this)
 		)
 		this.actorRef = ingredients.actorRef
 		this.resourceStatus = ingredients.resourceStatus

@@ -13,14 +13,12 @@ export class LocalOnlyTransitionRunner<
 	private closeIfPossible(nowComplete: keyof typeof this.completeElements) {
 		this.completeElements[nowComplete] = true
 		if (
-			this.previouslyCompleted ||
 			('editDb' in this.localHandler && !this.completeElements.db) ||
 			('editMemoryModel' in this.localHandler &&
 				!this.completeElements.memoryModel)
 		)
 			return
-		this.previouslyCompleted = true
-		this.announceComplete()
+		this.markComplete()
 	}
 
 	public constructor(
