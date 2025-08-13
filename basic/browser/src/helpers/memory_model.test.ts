@@ -6,9 +6,9 @@ import { TransformationAction } from '@/types/memory_model/TransformationAction'
 const structuredCloneMock = vi.spyOn(globalThis, 'structuredClone')
 const consoleWarnMock = vi.spyOn(console, 'warn').mockImplementation(() => {})
 const announceTransition = vi.fn()
+afterEach(vi.clearAllMocks)
 
 describe('init', () => {
-	afterEach(vi.clearAllMocks)
 	it('makes a structured clone', () => {
 		const objectThatWouldTripUp = {
 			foo: 'bar',
@@ -84,6 +84,8 @@ describe('traps', () => {
 					path: ['myNested', 'foo'],
 					newValue: 'newBar'
 				} satisfies Transformation)
+
+				expect(consoleWarnMock).not.toHaveBeenCalled()
 			})
 			it('triggers and creates reactive proxies on normal object assignment', () => {
 				const proxy: {
@@ -105,8 +107,156 @@ describe('traps', () => {
 					foo: 'anotherBar'
 				}
 				expect(announceTransition).toHaveBeenCalledOnce()
-				// expect(announceTransition.arguments)
+				announceTransition.mockClear()
+
+				// @ts-expect-error we don't care
+				proxy.myNested.foo = '3'
+				expect(announceTransition).toHaveBeenCalledExactlyOnceWith({
+					action: TransformationAction.Set,
+					path: ['myNested', 'foo'],
+					newValue: '3'
+				} satisfies Transformation)
+
+				expect(consoleWarnMock).not.toHaveBeenCalled()
+			})
+			it('triggers when prototype methods are used', () => {
+				const proxy = createMemoryModel(
+					{
+						someArray: [0, 1, 2, 65, 9]
+					},
+					announceTransition
+				)
+				proxy.someArray.push(2)
+				expect(announceTransition).toHaveBeenCalledTimes(2)
+
+				expect(consoleWarnMock).not.toHaveBeenCalled()
 			})
 		})
+		describe('delete', () => {
+			it('triggers for regular properties', () => {
+				const proxy: {
+					abc?: number
+					myNested: object & { foo?: string }
+				} = createMemoryModel(
+					{
+						abc: 123,
+						myNested: {
+							foo: 'bar',
+							more: 53n
+						}
+					},
+					announceTransition
+				)
+
+				delete proxy.abc
+				expect(announceTransition).toHaveBeenCalledExactlyOnceWith({
+					action: TransformationAction.Delete,
+					path: ['abc']
+				} satisfies Transformation)
+				expect(proxy).toMatchObject({
+					myNested: {
+						foo: 'bar',
+						more: 53n
+					}
+				})
+				announceTransition.mockClear()
+
+				delete proxy.myNested.foo
+				expect(announceTransition).toHaveBeenCalledExactlyOnceWith({
+					action: TransformationAction.Delete,
+					path: ['myNested', 'foo']
+				} satisfies Transformation)
+				expect(proxy).toMatchObject({
+					myNested: {
+						more: 53n
+					}
+				})
+
+				expect(consoleWarnMock).not.toHaveBeenCalled()
+			})
+			it('triggers for proxies', () => {
+				const proxy: {
+					abc: 123
+					myNested?: {
+						foo: 'bar'
+						more: 53n
+						moreNested?: object
+					}
+				} = createMemoryModel(
+					{
+						abc: 123,
+						myNested: {
+							foo: 'bar',
+							more: 53n,
+							moreNested: {}
+						}
+					},
+					announceTransition
+				)
+
+				delete proxy.myNested?.moreNested
+				expect(announceTransition).toHaveBeenCalledExactlyOnceWith({
+					action: TransformationAction.Delete,
+					path: ['myNested', 'moreNested']
+				} satisfies Transformation)
+				expect(proxy).toMatchObject({
+					abc: 123,
+					myNested: {
+						foo: 'bar',
+						more: 53n
+					}
+				})
+				announceTransition.mockClear()
+
+				delete proxy.myNested
+				expect(announceTransition).toHaveBeenCalledExactlyOnceWith({
+					action: TransformationAction.Delete,
+					path: ['myNested']
+				} satisfies Transformation)
+				expect(proxy).toMatchObject({
+					abc: 123
+				})
+
+				expect(consoleWarnMock).not.toHaveBeenCalled()
+			})
+		})
+	})
+	it('warns on defineProperty', () => {
+		const proxy = createMemoryModel(
+			{
+				abc: 123,
+				myNested: {
+					foo: 'bar',
+					more: 53n
+				}
+			},
+			announceTransition
+		)
+		expect(consoleWarnMock).not.toHaveBeenCalled()
+
+		Object.defineProperty(proxy.myNested, 'a', { value: 10 })
+		expect(consoleWarnMock).toHaveBeenCalledOnce()
+
+		Object.defineProperty(proxy, 'a', { value: 10 })
+		expect(consoleWarnMock).toHaveBeenCalledTimes(2)
+	})
+	it('warns on preventExtensions', () => {
+		const proxy = createMemoryModel(
+			{
+				abc: 123,
+				myNested: {
+					foo: 'bar',
+					more: 53n
+				}
+			},
+			announceTransition
+		)
+		expect(consoleWarnMock).not.toHaveBeenCalled()
+
+		Object.preventExtensions(proxy.myNested)
+		expect(consoleWarnMock).toHaveBeenCalledOnce()
+
+		Object.preventExtensions(proxy)
+		expect(consoleWarnMock).toHaveBeenCalledTimes(2)
 	})
 })

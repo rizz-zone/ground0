@@ -10,6 +10,3 @@ export type Transformation =
 			action: TransformationAction.Delete
 			path: PropertyKey[]
 	  }
-	| {
-			action: TransformationAction.DefineProperty
-	  }
