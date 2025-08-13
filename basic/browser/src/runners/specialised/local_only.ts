@@ -2,16 +2,41 @@ import type { TransitionImpact } from '@ground0/shared'
 import { TransitionRunner, type Ingredients } from '../base'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 
-export class LocalOnlyTransitionRunner extends TransitionRunner<TransitionImpact.LocalOnly> {
-	private closeIfPossible() {}
+export class LocalOnlyTransitionRunner<
+	MemoryModel extends object
+> extends TransitionRunner<MemoryModel, TransitionImpact.LocalOnly> {
+	private completeElements = {
+		memoryModel: false,
+		db: false
+	}
 
-	public constructor(ingredients: Ingredients<TransitionImpact.LocalOnly>) {
+	private closeIfPossible(nowComplete: keyof typeof this.completeElements) {
+		this.completeElements[nowComplete] = true
+		if (
+			this.previouslyCompleted ||
+			('editDb' in this.localHandler && !this.completeElements.db) ||
+			('editMemoryModel' in this.localHandler &&
+				!this.completeElements.memoryModel)
+		)
+			return
+		this.previouslyCompleted = true
+		this.announceComplete()
+	}
+
+	public constructor(
+		ingredients: Ingredients<MemoryModel, TransitionImpact.LocalOnly>
+	) {
 		super(ingredients)
 
-		if ('editMemoryModel' in this.localHandler)
-			this.localHandler.editMemoryModel({
-				data: this.transitionObj.data
+		if ('editMemoryModel' in this.localHandler) {
+			const potentialPromise = this.localHandler.editMemoryModel({
+				data: this.transitionObj.data,
+				memoryModel: this.memoryModel
 			})
+			if (potentialPromise instanceof Promise)
+				potentialPromise.then(() => this.closeIfPossible('memoryModel'))
+			else this.closeIfPossible('memoryModel')
+		}
 		if (this.resourceStatus.db === DbResourceStatus.ConnectedAndMigrated)
 			this.onDbConnected()
 	}
@@ -22,11 +47,11 @@ export class LocalOnlyTransitionRunner extends TransitionRunner<TransitionImpact
 			data: this.transitionObj.data
 		})
 		if (response instanceof Promise)
-			response.then(this.closeIfPossible.bind(this))
-		else this.closeIfPossible()
+			response.then(() => this.closeIfPossible('db'))
+		else this.closeIfPossible('db')
 	}
 	public override onDbConfirmedNeverConnecting(): void {
-		this.closeIfPossible()
+		this.closeIfPossible('db')
 	}
 
 	// Being local only, this isn't useful to us
