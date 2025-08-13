@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryModel } from './memory_model'
+import type { Transformation } from '@/types/memory_model/Tranformation'
+import { TransformationAction } from '@/types/memory_model/TransformationAction'
 
 const structuredCloneMock = vi.spyOn(globalThis, 'structuredClone')
 const consoleWarnMock = vi.spyOn(console, 'warn').mockImplementation(() => {})
+const announceTransition = vi.fn()
 
 describe('init', () => {
 	afterEach(vi.clearAllMocks)
@@ -17,7 +20,6 @@ describe('init', () => {
 		)
 	})
 	it('creates a proxy per object', () => {
-		const announceTransition = vi.fn()
 		const proxy = createMemoryModel(
 			{
 				foo: 'bar',
@@ -37,7 +39,6 @@ describe('init', () => {
 		expect(announceTransition).toHaveBeenCalledTimes(4)
 	})
 	it('supports (but warns upon) circular references', () => {
-		const announceTransition = vi.fn()
 		type StrangeInitial = { initial?: StrangeInitial }
 		const initial: StrangeInitial = {}
 		initial.initial = initial
@@ -49,5 +50,63 @@ describe('init', () => {
 		proxy.initial!.initial!.initial!.initial!.initial!.initial! = 10
 		expect(proxy.initial).toBe(10)
 		expect(announceTransition).toHaveBeenCalledOnce()
+	})
+})
+
+describe('traps', () => {
+	describe('transition submissions', () => {
+		describe('set', () => {
+			it('triggers on normal value assignment', () => {
+				const proxy = createMemoryModel(
+					{
+						abc: 123,
+						myNested: {
+							foo: 'bar',
+							l: new Date(),
+							more: 53n
+						}
+					},
+					announceTransition
+				)
+				expect(announceTransition).not.toHaveBeenCalled()
+
+				proxy.abc = 1024
+				expect(announceTransition).toHaveBeenCalledExactlyOnceWith({
+					action: TransformationAction.Set,
+					path: ['abc'],
+					newValue: 1024
+				} satisfies Transformation)
+				announceTransition.mockClear()
+
+				proxy.myNested.foo = 'newBar'
+				expect(announceTransition).toHaveBeenCalledExactlyOnceWith({
+					action: TransformationAction.Set,
+					path: ['myNested', 'foo'],
+					newValue: 'newBar'
+				} satisfies Transformation)
+			})
+			it('triggers and creates reactive proxies on normal object assignment', () => {
+				const proxy: {
+					abc: number
+					myNested: object
+				} = createMemoryModel(
+					{
+						abc: 123,
+						myNested: {
+							foo: 'bar',
+							l: new Date(),
+							more: 53n
+						}
+					},
+					announceTransition
+				)
+
+				proxy.myNested = {
+					foo: 'anotherBar'
+				}
+				expect(announceTransition).toHaveBeenCalledOnce()
+				// expect(announceTransition.arguments)
+			})
+		})
 	})
 })
