@@ -8,6 +8,10 @@ export class LocalOnlyTransitionRunner extends TransitionRunner<TransitionImpact
 	public constructor(ingredients: Ingredients<TransitionImpact.LocalOnly>) {
 		super(ingredients)
 
+		if ('editMemoryModel' in this.localHandler)
+			this.localHandler.editMemoryModel({
+				data: this.transitionObj.data
+			})
 		if (this.resourceStatus.db === DbResourceStatus.ConnectedAndMigrated)
 			this.onDbConnected()
 	}

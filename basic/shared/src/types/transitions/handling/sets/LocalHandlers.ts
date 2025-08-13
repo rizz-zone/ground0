@@ -2,10 +2,10 @@ import type { IgnoredReturn } from '@/types/common/IgnoredReturn'
 import type { Transition } from '../../Transition'
 import type { TransitionImpact } from '../../TransitionImpact'
 import type { DbHandlerParams } from '../functions/DbHandlerParams'
-import type { GeneralHandlingFunction } from '../GeneralHandlingFunction'
 import type { RequiredActionsForImpact } from '../RequiredActionsForImpact'
+import type { MemoryHandlerParams } from '../functions/MemoryHandlerParams'
 
-export type LocalHandlers<T extends Transition> = {
+export type LocalHandlers<MemoryModel extends object, T extends Transition> = {
 	[K in RequiredActionsForImpact<
 		T,
 		TransitionImpact.LocalOnly | TransitionImpact.OptimisticPush
@@ -17,25 +17,37 @@ export type LocalHandlers<T extends Transition> = {
 						editDb: (params: DbHandlerParams<T>) => IgnoredReturn
 				  }
 				| {
-						editMemoryModel: GeneralHandlingFunction<T>
+						editMemoryModel: (
+							params: MemoryHandlerParams<MemoryModel, T>
+						) => IgnoredReturn
 				  }
 				| {
-						editMemoryModel: GeneralHandlingFunction<T>
+						editMemoryModel: (
+							params: MemoryHandlerParams<MemoryModel, T>
+						) => IgnoredReturn
 						editDb: (params: DbHandlerParams<T>) => IgnoredReturn
 				  }
 		: T extends TransitionImpact.OptimisticPush
 			?
 					| {
-							editMemoryModel: GeneralHandlingFunction<T>
-							revertMemoryModel: GeneralHandlingFunction<T>
+							editMemoryModel: (
+								params: MemoryHandlerParams<MemoryModel, T>
+							) => IgnoredReturn
+							revertMemoryModel: (
+								params: MemoryHandlerParams<MemoryModel, T>
+							) => IgnoredReturn
 					  }
 					| {
 							editDb: (params: DbHandlerParams<T>) => IgnoredReturn
 							revertDb: (params: DbHandlerParams<T>) => IgnoredReturn
 					  }
 					| {
-							editMemoryModel: GeneralHandlingFunction<T>
-							revertMemoryModel: GeneralHandlingFunction<T>
+							editMemoryModel: (
+								params: MemoryHandlerParams<MemoryModel, T>
+							) => IgnoredReturn
+							revertMemoryModel: (
+								params: MemoryHandlerParams<MemoryModel, T>
+							) => IgnoredReturn
 							editDb: (params: DbHandlerParams<T>) => IgnoredReturn
 							revertDb: (params: DbHandlerParams<T>) => IgnoredReturn
 					  }
