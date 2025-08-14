@@ -304,3 +304,253 @@ describe('constructor', () => {
 		})
 	})
 })
+describe('db connection events', () => {
+	describe('on connect', () => {
+		it('calls the handler once ready alone', () => {
+			const editDb = vi.fn()
+			const runner = new LocalOnlyTransitionRunner({
+				initialResources: {},
+				initialMemoryModel: {
+					tom: 'normal'
+				},
+				resourceStatus: {
+					ws: WsResourceStatus.Disconnected,
+					db: DbResourceStatus.Disconnected
+				},
+				id: 0,
+				transition: {
+					action: 0,
+					impact: TransitionImpact.LocalOnly
+				},
+				actorRef,
+				localHandler: {
+					editDb
+				}
+			})
+			expect(editDb).not.toHaveBeenCalled()
+			expect(actorRefSend).not.toHaveBeenCalled()
+
+			runner.syncResources(
+				{
+					db: {} as LocalDatabase
+				},
+				{
+					ws: WsResourceStatus.Disconnected,
+					db: DbResourceStatus.ConnectedAndMigrated
+				}
+			)
+
+			expect(editDb).toHaveBeenCalledOnce()
+			expect(actorRefSend).toHaveBeenCalledExactlyOnceWith({
+				type: 'transition complete',
+				id: 0
+			})
+			expect(actorRefSend).toHaveBeenCalledAfter(editDb)
+		})
+		it('calls the handler once ready, after memory model handler', () => {
+			const editDb = vi.fn()
+			const editMemoryModel = vi.fn()
+			const runner = new LocalOnlyTransitionRunner({
+				initialResources: {},
+				initialMemoryModel: {
+					tom: 'normal'
+				},
+				resourceStatus: {
+					ws: WsResourceStatus.Disconnected,
+					db: DbResourceStatus.Disconnected
+				},
+				id: 0,
+				transition: {
+					action: 0,
+					impact: TransitionImpact.LocalOnly
+				},
+				actorRef,
+				localHandler: {
+					editDb,
+					editMemoryModel
+				}
+			})
+			expect(editDb).not.toHaveBeenCalled()
+			expect(actorRefSend).not.toHaveBeenCalled()
+			expect(editMemoryModel).toHaveBeenCalledOnce()
+
+			runner.syncResources(
+				{
+					db: {} as LocalDatabase
+				},
+				{
+					ws: WsResourceStatus.Disconnected,
+					db: DbResourceStatus.ConnectedAndMigrated
+				}
+			)
+
+			expect(editDb).toHaveBeenCalledOnce()
+			expect(actorRefSend).toHaveBeenCalledExactlyOnceWith({
+				type: 'transition complete',
+				id: 0
+			})
+			expect(actorRefSend).toHaveBeenCalledAfter(editDb)
+		})
+		it('does nothing on an event if no editDb is provided', () => {
+			const editMemoryModel = vi
+				.fn()
+				.mockImplementation(() => new Promise(() => {}))
+			const runner = new LocalOnlyTransitionRunner({
+				initialResources: {},
+				initialMemoryModel: {
+					tom: 'normal'
+				},
+				resourceStatus: {
+					ws: WsResourceStatus.Disconnected,
+					db: DbResourceStatus.Disconnected
+				},
+				id: 0,
+				transition: {
+					action: 0,
+					impact: TransitionImpact.LocalOnly
+				},
+				actorRef,
+				localHandler: {
+					editMemoryModel
+				}
+			})
+			expect(actorRefSend).not.toHaveBeenCalled()
+			expect(editMemoryModel).toHaveBeenCalledOnce()
+
+			runner.syncResources(
+				{
+					db: {} as LocalDatabase
+				},
+				{
+					ws: WsResourceStatus.Disconnected,
+					db: DbResourceStatus.ConnectedAndMigrated
+				}
+			)
+
+			expect(actorRefSend).not.toHaveBeenCalled()
+			expect(editMemoryModel).toHaveBeenCalledOnce()
+		})
+	})
+	describe('on local database never connecting', () => {
+		it('automatically completes alone', () => {
+			const editDb = vi.fn()
+			const runner = new LocalOnlyTransitionRunner({
+				initialResources: {},
+				initialMemoryModel: {
+					tom: 'normal'
+				},
+				resourceStatus: {
+					ws: WsResourceStatus.Disconnected,
+					db: DbResourceStatus.Disconnected
+				},
+				id: 0,
+				transition: {
+					action: 0,
+					impact: TransitionImpact.LocalOnly
+				},
+				actorRef,
+				localHandler: {
+					editDb
+				}
+			})
+			expect(editDb).not.toHaveBeenCalled()
+			expect(actorRefSend).not.toHaveBeenCalled()
+
+			runner.syncResources(
+				{},
+				{
+					ws: WsResourceStatus.Disconnected,
+					db: DbResourceStatus.NeverConnecting
+				}
+			)
+
+			expect(editDb).not.toHaveBeenCalled()
+			expect(actorRefSend).toHaveBeenCalledExactlyOnceWith({
+				type: 'transition complete',
+				id: 0
+			})
+		})
+		it('automatically completes with memory model handler complete', () => {
+			const editDb = vi.fn()
+			const editMemoryModel = vi.fn()
+			const runner = new LocalOnlyTransitionRunner({
+				initialResources: {},
+				initialMemoryModel: {
+					tom: 'normal'
+				},
+				resourceStatus: {
+					ws: WsResourceStatus.Disconnected,
+					db: DbResourceStatus.Disconnected
+				},
+				id: 0,
+				transition: {
+					action: 0,
+					impact: TransitionImpact.LocalOnly
+				},
+				actorRef,
+				localHandler: {
+					editDb,
+					editMemoryModel
+				}
+			})
+			expect(editDb).not.toHaveBeenCalled()
+			expect(actorRefSend).not.toHaveBeenCalled()
+			expect(editMemoryModel).toHaveBeenCalledOnce()
+
+			runner.syncResources(
+				{},
+				{
+					ws: WsResourceStatus.Disconnected,
+					db: DbResourceStatus.NeverConnecting
+				}
+			)
+
+			expect(editDb).not.toHaveBeenCalled()
+			expect(actorRefSend).toHaveBeenCalledExactlyOnceWith({
+				type: 'transition complete',
+				id: 0
+			})
+		})
+	})
+})
+it('does nothing on ws status change', () => {
+	const editDb = vi.fn().mockImplementation(() => new Promise(() => {}))
+	const editMemoryModel = vi
+		.fn()
+		.mockImplementation(() => new Promise(() => {}))
+	const runner = new LocalOnlyTransitionRunner({
+		initialResources: {},
+		initialMemoryModel: {
+			tom: 'normal'
+		},
+		resourceStatus: {
+			ws: WsResourceStatus.Disconnected,
+			db: DbResourceStatus.Disconnected
+		},
+		id: 0,
+		transition: {
+			action: 0,
+			impact: TransitionImpact.LocalOnly
+		},
+		actorRef,
+		localHandler: {
+			editDb,
+			editMemoryModel
+		}
+	})
+	expect(editDb).not.toHaveBeenCalled()
+	expect(actorRefSend).not.toHaveBeenCalled()
+	expect(editMemoryModel).toHaveBeenCalledOnce()
+
+	runner.syncResources(
+		{},
+		{
+			ws: WsResourceStatus.Connected,
+			db: DbResourceStatus.Disconnected
+		}
+	)
+
+	expect(editDb).not.toHaveBeenCalled()
+	expect(actorRefSend).not.toHaveBeenCalled()
+	expect(editMemoryModel).toHaveBeenCalledOnce()
+})
