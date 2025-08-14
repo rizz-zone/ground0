@@ -55,4 +55,59 @@ describe('handling in constructor', () => {
 			})
 		})
 	})
+	describe('async', () => {
+		it('completes as soon as possible with memory model only', () => {
+			const editMemoryModel = vi.fn().mockImplementation(
+				(data) =>
+					new Promise<void>((resolve) =>
+						setTimeout(() => {
+							data.memoryModel.tom = 'plus'
+							resolve()
+						}, 0)
+					)
+			)
+			new LocalOnlyTransitionRunner({
+				initialResources: {},
+				initialMemoryModel: {
+					tom: 'normal'
+				},
+				resourceStatus: {
+					ws: WsResourceStatus.Disconnected,
+					db: DbResourceStatus.Disconnected
+				},
+				id: 0,
+				transition: {
+					action: 0,
+					impact: TransitionImpact.LocalOnly
+				},
+				actorRef,
+				localHandler: {
+					editMemoryModel
+				}
+			})
+			expect(editMemoryModel).toHaveBeenCalledOnce()
+			expect(actorRefSend).not.toHaveBeenCalled()
+
+			return new Promise<void>((resolve) =>
+				setTimeout(() => {
+					expect(actorRefSend).toHaveBeenCalledAfter(editMemoryModel)
+					expect(actorRefSend).toHaveBeenCalledTimes(2)
+					expect(actorRefSend.mock.calls[0]?.[0]).toMatchObject({
+						type: 'announce transformation',
+						transformation: {
+							action: TransformationAction.Set,
+							path: ['tom'],
+							newValue: 'plus'
+						} satisfies Transformation
+					})
+					expect(actorRefSend.mock.calls[1]?.[0]).toMatchObject({
+						type: 'transition complete',
+						id: 0
+					})
+
+					resolve()
+				}, 0)
+			)
+		})
+	})
 })
