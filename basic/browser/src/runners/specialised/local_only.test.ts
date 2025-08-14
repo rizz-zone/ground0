@@ -54,6 +54,57 @@ describe('handling in constructor', () => {
 				id: 0
 			})
 		})
+		it('does not run db handler if not connected', () => {
+			{
+				const editDb = vi.fn()
+				new LocalOnlyTransitionRunner({
+					initialResources: {},
+					initialMemoryModel: {
+						tom: 'normal'
+					},
+					resourceStatus: {
+						ws: WsResourceStatus.Disconnected,
+						db: DbResourceStatus.Disconnected
+					},
+					id: 0,
+					transition: {
+						action: 0,
+						impact: TransitionImpact.LocalOnly
+					},
+					actorRef,
+					localHandler: {
+						editDb
+					}
+				})
+				expect(editDb).not.toHaveBeenCalled()
+			}
+			{
+				const editDb = vi.fn()
+				const editMemoryModel = vi.fn()
+				new LocalOnlyTransitionRunner({
+					initialResources: {},
+					initialMemoryModel: {
+						tom: 'normal'
+					},
+					resourceStatus: {
+						ws: WsResourceStatus.Disconnected,
+						db: DbResourceStatus.Disconnected
+					},
+					id: 0,
+					transition: {
+						action: 0,
+						impact: TransitionImpact.LocalOnly
+					},
+					actorRef,
+					localHandler: {
+						editDb,
+						editMemoryModel
+					}
+				})
+				expect(editDb).not.toHaveBeenCalled()
+				expect(editMemoryModel).toHaveBeenCalledOnce()
+			}
+		})
 	})
 	describe('async', () => {
 		it('completes as soon as possible with memory model only', () => {
