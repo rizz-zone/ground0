@@ -10,7 +10,10 @@ const onDbConfirmedNeverConnecting = vi.fn()
 const onWsConnected = vi.fn()
 
 // TransitionRunner is abstract *and* a generic, so we need to extend it
-class NotVeryUsefulRunner extends TransitionRunner<TransitionImpact> {
+class NotVeryUsefulRunner extends TransitionRunner<
+	Record<string, never>,
+	TransitionImpact
+> {
 	public override onDbConnected(): void {
 		onDbConnected()
 	}
@@ -21,13 +24,16 @@ class NotVeryUsefulRunner extends TransitionRunner<TransitionImpact> {
 		onWsConnected()
 	}
 
-	public constructor(ingredients: Ingredients<TransitionImpact>) {
+	public constructor(
+		ingredients: Ingredients<Record<string, never>, TransitionImpact>
+	) {
 		super(ingredients)
 	}
 }
 
 const bareMinimumIngredients = {
 	initialResources: {},
+	initialMemoryModel: {},
 	resourceStatus: {
 		db: DbResourceStatus.Disconnected,
 		ws: WsResourceStatus.Disconnected
@@ -36,7 +42,7 @@ const bareMinimumIngredients = {
 	transition: {},
 	actorRef: {},
 	localHandler: {}
-} as Ingredients<TransitionImpact>
+} as Ingredients<Record<string, never>, TransitionImpact>
 type ResourcesForSync = Partial<{ ws: WebSocket; db: LocalDatabase }>
 
 describe('constructor', () => {
@@ -65,15 +71,11 @@ describe('constructor', () => {
 	describe('conditional resource assignments', () => {
 		test('assigns ws resource if present', () => {
 			const slightlyLessBareMinimumIngredients = {
+				...bareMinimumIngredients,
 				initialResources: {
 					ws: {}
-				},
-				resourceStatus: {},
-				id: {},
-				transition: {},
-				actorRef: {},
-				localHandler: {}
-			} as Ingredients<TransitionImpact>
+				}
+			} as Ingredients<Record<string, never>, TransitionImpact>
 			const runnerInstance = new NotVeryUsefulRunner(
 				slightlyLessBareMinimumIngredients
 			)
@@ -86,15 +88,11 @@ describe('constructor', () => {
 		})
 		test('assigns db resource if present', () => {
 			const slightlyLessBareMinimumIngredients = {
+				...bareMinimumIngredients,
 				initialResources: {
 					db: {}
-				},
-				resourceStatus: {},
-				id: {},
-				transition: {},
-				actorRef: {},
-				localHandler: {}
-			} as Ingredients<TransitionImpact>
+				}
+			} as Ingredients<Record<string, never>, TransitionImpact>
 			const runnerInstance = new NotVeryUsefulRunner(
 				slightlyLessBareMinimumIngredients
 			)
@@ -107,16 +105,12 @@ describe('constructor', () => {
 		})
 		test('assigns ws and db resource if present', () => {
 			const slightlyLessBareMinimumIngredients = {
+				...bareMinimumIngredients,
 				initialResources: {
 					ws: {},
 					db: {}
-				},
-				resourceStatus: {},
-				id: {},
-				transition: {},
-				actorRef: {},
-				localHandler: {}
-			} as Ingredients<TransitionImpact>
+				}
+			} as Ingredients<Record<string, never>, TransitionImpact>
 			const runnerInstance = new NotVeryUsefulRunner(
 				slightlyLessBareMinimumIngredients
 			)
@@ -303,7 +297,7 @@ test('markComplete sends transition complete event', () => {
 		actorRef: {
 			send: fn
 		}
-	} as unknown as Ingredients<TransitionImpact>
+	} as unknown as Ingredients<Record<string, never>, TransitionImpact>
 	const runnerInstance = new NotVeryUsefulRunner(ingredientsWithActor)
 	expect(fn).not.toHaveBeenCalled()
 
