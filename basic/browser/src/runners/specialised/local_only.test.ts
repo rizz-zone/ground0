@@ -22,7 +22,7 @@ describe('constructor', () => {
 			})
 			new LocalOnlyTransitionRunner({
 				initialResources: {},
-				initialMemoryModel: {
+				memoryModel: {
 					tom: 'normal'
 				},
 				resourceStatus: {
@@ -63,7 +63,7 @@ describe('constructor', () => {
 				it('does not run alone', () => {
 					new LocalOnlyTransitionRunner({
 						initialResources: {},
-						initialMemoryModel: {
+						memoryModel: {
 							tom: 'normal'
 						},
 						resourceStatus: {
@@ -86,7 +86,7 @@ describe('constructor', () => {
 				it('does not run with memory model handler', () => {
 					new LocalOnlyTransitionRunner({
 						initialResources: {},
-						initialMemoryModel: {
+						memoryModel: {
 							tom: 'normal'
 						},
 						resourceStatus: {
@@ -115,7 +115,7 @@ describe('constructor', () => {
 						initialResources: {
 							db
 						},
-						initialMemoryModel: {
+						memoryModel: {
 							tom: 'normal'
 						},
 						resourceStatus: {
@@ -143,7 +143,7 @@ describe('constructor', () => {
 						initialResources: {
 							db
 						},
-						initialMemoryModel: {
+						memoryModel: {
 							tom: 'normal'
 						},
 						resourceStatus: {
@@ -184,7 +184,7 @@ describe('constructor', () => {
 			)
 			new LocalOnlyTransitionRunner({
 				initialResources: {},
-				initialMemoryModel: {
+				memoryModel: {
 					tom: 'normal'
 				},
 				resourceStatus: {
@@ -235,7 +235,7 @@ describe('constructor', () => {
 					initialResources: {
 						db
 					},
-					initialMemoryModel: {
+					memoryModel: {
 						tom: 'normal'
 					},
 					resourceStatus: {
@@ -270,7 +270,7 @@ describe('constructor', () => {
 					initialResources: {
 						db
 					},
-					initialMemoryModel: {
+					memoryModel: {
 						tom: 'normal'
 					},
 					resourceStatus: {
@@ -310,7 +310,7 @@ describe('db connection events', () => {
 			const editDb = vi.fn()
 			const runner = new LocalOnlyTransitionRunner({
 				initialResources: {},
-				initialMemoryModel: {
+				memoryModel: {
 					tom: 'normal'
 				},
 				resourceStatus: {
@@ -352,7 +352,7 @@ describe('db connection events', () => {
 			const editMemoryModel = vi.fn()
 			const runner = new LocalOnlyTransitionRunner({
 				initialResources: {},
-				initialMemoryModel: {
+				memoryModel: {
 					tom: 'normal'
 				},
 				resourceStatus: {
@@ -397,7 +397,7 @@ describe('db connection events', () => {
 				.mockImplementation(() => new Promise(() => {}))
 			const runner = new LocalOnlyTransitionRunner({
 				initialResources: {},
-				initialMemoryModel: {
+				memoryModel: {
 					tom: 'normal'
 				},
 				resourceStatus: {
@@ -436,7 +436,7 @@ describe('db connection events', () => {
 			const editDb = vi.fn()
 			const runner = new LocalOnlyTransitionRunner({
 				initialResources: {},
-				initialMemoryModel: {
+				memoryModel: {
 					tom: 'normal'
 				},
 				resourceStatus: {
@@ -475,7 +475,7 @@ describe('db connection events', () => {
 			const editMemoryModel = vi.fn()
 			const runner = new LocalOnlyTransitionRunner({
 				initialResources: {},
-				initialMemoryModel: {
+				memoryModel: {
 					tom: 'normal'
 				},
 				resourceStatus: {
@@ -520,7 +520,7 @@ it('does nothing on ws status change', () => {
 		.mockImplementation(() => new Promise(() => {}))
 	const runner = new LocalOnlyTransitionRunner({
 		initialResources: {},
-		initialMemoryModel: {
+		memoryModel: {
 			tom: 'normal'
 		},
 		resourceStatus: {

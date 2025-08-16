@@ -1,3 +1,5 @@
+import { runners } from '@/runners/all'
+import { TransitionRunner } from '@/runners/base'
 import {
 	DownstreamWsMessageAction,
 	InternalStateError,
@@ -23,8 +25,9 @@ export const clientMachine = setup({
 			dbName?: string
 			engineDef?: SyncEngineDefinition<Transition>
 			dissatisfiedPings: number
-			localHandlers?: LocalHandlers<Transition>
+			localHandlers?: LocalHandlers<object, Transition>
 			nextTransitionId: number
+			transitions: Map<number, TransitionRunner<object, TransitionImpact>>
 		},
 		events: {} as
 			| {
@@ -32,7 +35,7 @@ export const clientMachine = setup({
 					wsUrl: string
 					dbName: string
 					engineDef: SyncEngineDefinition<Transition>
-					localHandlers: LocalHandlers<Transition>
+					localHandlers: LocalHandlers<object, Transition>
 			  }
 			| { type: 'ws connected' }
 			| { type: 'ws connection issue' }
@@ -184,10 +187,14 @@ export const clientMachine = setup({
 		}),
 		screenTransition: assign(({ event, self, context }) => {
 			if (event.type !== 'transition') return {}
-			switch (event.transition.impact) {
-				case TransitionImpact.LocalOnly:
-					break
-			}
+
+			context.transitions.set(
+				context.nextTransitionId,
+				new runners[event.transition.impact]({
+					// TODO: Fill *all* the ingredients out
+					actorRef: self
+				})
+			)
 
 			return {
 				nextTransitionId: context.nextTransitionId + 1
@@ -198,7 +205,8 @@ export const clientMachine = setup({
 	type: 'parallel',
 	context: {
 		dissatisfiedPings: 0,
-		nextTransitionId: 0
+		nextTransitionId: 0,
+		transitions: new Map()
 	},
 	on: {
 		transition: {

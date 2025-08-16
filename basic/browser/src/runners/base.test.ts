@@ -33,7 +33,7 @@ class NotVeryUsefulRunner extends TransitionRunner<
 
 const bareMinimumIngredients = {
 	initialResources: {},
-	initialMemoryModel: {},
+	memoryModel: {},
 	resourceStatus: {
 		db: DbResourceStatus.Disconnected,
 		ws: WsResourceStatus.Disconnected

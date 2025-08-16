@@ -9,15 +9,13 @@ import type {
 } from '@ground0/shared'
 import type { EventObject } from 'xstate'
 import type { LocalDatabase } from '../../../shared/dist/types/LocalDatabase'
-import { createMemoryModel } from '@/helpers/memory_model'
-import type { Transformation } from '@/types/memory_model/Tranformation'
 
 export type Ingredients<
 	MemoryModel extends object,
 	Impact extends TransitionImpact
 > = {
 	initialResources: SomeResources
-	initialMemoryModel: MemoryModel
+	memoryModel: MemoryModel
 	resourceStatus: ResourceStatus
 	id: number
 	transition: Transition & { impact: Impact }
@@ -76,12 +74,6 @@ export abstract class TransitionRunner<
 			id: this.id
 		} as EventObject)
 	}
-	private announceTransformation(transformation: Transformation) {
-		this.actorRef.send({
-			type: 'announce transformation',
-			transformation
-		} as EventObject)
-	}
 
 	protected readonly id: number
 	protected readonly transitionObj: Transition
@@ -95,10 +87,7 @@ export abstract class TransitionRunner<
 
 	protected constructor(ingredients: Ingredients<MemoryModel, Impact>) {
 		this.localHandler = ingredients.localHandler
-		this.memoryModel = createMemoryModel(
-			ingredients.initialMemoryModel,
-			this.announceTransformation.bind(this)
-		)
+		this.memoryModel = ingredients.memoryModel
 		this.actorRef = ingredients.actorRef
 		this.resourceStatus = ingredients.resourceStatus
 		this.transitionObj = ingredients.transition
