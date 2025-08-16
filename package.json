@@ -23,12 +23,12 @@
   "scripts": {
     "style": "prettier -c .",
     "style:write": "prettier -w .",
-    "lint": "turbo lint --continue",
-    "test": "turbo test --continue",
+    "lint": "turbo lint --continue=dependencies-successful",
+    "test": "turbo test --continue=dependencies-successful",
     "test:watch": "turbo test:watch",
-    "build": "turbo build --continue",
+    "build": "turbo build --continue=dependencies-successful",
     "dev": "turbo dev",
-    "check-types": "turbo check-types --continue"
+    "check-types": "turbo check-types --continue=dependencies-successful"
   },
   "sideEffects": false,
   "type": "module",
