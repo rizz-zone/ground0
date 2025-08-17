@@ -1,5 +1,6 @@
 import { runners } from '@/runners/all'
 import { TransitionRunner } from '@/runners/base'
+import type { SomeActorRef } from '@/types/SomeActorRef'
 import {
 	DownstreamWsMessageAction,
 	InternalStateError,
@@ -8,6 +9,7 @@ import {
 	UpstreamWsMessageAction,
 	WORKER_MACHINE_RUNNING_WITHOUT_PROPER_INIT,
 	type DownstreamWsMessage,
+	type LocalDatabase,
 	type LocalHandlers,
 	type SyncEngineDefinition,
 	type Transition,
@@ -20,6 +22,7 @@ export const clientMachine = setup({
 	types: {
 		context: {} as {
 			socket?: WebSocket
+			db?: LocalDatabase
 			wsUrl?: string
 			socketInterval?: ReturnType<typeof setInterval>
 			dbName?: string
@@ -28,6 +31,7 @@ export const clientMachine = setup({
 			localHandlers?: LocalHandlers<object, Transition>
 			nextTransitionId: number
 			transitions: Map<number, TransitionRunner<object, TransitionImpact>>
+			memoryModel?: object
 		},
 		events: {} as
 			| {
@@ -36,6 +40,7 @@ export const clientMachine = setup({
 					dbName: string
 					engineDef: SyncEngineDefinition<Transition>
 					localHandlers: LocalHandlers<object, Transition>
+					initialMemoryModel: object
 			  }
 			| { type: 'ws connected' }
 			| { type: 'ws connection issue' }
@@ -186,13 +191,23 @@ export const clientMachine = setup({
 			}
 		}),
 		screenTransition: assign(({ event, self, context }) => {
-			if (event.type !== 'transition') return {}
+			if (event.type !== 'transition') /* v8 ignore next */ return {}
+			if (!context.memoryModel)
+				throw new InternalStateError(WORKER_MACHINE_RUNNING_WITHOUT_PROPER_INIT)
 
 			context.transitions.set(
 				context.nextTransitionId,
 				new runners[event.transition.impact]({
 					// TODO: Fill *all* the ingredients out
-					actorRef: self
+					actorRef: self as SomeActorRef,
+					initialResources: {
+						ws: context.socket,
+						db: context.db
+					},
+					memoryModel: context.memoryModel,
+					resourceStatus: {
+						db: self.getSnapshot().matches({ db: 'disconnected' })
+					}
 				})
 			)
 
