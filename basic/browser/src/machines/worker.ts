@@ -1,6 +1,8 @@
 import { runners } from '@/runners/all'
 import { TransitionRunner } from '@/runners/base'
 import type { SomeActorRef } from '@/types/SomeActorRef'
+import { DbResourceStatus } from '@/types/status/DbResourceStatus'
+import { WsResourceStatus } from '@/types/status/WsResourceStatus'
 import {
 	DownstreamWsMessageAction,
 	InternalStateError,
@@ -192,13 +194,14 @@ export const clientMachine = setup({
 		}),
 		screenTransition: assign(({ event, self, context }) => {
 			if (event.type !== 'transition') /* v8 ignore next */ return {}
-			if (!context.memoryModel)
+			if (!context.memoryModel || !context.localHandlers)
 				throw new InternalStateError(WORKER_MACHINE_RUNNING_WITHOUT_PROPER_INIT)
+
+			const snapshot = self.getSnapshot()
 
 			context.transitions.set(
 				context.nextTransitionId,
 				new runners[event.transition.impact]({
-					// TODO: Fill *all* the ingredients out
 					actorRef: self as SomeActorRef,
 					initialResources: {
 						ws: context.socket,
@@ -206,8 +209,20 @@ export const clientMachine = setup({
 					},
 					memoryModel: context.memoryModel,
 					resourceStatus: {
-						db: self.getSnapshot().matches({ db: 'disconnected' })
-					}
+						db: snapshot.matches({ db: 'disconnected' })
+							? DbResourceStatus.Disconnected
+							: snapshot.matches({ db: 'connected' })
+								? DbResourceStatus.ConnectedAndMigrated
+								: DbResourceStatus.NeverConnecting,
+						ws: snapshot.matches({ ws: 'connected' })
+							? WsResourceStatus.Connected
+							: WsResourceStatus.Disconnected
+					},
+					id: context.nextTransitionId,
+					// @ts-expect-error TS can't narrow the type down as narrowly as it wants to, and there's no convenient way to make it
+					transition: event.transition,
+					// @ts-expect-error TS can't narrow the type down as narrowly as it wants to, and there's no convenient way to make it
+					localHandler: context.localHandlers[event.transition.action]
 				})
 			)
 

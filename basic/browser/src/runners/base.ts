@@ -76,7 +76,7 @@ export abstract class TransitionRunner<
 	}
 
 	protected readonly id: number
-	protected readonly transitionObj: Transition
+	protected readonly transitionObj: Transition & { impact: Impact }
 	private readonly actorRef: SomeActorRef
 	protected readonly localHandler: Ingredients<
 		MemoryModel,
