@@ -1,5 +1,7 @@
+import { createMemoryModel } from '@/helpers/memory_model'
 import { runners } from '@/runners/all'
 import { TransitionRunner } from '@/runners/base'
+import type { Transformation } from '@/types/memory_model/Tranformation'
 import type { SomeActorRef } from '@/types/SomeActorRef'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import { WsResourceStatus } from '@/types/status/WsResourceStatus'
@@ -43,6 +45,7 @@ export const clientMachine = setup({
 					engineDef: SyncEngineDefinition<Transition>
 					localHandlers: LocalHandlers<object, Transition>
 					initialMemoryModel: object
+					announceTransformation: (transformation: Transformation) => unknown
 			  }
 			| { type: 'ws connected' }
 			| { type: 'ws connection issue' }
@@ -111,6 +114,15 @@ export const clientMachine = setup({
 			}
 		}),
 		establishDb: assign(() => ({})),
+		initMemoryModel: assign(({ event }) => {
+			if (event.type !== 'init') /* v8 ignore next */ return {}
+			return {
+				memoryModel: createMemoryModel(
+					event.initialMemoryModel,
+					event.announceTransformation
+				)
+			}
+		}),
 		initWsUrl: assign(({ event }) => {
 			if (event.type !== 'init') /* v8 ignore next */ return {}
 			return { wsUrl: event.wsUrl }
@@ -241,6 +253,9 @@ export const clientMachine = setup({
 	on: {
 		transition: {
 			actions: ['screenTransition']
+		},
+		init: {
+			actions: ['initMemoryModel']
 		}
 	},
 	states: {
