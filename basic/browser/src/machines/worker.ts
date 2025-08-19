@@ -35,6 +35,7 @@ export const clientMachine = setup({
 			localHandlers?: LocalHandlers<object, Transition>
 			nextTransitionId: number
 			transitions: Map<number, TransitionRunner<object, TransitionImpact>>
+			followerTransitionQueue: Transition[]
 			memoryModel?: object
 		},
 		events: {} as
@@ -139,11 +140,16 @@ export const clientMachine = setup({
 			if (event.type !== 'init') /* v8 ignore next */ return {}
 			return { localHandlers: event.localHandlers }
 		}),
-		requestLock: ({ self }) =>
+		requestLock: ({ event, self }) => {
+			if (event.type !== 'init') /* v8 ignore next */ return
 			navigator.locks.request(
-				'leader',
+				`ground0::leader::${event.wsUrl}::${event.dbName}`,
+				// We need to wrap this in a promise that never resolves so
+				// that we don't lose the lock to another worker until this one
+				// closes.
 				() => new Promise(() => self.send({ type: 'leader lock acquired' }))
-			),
+			)
+		},
 		wsInitMessage: ({ context }) => {
 			const { socket, engineDef } = context
 			if (!engineDef)
@@ -204,6 +210,12 @@ export const clientMachine = setup({
 				dissatisfiedPings: context.dissatisfiedPings + 1
 			}
 		}),
+		queueFollowerTransition: ({ event, context }) => {
+			if (event.type !== 'transition') /* v8 ignore next */ return {}
+
+			context.followerTransitionQueue.push(event.transition)
+			// TODO: Message this transition out to the leader
+		},
 		screenTransition: assign(({ event, self, context }) => {
 			if (event.type !== 'transition') /* v8 ignore next */ return {}
 			if (!context.memoryModel || !context.localHandlers)
@@ -241,14 +253,18 @@ export const clientMachine = setup({
 			return {
 				nextTransitionId: context.nextTransitionId + 1
 			}
-		})
+		}),
+		resumeTransitionsAsLeader: () => {
+			throw new Error('not implemented')
+		}
 	}
 }).createMachine({
 	type: 'parallel',
 	context: {
 		dissatisfiedPings: 0,
 		nextTransitionId: 0,
-		transitions: new Map()
+		transitions: new Map(),
+		followerTransitionQueue: []
 	},
 	on: {
 		transition: {
@@ -343,11 +359,19 @@ export const clientMachine = setup({
 						},
 						init: {
 							actions: ['requestLock']
+						},
+						transition: {
+							actions: ['queueFollowerTransition']
 						}
 					}
 				},
 				leader: {
-					type: 'final'
+					on: {
+						transition: {
+							actions: ['screenTransition']
+						}
+					},
+					entry: ['resumeTransitionsAsLeader']
 				}
 			}
 		}
