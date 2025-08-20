@@ -18,7 +18,7 @@ export function workerEntrypoint<TransitionSchema extends Transition>() {
 
 	const ourObject = new WorkerLocalFirst()
 
-	onmessage = (
+	self.onmessage = (
 		event: MessageEvent<UpstreamWorkerMessage<TransitionSchema>>
 	) => {
 		const message = event.data
@@ -36,7 +36,7 @@ export function workerEntrypoint<TransitionSchema extends Transition>() {
 			}
 		}
 	}
-	onmessageerror = (e) => {
+	self.onmessageerror = (e) => {
 		console.error('Message error!')
 		console.error(e)
 	}
