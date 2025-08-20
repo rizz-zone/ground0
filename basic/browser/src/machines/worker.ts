@@ -36,7 +36,6 @@ export const clientMachine = setup({
 			nextTransitionId: number
 			transitions: Map<number, TransitionRunner<object, TransitionImpact>>
 			memoryModel?: object
-			sharedWorker?: boolean
 		},
 		events: {} as
 			| {
@@ -47,7 +46,6 @@ export const clientMachine = setup({
 					localHandlers: LocalHandlers<object, Transition>
 					initialMemoryModel: object
 					announceTransformation: (transformation: Transformation) => unknown
-					sharedWorker: boolean
 			  }
 			| { type: 'ws connected' }
 			| { type: 'ws connection issue' }
@@ -115,12 +113,6 @@ export const clientMachine = setup({
 			}
 		}),
 		establishDb: assign(() => ({})),
-		initSharedWorker: assign(({ event }) => {
-			if (event.type !== 'init') /* v8 ignore next */ return {}
-			return {
-				sharedWorker: event.sharedWorker
-			}
-		}),
 		initMemoryModel: assign(({ event }) => {
 			if (event.type !== 'init') /* v8 ignore next */ return {}
 			return {
@@ -257,7 +249,7 @@ export const clientMachine = setup({
 			actions: ['screenTransition']
 		},
 		init: {
-			actions: ['initSharedWorker', 'initMemoryModel']
+			actions: ['initMemoryModel']
 		}
 	},
 	states: {
