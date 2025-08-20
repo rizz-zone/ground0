@@ -35,8 +35,8 @@ export const clientMachine = setup({
 			localHandlers?: LocalHandlers<object, Transition>
 			nextTransitionId: number
 			transitions: Map<number, TransitionRunner<object, TransitionImpact>>
-			followerTransitionQueue: Transition[]
 			memoryModel?: object
+			sharedWorker?: boolean
 		},
 		events: {} as
 			| {
@@ -47,12 +47,12 @@ export const clientMachine = setup({
 					localHandlers: LocalHandlers<object, Transition>
 					initialMemoryModel: object
 					announceTransformation: (transformation: Transformation) => unknown
+					sharedWorker: boolean
 			  }
 			| { type: 'ws connected' }
 			| { type: 'ws connection issue' }
 			| { type: 'db connected' }
 			| { type: 'db cannot connect' }
-			| { type: 'leader lock acquired' }
 			| { type: 'socket ping time' }
 			| { type: 'ping received' }
 			| { type: 'socket has destabilised' }
@@ -115,6 +115,12 @@ export const clientMachine = setup({
 			}
 		}),
 		establishDb: assign(() => ({})),
+		initSharedWorker: assign(({ event }) => {
+			if (event.type !== 'init') /* v8 ignore next */ return {}
+			return {
+				sharedWorker: event.sharedWorker
+			}
+		}),
 		initMemoryModel: assign(({ event }) => {
 			if (event.type !== 'init') /* v8 ignore next */ return {}
 			return {
@@ -140,16 +146,6 @@ export const clientMachine = setup({
 			if (event.type !== 'init') /* v8 ignore next */ return {}
 			return { localHandlers: event.localHandlers }
 		}),
-		requestLock: ({ event, self }) => {
-			if (event.type !== 'init') /* v8 ignore next */ return
-			navigator.locks.request(
-				`ground0::leader::${event.wsUrl}::${event.dbName}`,
-				// We need to wrap this in a promise that never resolves so
-				// that we don't lose the lock to another worker until this one
-				// closes.
-				() => new Promise(() => self.send({ type: 'leader lock acquired' }))
-			)
-		},
 		wsInitMessage: ({ context }) => {
 			const { socket, engineDef } = context
 			if (!engineDef)
@@ -210,12 +206,6 @@ export const clientMachine = setup({
 				dissatisfiedPings: context.dissatisfiedPings + 1
 			}
 		}),
-		queueFollowerTransition: ({ event, context }) => {
-			if (event.type !== 'transition') /* v8 ignore next */ return {}
-
-			context.followerTransitionQueue.push(event.transition)
-			// TODO: Message this transition out to the leader
-		},
 		screenTransition: assign(({ event, self, context }) => {
 			if (event.type !== 'transition') /* v8 ignore next */ return {}
 			if (!context.memoryModel || !context.localHandlers)
@@ -253,25 +243,21 @@ export const clientMachine = setup({
 			return {
 				nextTransitionId: context.nextTransitionId + 1
 			}
-		}),
-		resumeTransitionsAsLeader: () => {
-			throw new Error('not implemented')
-		}
+		})
 	}
 }).createMachine({
 	type: 'parallel',
 	context: {
 		dissatisfiedPings: 0,
 		nextTransitionId: 0,
-		transitions: new Map(),
-		followerTransitionQueue: []
+		transitions: new Map()
 	},
 	on: {
 		transition: {
 			actions: ['screenTransition']
 		},
 		init: {
-			actions: ['initMemoryModel']
+			actions: ['initSharedWorker', 'initMemoryModel']
 		}
 	},
 	states: {
@@ -326,13 +312,16 @@ export const clientMachine = setup({
 			}
 		},
 		db: {
-			initial: 'disconnected',
+			// Only a SharedWorker is allowed a db
+			initial: 'onconnect' in self ? 'disconnected' : 'will never connect',
+			on: {
+				init: {
+					actions: ['initDbName']
+				}
+			},
 			states: {
 				disconnected: {
 					on: {
-						init: {
-							actions: ['initDbName']
-						},
 						'db connected': {
 							target: 'connected'
 						},
@@ -346,32 +335,6 @@ export const clientMachine = setup({
 				},
 				connected: {
 					type: 'final'
-				}
-			}
-		},
-		superiority: {
-			initial: 'follower',
-			states: {
-				follower: {
-					on: {
-						'leader lock acquired': {
-							target: 'leader'
-						},
-						init: {
-							actions: ['requestLock']
-						},
-						transition: {
-							actions: ['queueFollowerTransition']
-						}
-					}
-				},
-				leader: {
-					on: {
-						transition: {
-							actions: ['screenTransition']
-						}
-					},
-					entry: ['resumeTransitionsAsLeader']
 				}
 			}
 		}
