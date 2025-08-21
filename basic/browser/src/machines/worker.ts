@@ -20,7 +20,20 @@ import {
 	type UpstreamWsMessage
 } from '@ground0/shared'
 import SuperJSON from 'superjson'
-import { assign, setup } from 'xstate'
+import { assign, setup, type SnapshotFrom } from 'xstate'
+
+function generateResourceStatus(snapshot: SnapshotFrom<typeof clientMachine>) {
+	return {
+		db: snapshot.matches({ db: 'disconnected' })
+			? DbResourceStatus.Disconnected
+			: snapshot.matches({ db: 'connected' })
+				? DbResourceStatus.ConnectedAndMigrated
+				: DbResourceStatus.NeverConnecting,
+		ws: snapshot.matches({ websocket: 'connected' })
+			? WsResourceStatus.Connected
+			: WsResourceStatus.Disconnected
+	}
+}
 
 export const clientMachine = setup({
 	types: {
@@ -203,7 +216,7 @@ export const clientMachine = setup({
 			if (!context.memoryModel || !context.localHandlers)
 				throw new InternalStateError(WORKER_MACHINE_RUNNING_WITHOUT_PROPER_INIT)
 
-			const snapshot = self.getSnapshot()
+			const snapshot = self.getSnapshot() as SnapshotFrom<typeof clientMachine>
 
 			context.transitions.set(
 				context.nextTransitionId,
@@ -214,16 +227,7 @@ export const clientMachine = setup({
 						db: context.db
 					},
 					memoryModel: context.memoryModel,
-					resourceStatus: {
-						db: snapshot.matches({ db: 'disconnected' })
-							? DbResourceStatus.Disconnected
-							: snapshot.matches({ db: 'connected' })
-								? DbResourceStatus.ConnectedAndMigrated
-								: DbResourceStatus.NeverConnecting,
-						ws: snapshot.matches({ ws: 'connected' })
-							? WsResourceStatus.Connected
-							: WsResourceStatus.Disconnected
-					},
+					resourceStatus: generateResourceStatus(snapshot),
 					id: context.nextTransitionId,
 					// @ts-expect-error TS can't narrow the type down as narrowly as it wants to, and there's no convenient way to make it
 					transition: event.transition,
@@ -235,7 +239,20 @@ export const clientMachine = setup({
 			return {
 				nextTransitionId: context.nextTransitionId + 1
 			}
-		})
+		}),
+		// TODO: This hasn't been put everywhere where it has to be put yet
+		updateTransitionResources: ({ self, context }) => {
+			const snapshot = self.getSnapshot() as SnapshotFrom<typeof clientMachine>
+			for (const runner of context.transitions.values()) {
+				runner.syncResources(
+					{
+						ws: context.socket,
+						db: context.db
+					},
+					generateResourceStatus(snapshot)
+				)
+			}
+		}
 	}
 }).createMachine({
 	type: 'parallel',
@@ -304,7 +321,9 @@ export const clientMachine = setup({
 			}
 		},
 		db: {
-			// Only a SharedWorker is allowed a db
+			// Only a SharedWorker is allowed a db. This minimally breaks
+			// xstate's expectations, but we don't do this kind of hack
+			// elsewhere (and it keeps us from loading wasm we'll never use)
 			initial: 'onconnect' in self ? 'disconnected' : 'will never connect',
 			on: {
 				init: {
