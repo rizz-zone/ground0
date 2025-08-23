@@ -240,9 +240,11 @@ export const clientMachine = setup({
 				nextTransitionId: context.nextTransitionId + 1
 			}
 		}),
-		// TODO: This hasn't been put everywhere where it has to be put yet
 		updateTransitionResources: ({ self, context }) => {
 			const snapshot = self.getSnapshot() as SnapshotFrom<typeof clientMachine>
+			// Don't waste time looping through when the machine starts
+			if (snapshot.matches({ init: 'incomplete' })) return
+
 			for (const runner of context.transitions.values()) {
 				runner.syncResources(
 					{
@@ -270,11 +272,30 @@ export const clientMachine = setup({
 		}
 	},
 	states: {
+		init: {
+			initial: 'incomplete',
+			states: {
+				incomplete: {
+					on: {
+						init: {
+							target: 'complete'
+						}
+					}
+				},
+				complete: {
+					type: 'final'
+				}
+			}
+		},
 		websocket: {
 			initial: 'disconnected',
 			states: {
 				disconnected: {
-					entry: ['clearPingInterval', 'establishSocket'],
+					entry: [
+						'clearPingInterval',
+						'establishSocket',
+						'updateTransitionResources'
+					],
 					on: {
 						init: {
 							actions: ['initWsUrl', 'establishSocket']
@@ -285,7 +306,11 @@ export const clientMachine = setup({
 					}
 				},
 				connected: {
-					entry: ['wsInitMessage', 'createPingInterval'],
+					entry: [
+						'wsInitMessage',
+						'createPingInterval',
+						'updateTransitionResources'
+					],
 					on: {
 						'ws connection issue': {
 							target: 'disconnected'
@@ -332,6 +357,7 @@ export const clientMachine = setup({
 			},
 			states: {
 				disconnected: {
+					entry: ['updateTransitionResources'],
 					on: {
 						'db connected': {
 							target: 'connected'
@@ -342,9 +368,11 @@ export const clientMachine = setup({
 					}
 				},
 				'will never connect': {
+					entry: ['updateTransitionResources'],
 					type: 'final'
 				},
 				connected: {
+					entry: ['updateTransitionResources'],
 					type: 'final'
 				}
 			}
