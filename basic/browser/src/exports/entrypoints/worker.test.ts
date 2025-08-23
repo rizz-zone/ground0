@@ -45,23 +45,6 @@ describe('Worker entrypoint', () => {
 		})
 	})
 
-	it('should log an error on Ping message', () => {
-		const consoleErrorSpy = vi
-			.spyOn(console, 'error')
-			.mockImplementation(() => {})
-		workerEntrypoint()
-		const message = {
-			type: UpstreamWorkerMessageType.Ping
-		}
-		if (!workerScope.onmessage) throw new Error('onmessage is not defined')
-		workerScope.onmessage(new MessageEvent('message', { data: message }))
-
-		expect(consoleErrorSpy).toHaveBeenCalledWith(
-			"main thread tried to ping worker even though it isn't a SharedWorker!"
-		)
-		consoleErrorSpy.mockRestore()
-	})
-
 	it('should log error on message error', () => {
 		const consoleErrorSpy = vi
 			.spyOn(console, 'error')

@@ -28,12 +28,6 @@ export function workerEntrypoint<TransitionSchema extends Transition>() {
 				ourObject.init({ wsUrl, dbName })
 				return
 			}
-			case UpstreamWorkerMessageType.Ping: {
-				console.error(
-					"main thread tried to ping worker even though it isn't a SharedWorker!"
-				)
-				return
-			}
 		}
 	}
 	self.onmessageerror = (e) => {

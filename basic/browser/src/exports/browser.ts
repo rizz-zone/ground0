@@ -34,12 +34,6 @@ export class BrowserLocalFirst<TransitionSchema extends Transition> {
 			type: UpstreamWorkerMessageType.Init,
 			data: { dbName, wsUrl }
 		})
-		if (isShared(this.worker))
-			this.pingTimer = setInterval(
-				() =>
-					this.submitWorkerMessage({ type: UpstreamWorkerMessageType.Ping }),
-				5 * 1000
-			)
 	}
 	public transition(transition: TransitionSchema) {
 		this.submitWorkerMessage({
