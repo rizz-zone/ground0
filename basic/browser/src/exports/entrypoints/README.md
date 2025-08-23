@@ -18,7 +18,7 @@ workerEntrypoint(transitionHandler)
 
 ## Both entrypoints gatekeep the same thing
 
-The only job of the entrypoint is to be a thin layer on top of the [`WorkerLocalFirst`](../../classes/worker_thread.ts) class, which is itself a thin layer on top of a [`clientMachine`](../../machines/worker.ts). However, they have to perform slightly different tasks from each other:
+The only job of the entrypoint is to be a thin layer on top of the [`WorkerLocalFirst`](../../helpers/worker_thread.ts) class, which is itself a thin layer on top of a [`clientMachine`](../../machines/worker.ts). However, they have to perform slightly different tasks from each other:
 
 | Function                           | `sharedWorkerEntrypoint` | `workerEntrypoint` |
 | ---------------------------------- | ------------------------ | ------------------ |
