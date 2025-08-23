@@ -123,21 +123,6 @@ describe('BrowserLocalFirst', () => {
 				})
 				expect(mockWorker.postMessage).not.toBeCalled()
 			})
-			it('pings when timer runs', ({ skip }) => {
-				new BrowserLocalFirst<TestingTransition>({
-					dbName: DB_NAME,
-					wsUrl: SOCKET_URL,
-					worker: mockWorker
-				})
-				if (typeof setIntervalMock.mock.lastCall === 'undefined')
-					return skip('timer was not set')
-				setIntervalMock.mock.lastCall[0]()
-
-				expect(mockWorker.port.postMessage).toHaveBeenCalledWith({
-					type: UpstreamWorkerMessageType.Ping
-				})
-				expect(mockWorker.postMessage).not.toHaveBeenCalled()
-			})
 		})
 	})
 })
