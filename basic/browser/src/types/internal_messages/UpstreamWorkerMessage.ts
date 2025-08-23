@@ -1,7 +1,6 @@
 export enum UpstreamWorkerMessageType {
 	Init,
-	Transition,
-	Ping
+	Transition
 }
 
 export type UpstreamWorkerMessage<T> =
@@ -13,4 +12,3 @@ export type UpstreamWorkerMessage<T> =
 			type: UpstreamWorkerMessageType.Transition
 			data: T
 	  }
-	| { type: UpstreamWorkerMessageType.Ping }

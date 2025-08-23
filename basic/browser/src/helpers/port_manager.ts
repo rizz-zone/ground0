@@ -26,21 +26,6 @@ class WorkerPort<TransitionSchema extends Transition> {
 	private instanceKey?: InstanceKey
 	private instance?: WorkerLocalFirst
 
-	private createTimeout() {
-		// TODO: This is poor practice because there are legitimate reasons for
-		// the main thread to go offline for more than a minute. Before full
-		// release, this should be converted to instead *gently* mark a port as
-		// inactive, such that it can still 'restart' if the main thread shows
-		// back up.
-		return setTimeout(this[Symbol.dispose].bind(this), 60000)
-	}
-
-	private timeout? = this.createTimeout()
-	private resetTimeout() {
-		clearTimeout(this.timeout)
-		this.timeout = this.createTimeout()
-	}
-
 	public init(data: InstanceData) {
 		// We ignore this condition because it's unlikely to happen, and very hard to test.
 		if (this.instanceKey)
@@ -84,9 +69,6 @@ class WorkerPort<TransitionSchema extends Transition> {
 			case UpstreamWorkerMessageType.Init:
 				this.init(message.data)
 				break
-			case UpstreamWorkerMessageType.Ping:
-				this.resetTimeout()
-				break
 		}
 	}
 
@@ -125,7 +107,6 @@ class WorkerPort<TransitionSchema extends Transition> {
 
 		this.instance = undefined
 		this.instanceKey = undefined
-		this.timeout = undefined
 		this.port = undefined
 	}
 }

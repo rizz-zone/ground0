@@ -20,8 +20,6 @@ export class BrowserLocalFirst<TransitionSchema extends Transition> {
 		this.worker.postMessage(message)
 	}
 
-	private pingTimer: ReturnType<typeof setInterval> | undefined
-
 	constructor({
 		dbName,
 		wsUrl,
