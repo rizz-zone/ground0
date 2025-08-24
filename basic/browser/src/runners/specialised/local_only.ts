@@ -42,6 +42,8 @@ export class LocalOnlyTransitionRunner<
 		}
 		if (this.resourceStatus.db === DbResourceStatus.ConnectedAndMigrated)
 			this.onDbConnected()
+		else if (this.resourceStatus.db === DbResourceStatus.NeverConnecting)
+			this.closeIfPossible('db')
 	}
 	public override onDbConnected(): void {
 		if (!this.db || !('editDb' in this.localHandler)) return
