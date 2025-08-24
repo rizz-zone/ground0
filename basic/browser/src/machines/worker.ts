@@ -240,6 +240,14 @@ export const clientMachine = setup({
 				nextTransitionId: context.nextTransitionId + 1
 			}
 		}),
+		completeTransition: ({ event, context }) => {
+			if (event.type !== 'transition complete') /* v8 ignore next */ return
+			const { id } = event
+			if (!context.transitions.delete(id))
+				console.warn(
+					`Tried to clear transition with ID ${id}, but it wasn't registered!`
+				)
+		},
 		updateTransitionResources: ({ self, context }) => {
 			const snapshot = self.getSnapshot() as SnapshotFrom<typeof clientMachine>
 			// Don't waste time looping through when the machine starts
@@ -264,11 +272,14 @@ export const clientMachine = setup({
 		transitions: new Map()
 	},
 	on: {
+		init: {
+			actions: ['initMemoryModel']
+		},
 		transition: {
 			actions: ['screenTransition']
 		},
-		init: {
-			actions: ['initMemoryModel']
+		'transition complete': {
+			actions: ['completeTransition']
 		}
 	},
 	states: {
