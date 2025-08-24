@@ -117,9 +117,23 @@ export const clientMachine = setup({
 			const { payload } = event
 			switch (payload.action) {
 				case DownstreamWsMessageAction.OptimisticResolve:
-				case DownstreamWsMessageAction.OptimisticCancel:
-					console.error('not implemented') // TODO: implement this when optimistic transitions get registered
+				case DownstreamWsMessageAction.OptimisticCancel: {
+					const transition = context.transitions.get(payload.id)
+					if (!transition) {
+						console.warn(
+							'Received an optimistic transition ' +
+								(payload.action === DownstreamWsMessageAction.OptimisticResolve)
+								? 'confirmation'
+								: 'cancellation' +
+										' via ws, but the transition it relates to (ID ' +
+										payload.id +
+										") doesn't exist!"
+						)
+						return {}
+					}
+					// TODO: implement this when optimistic transitions get registered
 					return {}
+				}
 				default:
 					console.warn('No matched case') // TODO: Proper message
 					return {}
