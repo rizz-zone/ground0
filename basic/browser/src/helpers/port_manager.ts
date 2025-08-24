@@ -64,11 +64,12 @@ class WorkerPort<
 				engineDef: this.syncEngineDefinition,
 				localHandlers: this.localHandlers,
 				initialMemoryModel: this.initialMemoryModel,
-				announceTransformation: (transformation) =>
+				announceTransformation: (transformation) => {
 					this.port?.postMessage({
 						type: DownstreamWorkerMessageType.Transformation,
 						transformation
 					} satisfies DownstreamWorkerMessage)
+				}
 			})
 			;(this.constructor as typeof WorkerPort).instances.set(
 				this.instanceKey,
