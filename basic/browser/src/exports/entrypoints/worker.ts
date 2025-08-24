@@ -1,6 +1,11 @@
 /// <reference lib="webworker" />
 
 import { WorkerLocalFirst } from '@/helpers/worker_thread'
+import type { EffectiveLocalDefinition } from '@/types/EffectiveLocalDefinition'
+import {
+	DownstreamWorkerMessageType,
+	type DownstreamWorkerMessage
+} from '@/types/internal_messages/DownstreamWorkerMessage'
 import {
 	UpstreamWorkerMessageType,
 	type UpstreamWorkerMessage
@@ -12,7 +17,14 @@ import {
 } from '@ground0/shared'
 
 let called = false
-export function workerEntrypoint<TransitionSchema extends Transition>() {
+export function workerEntrypoint<
+	MemoryModel extends object,
+	TransitionSchema extends Transition
+>({
+	engineDef,
+	localHandlers,
+	initialMemoryModel
+}: EffectiveLocalDefinition<MemoryModel, TransitionSchema>) {
 	if (called) throw new WorkerDoubleInitError(workerDoubleInit(false))
 	called = true
 
@@ -25,7 +37,20 @@ export function workerEntrypoint<TransitionSchema extends Transition>() {
 		switch (message.type) {
 			case UpstreamWorkerMessageType.Init: {
 				const { wsUrl, dbName } = message.data
-				ourObject.init({ wsUrl, dbName })
+				ourObject.init({
+					wsUrl,
+					dbName,
+					engineDef,
+					// @ts-expect-error We can't cover every combination ever. It's, like, the whole point of narrowing our types.
+					localHandlers,
+					initialMemoryModel,
+					announceTransformation(transformation) {
+						self.postMessage({
+							type: DownstreamWorkerMessageType.Transformation,
+							transformation
+						} satisfies DownstreamWorkerMessage)
+					}
+				})
 				return
 			}
 		}

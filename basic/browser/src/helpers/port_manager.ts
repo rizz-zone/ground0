@@ -21,6 +21,7 @@ import {
 	DownstreamWorkerMessageType,
 	type DownstreamWorkerMessage
 } from '@/types/internal_messages/DownstreamWorkerMessage'
+import type { EffectiveLocalDefinition } from '@/types/EffectiveLocalDefinition'
 
 const ctx = self as unknown as SharedWorkerGlobalScope
 
@@ -28,7 +29,7 @@ class WorkerPort<
 	MemoryModel extends object,
 	TransitionSchema extends Transition
 > {
-	private readonly syncEngineDefinition: SyncEngineDefinition<TransitionSchema>
+	private readonly engineDef: SyncEngineDefinition<TransitionSchema>
 	private readonly localHandlers: LocalHandlers<MemoryModel, TransitionSchema>
 	private readonly initialMemoryModel: MemoryModel
 
@@ -61,7 +62,7 @@ class WorkerPort<
 			this.instance = new WorkerLocalFirst()
 			this.instance.init({
 				...data,
-				engineDef: this.syncEngineDefinition,
+				engineDef: this.engineDef,
 				localHandlers: this.localHandlers,
 				initialMemoryModel: this.initialMemoryModel,
 				announceTransformation: (transformation) => {
@@ -102,16 +103,13 @@ class WorkerPort<
 
 	constructor({
 		port,
-		syncEngineDefinition,
+		engineDef,
 		localHandlers,
 		initialMemoryModel
 	}: {
 		port: MessagePort
-		syncEngineDefinition: SyncEngineDefinition<TransitionSchema>
-		localHandlers: LocalHandlers<MemoryModel, TransitionSchema>
-		initialMemoryModel: MemoryModel
-	}) {
-		this.syncEngineDefinition = syncEngineDefinition
+	} & EffectiveLocalDefinition<MemoryModel, TransitionSchema>) {
+		this.engineDef = engineDef
 		this.localHandlers = localHandlers
 		this.initialMemoryModel = initialMemoryModel
 		this.port = port
@@ -152,15 +150,12 @@ class WorkerPort<
 	}
 }
 
-function init<MemoryModel extends object, TransitionSchema extends Transition>({
-	syncEngineDefinition,
-	localHandlers,
-	initialMemoryModel
-}: {
-	syncEngineDefinition: SyncEngineDefinition<TransitionSchema>
-	localHandlers: LocalHandlers<MemoryModel, TransitionSchema>
-	initialMemoryModel: MemoryModel
-}) {
+function init<MemoryModel extends object, TransitionSchema extends Transition>(
+	effectiveLocalDefinition: EffectiveLocalDefinition<
+		MemoryModel,
+		TransitionSchema
+	>
+) {
 	ctx.onconnect = (event) => {
 		const port = event.ports[0]
 		if (!port)
@@ -168,9 +163,7 @@ function init<MemoryModel extends object, TransitionSchema extends Transition>({
 
 		new WorkerPort<MemoryModel, TransitionSchema>({
 			port,
-			syncEngineDefinition,
-			localHandlers,
-			initialMemoryModel
+			...effectiveLocalDefinition
 		})
 	}
 }
