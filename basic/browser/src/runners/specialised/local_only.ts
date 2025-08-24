@@ -31,7 +31,12 @@ export class LocalOnlyTransitionRunner<
 				data: this.transitionObj.data,
 				memoryModel: this.memoryModel
 			})
-			if (potentialPromise instanceof Promise)
+			if (
+				potentialPromise &&
+				typeof potentialPromise === 'object' &&
+				'then' in potentialPromise &&
+				typeof potentialPromise.then === 'function'
+			)
 				potentialPromise.then(() => this.closeIfPossible('memoryModel'))
 			else this.closeIfPossible('memoryModel')
 		}
@@ -40,12 +45,17 @@ export class LocalOnlyTransitionRunner<
 	}
 	public override onDbConnected(): void {
 		if (!this.db || !('editDb' in this.localHandler)) return
-		const response = this.localHandler.editDb({
+		const potentialPromise = this.localHandler.editDb({
 			db: this.db,
 			data: this.transitionObj.data
 		})
-		if (response instanceof Promise)
-			response.then(() => this.closeIfPossible('db'))
+		if (
+			potentialPromise &&
+			typeof potentialPromise === 'object' &&
+			'then' in potentialPromise &&
+			typeof potentialPromise.then === 'function'
+		)
+			potentialPromise.then(() => this.closeIfPossible('db'))
 		else this.closeIfPossible('db')
 	}
 	public override onDbConfirmedNeverConnecting(): void {
