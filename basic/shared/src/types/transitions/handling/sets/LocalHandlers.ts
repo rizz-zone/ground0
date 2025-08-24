@@ -27,7 +27,7 @@ export type LocalHandlers<MemoryModel extends object, T extends Transition> = {
 						) => IgnoredReturn
 						editDb: (params: DbHandlerParams<T>) => IgnoredReturn
 				  }
-		: T extends TransitionImpact.OptimisticPush
+		: T extends { impact: TransitionImpact.OptimisticPush }
 			?
 					| {
 							editMemoryModel: (
