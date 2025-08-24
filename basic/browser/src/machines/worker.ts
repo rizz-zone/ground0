@@ -2,7 +2,6 @@ import { createMemoryModel } from '@/helpers/memory_model'
 import { runners } from '@/runners/all'
 import { TransitionRunner } from '@/runners/base'
 import type { Transformation } from '@/types/memory_model/Tranformation'
-import type { SomeActorRef } from '@/types/SomeActorRef'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import { WsResourceStatus } from '@/types/status/WsResourceStatus'
 import {
@@ -20,7 +19,7 @@ import {
 	type UpstreamWsMessage
 } from '@ground0/shared'
 import SuperJSON from 'superjson'
-import { assign, setup, type SnapshotFrom } from 'xstate'
+import { assign, setup, type ActorRefFrom, type SnapshotFrom } from 'xstate'
 
 function generateResourceStatus(snapshot: SnapshotFrom<typeof clientMachine>) {
 	return {
@@ -69,6 +68,7 @@ export const clientMachine = setup({
 			| { type: 'socket has destabilised' }
 			| { type: 'socket has stabilised' }
 			| { type: 'transition'; transition: Transition }
+			| { type: 'transition complete'; id: number }
 			| { type: 'incoming ws message'; payload: DownstreamWsMessage }
 	},
 	actions: {
@@ -221,7 +221,7 @@ export const clientMachine = setup({
 			context.transitions.set(
 				context.nextTransitionId,
 				new runners[event.transition.impact]({
-					actorRef: self as SomeActorRef,
+					actorRef: self as ActorRefFrom<typeof clientMachine>,
 					initialResources: {
 						ws: context.socket,
 						db: context.db

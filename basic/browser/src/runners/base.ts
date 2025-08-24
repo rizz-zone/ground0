@@ -1,4 +1,3 @@
-import type { SomeActorRef } from '@/types/SomeActorRef'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import type { ResourceStatus } from '@/types/status/ResourceStatus'
 import { WsResourceStatus } from '@/types/status/WsResourceStatus'
@@ -7,8 +6,9 @@ import type {
 	Transition,
 	TransitionImpact
 } from '@ground0/shared'
-import type { EventObject } from 'xstate'
+import type { ActorRefFrom } from 'xstate'
 import type { LocalDatabase } from '../../../shared/dist/types/LocalDatabase'
+import type { clientMachine } from '@/machines/worker'
 
 export type Ingredients<
 	MemoryModel extends object,
@@ -19,7 +19,7 @@ export type Ingredients<
 	resourceStatus: ResourceStatus
 	id: number
 	transition: Transition & { impact: Impact }
-	actorRef: SomeActorRef
+	actorRef: ActorRefFrom<typeof clientMachine>
 	localHandler: LocalHandlers<
 		MemoryModel,
 		Transition & { impact: Impact }
@@ -72,12 +72,12 @@ export abstract class TransitionRunner<
 		this.actorRef.send({
 			type: 'transition complete',
 			id: this.id
-		} as EventObject)
+		})
 	}
 
 	protected readonly id: number
 	protected readonly transitionObj: Transition & { impact: Impact }
-	private readonly actorRef: SomeActorRef
+	private readonly actorRef: ActorRefFrom<typeof clientMachine>
 	protected readonly localHandler: Ingredients<
 		MemoryModel,
 		Impact
