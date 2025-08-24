@@ -1,4 +1,4 @@
-import type { TransitionImpact } from '@ground0/shared'
+import { type TransitionImpact } from '@ground0/shared'
 import { TransitionRunner, type Ingredients } from '../base'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 
@@ -26,20 +26,14 @@ export class LocalOnlyTransitionRunner<
 	) {
 		super(ingredients)
 
-		if ('editMemoryModel' in this.localHandler) {
-			const potentialPromise = this.localHandler.editMemoryModel({
-				data: this.transitionObj.data,
-				memoryModel: this.memoryModel
-			})
-			if (
-				potentialPromise &&
-				typeof potentialPromise === 'object' &&
-				'then' in potentialPromise &&
-				typeof potentialPromise.then === 'function'
-			)
-				potentialPromise.then(() => this.closeIfPossible('memoryModel'))
-			else this.closeIfPossible('memoryModel')
-		}
+		if ('editMemoryModel' in this.localHandler)
+			Promise.resolve(
+				this.localHandler.editMemoryModel({
+					data: this.transitionObj.data,
+					memoryModel: this.memoryModel
+				})
+			).then(() => this.closeIfPossible('memoryModel'))
+
 		if (this.resourceStatus.db === DbResourceStatus.ConnectedAndMigrated)
 			this.onDbConnected()
 		else if (this.resourceStatus.db === DbResourceStatus.NeverConnecting)
@@ -47,18 +41,12 @@ export class LocalOnlyTransitionRunner<
 	}
 	public override onDbConnected(): void {
 		if (!this.db || !('editDb' in this.localHandler)) return
-		const potentialPromise = this.localHandler.editDb({
-			db: this.db,
-			data: this.transitionObj.data
-		})
-		if (
-			potentialPromise &&
-			typeof potentialPromise === 'object' &&
-			'then' in potentialPromise &&
-			typeof potentialPromise.then === 'function'
-		)
-			potentialPromise.then(() => this.closeIfPossible('db'))
-		else this.closeIfPossible('db')
+		Promise.resolve(
+			this.localHandler.editDb({
+				db: this.db,
+				data: this.transitionObj.data
+			})
+		).then(() => this.closeIfPossible('db'))
 	}
 	public override onDbConfirmedNeverConnecting(): void {
 		this.closeIfPossible('db')
