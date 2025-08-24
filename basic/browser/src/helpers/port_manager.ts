@@ -6,7 +6,9 @@ import {
 	PortDoubleInitError,
 	type Transition,
 	DOUBLE_SHAREDWORKER_PORT_INIT,
-	MAP_DESTRUCTOR_INCONSISTENCY
+	MAP_DESTRUCTOR_INCONSISTENCY,
+	type SyncEngineDefinition,
+	type LocalHandlers
 } from '@ground0/shared'
 import type { InstanceData } from '@/types/instances/InstanceData'
 import type { InstanceKey } from '@/types/instances/InstanceKey'
@@ -15,16 +17,29 @@ import {
 	type UpstreamWorkerMessage
 } from '@/types/internal_messages/UpstreamWorkerMessage'
 import { WorkerLocalFirst } from './worker_thread'
+import {
+	DownstreamWorkerMessageType,
+	type DownstreamWorkerMessage
+} from '@/types/internal_messages/DownstreamWorkerMessage'
 
 const ctx = self as unknown as SharedWorkerGlobalScope
 
-class WorkerPort<TransitionSchema extends Transition> {
-	private static readonly instances = new Map<InstanceKey, WorkerLocalFirst>()
+class WorkerPort<
+	MemoryModel extends object,
+	TransitionSchema extends Transition
+> {
+	private readonly syncEngineDefinition: SyncEngineDefinition<TransitionSchema>
+	private readonly localHandlers: LocalHandlers<MemoryModel, TransitionSchema>
+	private readonly initialMemoryModel: MemoryModel
+
+	private static readonly instances = new Map<
+		InstanceKey,
+		WorkerLocalFirst<object, Transition>
+	>()
 	private static readonly activeInstanceClients = new Map<InstanceKey, number>()
-	private readonly id = crypto.randomUUID()
 	private port?: MessagePort
 	private instanceKey?: InstanceKey
-	private instance?: WorkerLocalFirst
+	private instance?: WorkerLocalFirst<MemoryModel, TransitionSchema>
 
 	public init(data: InstanceData) {
 		// We ignore this condition because it's unlikely to happen, and very hard to test.
@@ -40,12 +55,24 @@ class WorkerPort<TransitionSchema extends Transition> {
 		const potentialInstance = (
 			this.constructor as typeof WorkerPort
 		).instances.get(this.instanceKey)
+		// @ts-expect-error It's astronomically unlikely it's not what we want it to be. That would be a consumer skill issue.
 		if (potentialInstance) this.instance = potentialInstance
 		else {
 			this.instance = new WorkerLocalFirst()
-			this.instance.init(data)
+			this.instance.init({
+				...data,
+				engineDef: this.syncEngineDefinition,
+				localHandlers: this.localHandlers,
+				initialMemoryModel: this.initialMemoryModel,
+				announceTransformation: (transformation) =>
+					this.port?.postMessage({
+						type: DownstreamWorkerMessageType.Transformation,
+						transformation
+					} satisfies DownstreamWorkerMessage)
+			})
 			;(this.constructor as typeof WorkerPort).instances.set(
 				this.instanceKey,
+				// @ts-expect-error We only use the instance in a way that works with any set of type parameters passed into it.
 				this.instance
 			)
 		}
@@ -72,7 +99,20 @@ class WorkerPort<TransitionSchema extends Transition> {
 		}
 	}
 
-	constructor(port: MessagePort) {
+	constructor({
+		port,
+		syncEngineDefinition,
+		localHandlers,
+		initialMemoryModel
+	}: {
+		port: MessagePort
+		syncEngineDefinition: SyncEngineDefinition<TransitionSchema>
+		localHandlers: LocalHandlers<MemoryModel, TransitionSchema>
+		initialMemoryModel: MemoryModel
+	}) {
+		this.syncEngineDefinition = syncEngineDefinition
+		this.localHandlers = localHandlers
+		this.initialMemoryModel = initialMemoryModel
 		this.port = port
 		this.port.onmessage = this.onmessage.bind(this)
 		this.port.onmessageerror = () =>
@@ -111,13 +151,26 @@ class WorkerPort<TransitionSchema extends Transition> {
 	}
 }
 
-function init<TransitionSchema extends Transition>() {
+function init<MemoryModel extends object, TransitionSchema extends Transition>({
+	syncEngineDefinition,
+	localHandlers,
+	initialMemoryModel
+}: {
+	syncEngineDefinition: SyncEngineDefinition<TransitionSchema>
+	localHandlers: LocalHandlers<MemoryModel, TransitionSchema>
+	initialMemoryModel: MemoryModel
+}) {
 	ctx.onconnect = (event) => {
 		const port = event.ports[0]
 		if (!port)
 			throw new NoPortsError('onconnect fired, but there is no associated port')
 
-		new WorkerPort<TransitionSchema>(port)
+		new WorkerPort<MemoryModel, TransitionSchema>({
+			port,
+			syncEngineDefinition,
+			localHandlers,
+			initialMemoryModel
+		})
 	}
 }
 

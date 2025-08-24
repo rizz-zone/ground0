@@ -2,8 +2,17 @@
 
 import { createActor } from 'xstate'
 import { clientMachine } from '@/machines/worker'
+import type {
+	LocalHandlers,
+	SyncEngineDefinition,
+	Transition
+} from '@ground0/shared'
+import type { Transformation } from '@/types/memory_model/Tranformation'
 
-export class WorkerLocalFirst {
+export class WorkerLocalFirst<
+	MemoryModel extends object,
+	TransitionSchema extends Transition
+> {
 	private machine
 
 	constructor() {
@@ -11,8 +20,31 @@ export class WorkerLocalFirst {
 		this.machine.start()
 	}
 
-	init({ wsUrl, dbName }: { wsUrl: string; dbName: string }) {
-		this.machine.send({ type: 'init', wsUrl, dbName })
+	init({
+		wsUrl,
+		dbName,
+		engineDef,
+		localHandlers,
+		initialMemoryModel,
+		announceTransformation
+	}: {
+		wsUrl: string
+		dbName: string
+		engineDef: SyncEngineDefinition<TransitionSchema>
+		localHandlers: LocalHandlers<MemoryModel, TransitionSchema>
+		initialMemoryModel: MemoryModel
+		announceTransformation: (transformation: Transformation) => unknown
+	}) {
+		this.machine.send({
+			type: 'init',
+			wsUrl,
+			dbName,
+			engineDef,
+			// @ts-expect-error We can't cover every combination ever. It's, like, the whole point of narrowing our types.
+			localHandlers,
+			initialMemoryModel,
+			announceTransformation
+		})
 	}
 
 	public [Symbol.dispose] = () => {
