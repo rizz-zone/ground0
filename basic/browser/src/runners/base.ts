@@ -4,10 +4,10 @@ import { WsResourceStatus } from '@/types/status/WsResourceStatus'
 import type {
 	LocalHandlers,
 	Transition,
-	TransitionImpact
+	TransitionImpact,
+	LocalDatabase
 } from '@ground0/shared'
 import type { ActorRefFrom } from 'xstate'
-import type { LocalDatabase } from '@ground0/shared'
 import type { clientMachine } from '@/machines/worker'
 
 export type Ingredients<
