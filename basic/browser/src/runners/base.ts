@@ -7,7 +7,7 @@ import type {
 	TransitionImpact
 } from '@ground0/shared'
 import type { ActorRefFrom } from 'xstate'
-import type { LocalDatabase } from '../../../shared/dist/types/LocalDatabase'
+import type { LocalDatabase } from '@ground0/shared'
 import type { clientMachine } from '@/machines/worker'
 
 export type Ingredients<
