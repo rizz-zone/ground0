@@ -3,10 +3,14 @@ import {
 	InternalStateError,
 	OPTIMISTIC_PUSH_IN_USE_BEFORE_DATBASE_STATE_FINALISED,
 	OPTIMISTIC_PUSH_NOT_EVALUATED,
-	type TransitionImpact
+	UpstreamWsMessageAction,
+	type TransitionImpact,
+	type UpstreamWsMessage
 } from '@ground0/shared'
 import { TransitionRunner, type Ingredients } from '../base'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
+import { WsResourceStatus } from '@/types/status/WsResourceStatus'
+import SuperJSON from 'superjson'
 
 const enum EditStatus {
 	NotEvaluated,
@@ -69,6 +73,22 @@ export class OptimisticPushTransitionRunner<
 		return true
 	}
 
+	private wsResolvedRequest?: boolean
+	private attemptWsMessageIfRelevant(): boolean {
+		if (typeof this.wsResolvedRequest === 'undefined') return true
+		if (this.resourceStatus.ws !== WsResourceStatus.Connected || !this.ws)
+			return false
+		this.ws.send(
+			SuperJSON.stringify({
+				action: UpstreamWsMessageAction.Transition,
+				id: this.id,
+				data: this.transitionObj
+			} satisfies UpstreamWsMessage)
+		)
+		return true
+	}
+	// TODO: Parse ws response
+
 	public constructor(
 		ingredients: Ingredients<MemoryModel, TransitionImpact.OptimisticPush>
 	) {
@@ -92,6 +112,8 @@ export class OptimisticPushTransitionRunner<
 			if (!this.attemptDbHandler())
 				this.editStatus.db = EditStatus.AwaitingResource
 		} else this.editStatus.db = EditStatus.NotRequired
+
+		this.attemptWsMessageIfRelevant()
 	}
 
 	private considerThrowingErrorOnDbResourceEvent(): void {
@@ -108,17 +130,21 @@ export class OptimisticPushTransitionRunner<
 				)
 		}
 	}
-	public override onDbConnected() {
+	protected override onDbConnected() {
 		if (this.editStatus.db === EditStatus.AwaitingResource)
 			this.attemptDbHandler()
 		else this.considerThrowingErrorOnDbResourceEvent()
 	}
-	public override onDbConfirmedNeverConnecting() {
+	protected override onDbConfirmedNeverConnecting() {
 		if (this.editStatus.db === EditStatus.AwaitingResource)
 			this.editStatus.db = EditStatus.NotRequired
 		else this.considerThrowingErrorOnDbResourceEvent()
 	}
-	public override onWsConnected(): unknown {
-		throw new Error('Method not implemented.')
+	protected override onWsConnected() {
+		if (!this.attemptWsMessageIfRelevant()) {
+			// TODO: Use a proper error here. This should only happen if
+			// attemptWsMessage saw that the ws resource wasn't there, even
+			// though it was called through onWsConnected.
+		}
 	}
 }
