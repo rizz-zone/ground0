@@ -39,7 +39,7 @@ export class LocalOnlyTransitionRunner<
 		else if (this.resourceStatus.db === DbResourceStatus.NeverConnecting)
 			this.onDbConfirmedNeverConnecting()
 	}
-	public override onDbConnected(): void {
+	protected override onDbConnected(): void {
 		if (!this.db || !('editDb' in this.localHandler)) return
 		Promise.resolve(
 			this.localHandler.editDb({
@@ -48,10 +48,10 @@ export class LocalOnlyTransitionRunner<
 			})
 		).then(() => this.closeIfPossible('db'))
 	}
-	public override onDbConfirmedNeverConnecting(): void {
+	protected override onDbConfirmedNeverConnecting(): void {
 		this.closeIfPossible('db')
 	}
 
 	// Being local only, this isn't useful to us
-	public override onWsConnected(): void {}
+	protected override onWsConnected(): void {}
 }

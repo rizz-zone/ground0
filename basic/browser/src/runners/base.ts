@@ -38,9 +38,9 @@ export abstract class TransitionRunner<
 	protected db?: LocalDatabase
 	protected resourceStatus: ResourceStatus
 
-	public abstract onDbConnected(): unknown
-	public abstract onDbConfirmedNeverConnecting(): unknown
-	public abstract onWsConnected(): unknown
+	protected abstract onDbConnected(): unknown
+	protected abstract onDbConfirmedNeverConnecting(): unknown
+	protected abstract onWsConnected(): unknown
 
 	public syncResources(changed: SomeResources, newStatus: ResourceStatus) {
 		const beforeStatus = { ...this.resourceStatus }
