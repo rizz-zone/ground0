@@ -2,9 +2,11 @@
 
 const INTERNAL_PROCESS =
 	'This is a process that happens internally, so this is probably a problem with ground0, not your code.'
+// @__PURE__
 const reportAt = (reportSnake: string) =>
 	`Report at https://ground0.rizz.zone/report/${reportSnake}`
 
+// @__PURE__
 const createInitString = (item: string, reportSnake: string) =>
 	`${item} was initialized twice! ${INTERNAL_PROCESS} ${reportAt(reportSnake)}`
 
@@ -15,6 +17,9 @@ export const DOUBLE_SHAREDWORKER_PORT_INIT = createInitString(
 	'SharedWorker port',
 	'sw_double_init'
 )
+export const OPTIMISTIC_PUSH_NOT_EVALUATED = `An OptimisticPush transition was informed about a resource change, but the need for it was not evaluated at the time of construction. ${INTERNAL_PROCESS} ${reportAt('database_not_evaluated')}`
+export const OPTIMISTIC_PUSH_IN_USE_BEFORE_DATBASE_STATE_FINALISED = `An OptimisticPush transition was given a database init event after the database had already started being used. ${INTERNAL_PROCESS} ${reportAt('database_init_after_used')}`
+// @__PURE__
 export const workerDoubleInit = (shared: boolean) =>
 	`${shared ? 'Shared' : ''}Worker entrypoint called twice. To resolve this:
 - Only call ${shared ? 'sharedW' : 'w'}orkerEntrypoint() once throughout the lifecycle of the worker
