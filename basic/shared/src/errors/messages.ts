@@ -24,3 +24,6 @@ export const workerDoubleInit = (shared: boolean) =>
 	`${shared ? 'Shared' : ''}Worker entrypoint called twice. To resolve this:
 - Only call ${shared ? 'sharedW' : 'w'}orkerEntrypoint() once throughout the lifecycle of the worker
 - Do not run any other code inside of your worker.`
+// @__PURE__
+export const handlerThrew = (handlerName: string, promiseRejection: boolean) =>
+	`Handler ${handlerName} ${promiseRejection ? 'returned a promise that was rejected' : 'threw an error'}! If it is reversible, the reverse method will not be called.`

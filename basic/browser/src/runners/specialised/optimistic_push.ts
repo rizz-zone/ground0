@@ -1,4 +1,5 @@
 import {
+	handlerThrew,
 	InternalStateError,
 	OPTIMISTIC_PUSH_IN_USE_BEFORE_DATBASE_STATE_FINALISED,
 	OPTIMISTIC_PUSH_NOT_EVALUATED,
@@ -12,7 +13,8 @@ const enum EditStatus {
 	NotRequired,
 	AwaitingResource,
 	InProgress,
-	Complete
+	Complete,
+	Failed
 }
 
 export class OptimisticPushTransitionRunner<
@@ -29,27 +31,42 @@ export class OptimisticPushTransitionRunner<
 		memoryModel: EditStatus.NotEvaluated,
 		db: EditStatus.NotEvaluated
 	}
-	
+
 	private attemptDbHandler(): boolean {
 		if (
 			this.resourceStatus.db !== DbResourceStatus.ConnectedAndMigrated ||
-			!this.db || !('editDb' in this.localHandler)
-		) return false
+			!this.db ||
+			!('editDb' in this.localHandler)
+		)
+			return false
 
-		// TODO: set EditStatus.InProgress
+		this.editStatus.db = EditStatus.InProgress
 
+		try {
 			const promise = Promise.resolve(
 				this.localHandler.editDb({
 					data: this.transitionObj.data,
 					db: this.db
 				})
+			).then(
+				() => {
+					this.editStatus.db = EditStatus.Complete
+				},
+				(rejection) => {
+					console.error(handlerThrew('editDb', true))
+					console.error(rejection)
+					this.editStatus.db = EditStatus.Failed
+				}
 			)
-			promise.then(() => {
-				this.editStatus.db = EditStatus.Complete
-			})
+
 			this.edits.db = promise
-			return true
-		
+		} catch (e) {
+			console.error(handlerThrew('editDb', false))
+			console.error(e)
+			this.editStatus.db = EditStatus.Failed
+		}
+
+		return true
 	}
 
 	public constructor(
@@ -72,21 +89,8 @@ export class OptimisticPushTransitionRunner<
 		} else this.editStatus.memoryModel = EditStatus.NotRequired
 
 		if ('editDb' in this.localHandler) {
-			if (
-				this.resourceStatus.db === DbResourceStatus.ConnectedAndMigrated &&
-				this.db
-			) {
-				const promise = Promise.resolve(
-					this.localHandler.editDb({
-						data: this.transitionObj.data,
-						db: this.db
-					})
-				)
-				promise.then(() => {
-					this.editStatus.db = EditStatus.Complete
-				})
-				this.edits.db = promise
-			} else this.editStatus.db = EditStatus.AwaitingResource
+			if (!this.attemptDbHandler())
+				this.editStatus.db = EditStatus.AwaitingResource
 		} else this.editStatus.db = EditStatus.NotRequired
 	}
 
@@ -97,6 +101,7 @@ export class OptimisticPushTransitionRunner<
 			case EditStatus.NotEvaluated:
 				throw new InternalStateError(OPTIMISTIC_PUSH_NOT_EVALUATED)
 			case EditStatus.Complete:
+			case EditStatus.Failed:
 			case EditStatus.InProgress:
 				throw new InternalStateError(
 					OPTIMISTIC_PUSH_IN_USE_BEFORE_DATBASE_STATE_FINALISED
@@ -104,12 +109,9 @@ export class OptimisticPushTransitionRunner<
 		}
 	}
 	public override onDbConnected() {
-		if (this.editStatus.db === EditStatus.AwaitingResource) {
-			if (
-				this.resourceStatus.db === DbResourceStatus.ConnectedAndMigrated &&
-				this.db
-			)
-		} else this.considerThrowingErrorOnDbResourceEvent()
+		if (this.editStatus.db === EditStatus.AwaitingResource)
+			this.attemptDbHandler()
+		else this.considerThrowingErrorOnDbResourceEvent()
 	}
 	public override onDbConfirmedNeverConnecting() {
 		if (this.editStatus.db === EditStatus.AwaitingResource)
