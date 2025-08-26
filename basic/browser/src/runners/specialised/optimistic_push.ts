@@ -20,7 +20,9 @@ const enum EditStatus {
 	AwaitingResource,
 	InProgress,
 	Complete,
-	Failed
+	Failed,
+	Reverting,
+	Reverted
 }
 
 export class OptimisticPushTransitionRunner<
@@ -89,7 +91,6 @@ export class OptimisticPushTransitionRunner<
 		)
 		return true
 	}
-	// TODO: Parse ws response
 
 	public constructor(
 		ingredients: Ingredients<MemoryModel, TransitionImpact.OptimisticPush>
@@ -116,6 +117,13 @@ export class OptimisticPushTransitionRunner<
 		} else this.editStatus.db = EditStatus.NotRequired
 
 		this.attemptWsMessageIfRelevant()
+	}
+
+	public reportWsResponse(resolved: boolean) {
+		if (typeof this.wsResolvedRequest === 'undefined') return true
+		this.wsResolvedRequest = resolved
+
+		// TODO: start allowing reverts via some Mechanism
 	}
 
 	private considerThrowingErrorOnDbResourceEvent(): void {
