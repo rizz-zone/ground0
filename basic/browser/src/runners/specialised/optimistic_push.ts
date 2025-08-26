@@ -1,5 +1,7 @@
 import {
 	handlerThrew,
+	improperResourceChangeEvent,
+	ImproperResourceChangeEventError,
 	InternalStateError,
 	OPTIMISTIC_PUSH_IN_USE_BEFORE_DATBASE_STATE_FINALISED,
 	OPTIMISTIC_PUSH_NOT_EVALUATED,
@@ -141,10 +143,12 @@ export class OptimisticPushTransitionRunner<
 		else this.considerThrowingErrorOnDbResourceEvent()
 	}
 	protected override onWsConnected() {
-		if (!this.attemptWsMessageIfRelevant()) {
-			// TODO: Use a proper error here. This should only happen if
-			// attemptWsMessage saw that the ws resource wasn't there, even
-			// though it was called through onWsConnected.
-		}
+		if (!this.attemptWsMessageIfRelevant())
+			// If attemptWsMessageIfRelevant returns false, it means the ws
+			// wasn't actually available, which means there's an issue with the
+			// whole event that was fired that shouldn't be ignored.
+			throw new ImproperResourceChangeEventError(
+				improperResourceChangeEvent('ws')
+			)
 	}
 }

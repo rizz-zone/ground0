@@ -19,6 +19,7 @@ export const DOUBLE_SHAREDWORKER_PORT_INIT = createInitString(
 )
 export const OPTIMISTIC_PUSH_NOT_EVALUATED = `An OptimisticPush transition was informed about a resource change, but the need for it was not evaluated at the time of construction. ${INTERNAL_PROCESS} ${reportAt('database_not_evaluated')}`
 export const OPTIMISTIC_PUSH_IN_USE_BEFORE_DATBASE_STATE_FINALISED = `An OptimisticPush transition was given a database init event after the database had already started being used. ${INTERNAL_PROCESS} ${reportAt('database_init_after_used')}`
+
 // @__PURE__
 export const workerDoubleInit = (shared: boolean) =>
 	`${shared ? 'Shared' : ''}Worker entrypoint called twice. To resolve this:
@@ -27,3 +28,6 @@ export const workerDoubleInit = (shared: boolean) =>
 // @__PURE__
 export const handlerThrew = (handlerName: string, promiseRejection: boolean) =>
 	`Handler ${handlerName} ${promiseRejection ? 'returned a promise that was rejected' : 'threw an error'}! If it is reversible, the reverse method will not be called.`
+// @__PURE__
+export const improperResourceChangeEvent = (resource: 'ws' | 'db') =>
+	`on${resource.charAt(0).toUpperCase() + resource.slice(1)}Connected fired, but the ${resource} connection was not actually available. ${INTERNAL_PROCESS} ${reportAt('incomplete_handler_resource_change')}`

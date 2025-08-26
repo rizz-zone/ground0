@@ -56,3 +56,11 @@ export class EndOfTheUniverseError extends Error {
 		Object.setPrototypeOf(this, EndOfTheUniverseError.prototype)
 	}
 }
+export class ImproperResourceChangeEventError extends Error {
+	constructor(message: string) {
+		super(message)
+		this.name = 'ImproperResourceChangeEventError'
+
+		Object.setPrototypeOf(this, ImproperResourceChangeEventError.prototype)
+	}
+}
