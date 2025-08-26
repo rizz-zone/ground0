@@ -22,9 +22,12 @@ const enum EditStatus {
 	Complete,
 	Failed,
 	Reverting,
-	Reverted
+	Reverted,
+	DidNotRevertButDidNotStartEither
 }
 
+// Optimistic transitions do something with the db and/or memory model
+// immediately, and revert if the server says they should.
 export class OptimisticPushTransitionRunner<
 	MemoryModel extends object
 > extends TransitionRunner<MemoryModel, TransitionImpact.OptimisticPush> {
@@ -135,6 +138,8 @@ export class OptimisticPushTransitionRunner<
 			case EditStatus.Complete:
 			case EditStatus.Failed:
 			case EditStatus.InProgress:
+			case EditStatus.Reverting:
+			case EditStatus.Reverted:
 				throw new InternalStateError(
 					OPTIMISTIC_PUSH_IN_USE_BEFORE_DATBASE_STATE_FINALISED
 				)
