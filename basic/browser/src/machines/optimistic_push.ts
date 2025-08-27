@@ -7,8 +7,14 @@ import type {
 } from '@ground0/shared'
 import { and, assign, setup } from 'xstate'
 
+/**
+ * @deprecated The optimistic push runner has its own version of the machine
+ * now to have more direct access to internal data, so this version of the
+ * machine is no longer necessary.
+ */
 export const optimisticPushMachine = setup({
 	types: {
+		context: {},
 		events: {} as
 			| {
 					type: 'init'

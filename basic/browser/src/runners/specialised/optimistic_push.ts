@@ -1,167 +1,256 @@
-import {
-	handlerThrew,
-	improperResourceChangeEvent,
-	ImproperResourceChangeEventError,
-	InternalStateError,
-	OPTIMISTIC_PUSH_IN_USE_BEFORE_DATBASE_STATE_FINALISED,
-	OPTIMISTIC_PUSH_NOT_EVALUATED,
-	UpstreamWsMessageAction,
-	type TransitionImpact,
-	type UpstreamWsMessage
-} from '@ground0/shared'
+import { type TransitionImpact } from '@ground0/shared'
 import { TransitionRunner, type Ingredients } from '../base'
-import { DbResourceStatus } from '@/types/status/DbResourceStatus'
-import { WsResourceStatus } from '@/types/status/WsResourceStatus'
-import SuperJSON from 'superjson'
-
-const enum EditStatus {
-	NotEvaluated,
-	NotRequired,
-	AwaitingResource,
-	InProgress,
-	Complete,
-	Failed,
-	Reverting,
-	Reverted,
-	DidNotRevertButDidNotStartEither
-}
+import { and, createActor, setup, type ActorRefFrom } from 'xstate'
 
 // Optimistic transitions do something with the db and/or memory model
 // immediately, and revert if the server says they should.
 export class OptimisticPushTransitionRunner<
 	MemoryModel extends object
 > extends TransitionRunner<MemoryModel, TransitionImpact.OptimisticPush> {
-	private edits: {
-		memoryModel?: Promise<unknown>
-		db?: Promise<unknown>
-	} = {}
-	private readonly editStatus: {
-		memoryModel: EditStatus
-		db: EditStatus
-	} = {
-		memoryModel: EditStatus.NotEvaluated,
-		db: EditStatus.NotEvaluated
-	}
-
-	private attemptDbHandler(): boolean {
-		if (
-			this.resourceStatus.db !== DbResourceStatus.ConnectedAndMigrated ||
-			!this.db ||
-			!('editDb' in this.localHandler)
-		)
-			return false
-
-		this.editStatus.db = EditStatus.InProgress
-
-		try {
-			const promise = Promise.resolve(
-				this.localHandler.editDb({
-					data: this.transitionObj.data,
-					db: this.db
-				})
-			).then(
-				() => {
-					this.editStatus.db = EditStatus.Complete
-				},
-				(rejection) => {
-					console.error(handlerThrew('editDb', true))
-					console.error(rejection)
-					this.editStatus.db = EditStatus.Failed
-				}
-			)
-
-			this.edits.db = promise
-		} catch (e) {
-			console.error(handlerThrew('editDb', false))
-			console.error(e)
-			this.editStatus.db = EditStatus.Failed
+	private readonly machine = setup({
+		types: {
+			events: {} as
+				| {
+						type: 'init'
+				  }
+				| { type: 'memory model edit completed' }
+				| { type: 'memory model edit failed' }
+				| { type: 'memory model revert completed' }
+				| { type: 'memory model revert failed' }
+				| { type: 'db edit completed' }
+				| { type: 'db edit failed' }
+				| { type: 'db revert completed' }
+				| { type: 'db revert failed' }
+				| { type: 'db connected' }
+				| { type: 'db will not arrive' }
+				| { type: 'ws connected' }
+				| { type: 'ws confirmed' }
+				| { type: 'ws rejected' }
+		},
+		actions: {
+			editMemoryModel: () => {},
+			editDb: () => {},
+			revertMemoryModel: () => {},
+			revertDb: () => {},
+			logFailure: (_, responsibleHandlerArea: 'memory model' | 'db') => {
+				console.log(responsibleHandlerArea)
+			},
+			sendWsMessage: () => {},
+			finaliseIfApplicable: () => {}
+		},
+		guards: {
+			memoryModelFunctionInProvidedHandler: ({ event }) =>
+				event.type === 'init' /* && event.something */,
+			dbFunctionInProvidedHandler: ({ event }) =>
+				event.type === 'init' /* && event.somethingElse */,
+			dbConnectedAndProvided: ({ event }) =>
+				event.type === 'init' /* && event.somethingElse */,
+			dbWillNotArrive: ({ event }) =>
+				event.type === 'init' /* && event.somethingElse */
 		}
-
-		return true
-	}
-
-	private wsResolvedRequest?: boolean
-	private attemptWsMessageIfRelevant(): boolean {
-		if (typeof this.wsResolvedRequest === 'undefined') return true
-		if (this.resourceStatus.ws !== WsResourceStatus.Connected || !this.ws)
-			return false
-		this.ws.send(
-			SuperJSON.stringify({
-				action: UpstreamWsMessageAction.Transition,
-				id: this.id,
-				data: this.transitionObj
-			} satisfies UpstreamWsMessage)
-		)
-		return true
-	}
+	}).createMachine({
+		type: 'parallel',
+		states: {
+			ws: {
+				initial: 'no response',
+				states: {
+					'no response': {
+						on: {
+							init: {
+								actions: ['sendWsMessage']
+							},
+							'ws connected': {
+								actions: ['sendWsMessage']
+							},
+							'ws confirmed': {
+								target: 'confirmed'
+							},
+							'ws rejected': {
+								target: 'rejected'
+							}
+						}
+					},
+					confirmed: {
+						entry: 'finaliseIfApplicable',
+						type: 'final'
+					},
+					rejected: {
+						entry: 'finaliseIfApplicable',
+						type: 'final'
+					}
+				}
+			},
+			'memory model': {
+				initial: 'not evaluated',
+				states: {
+					'not evaluated': {
+						on: {
+							init: [
+								{
+									guard: 'memoryModelFunctionInProvidedHandler',
+									target: 'in progress'
+								},
+								{
+									target: 'not required'
+								}
+							]
+						}
+					},
+					'in progress': {
+						entry: 'editMemoryModel',
+						on: {
+							'memory model edit failed': {
+								target: 'failed'
+							},
+							'memory model edit completed': {
+								target: 'completed'
+							}
+						}
+					},
+					failed: {
+						entry: [
+							{ type: 'logFailure', params: 'memory model' },
+							'finaliseIfApplicable'
+						],
+						type: 'final'
+					},
+					completed: {
+						entry: 'finaliseIfApplicable',
+						on: {
+							'ws rejected': {
+								target: 'reverting'
+							}
+						}
+					},
+					reverting: {
+						on: {
+							'memory model revert failed': {
+								target: 'failed'
+							},
+							'memory model revert completed': {
+								target: 'reverted'
+							}
+						}
+					},
+					reverted: {
+						entry: 'finaliseIfApplicable',
+						type: 'final'
+					},
+					'not required': {
+						type: 'final'
+					}
+				}
+			},
+			db: {
+				initial: 'not evaluated',
+				states: {
+					'not evaluated': {
+						on: {
+							init: [
+								{
+									guard: 'dbWillNotArrive',
+									target: 'not possible'
+								},
+								{
+									guard: and([
+										'dbFunctionInProvidedHandler',
+										'dbConnectedAndProvided'
+									]),
+									target: 'in progress'
+								},
+								{
+									guard: 'dbFunctionInProvidedHandler',
+									target: 'awaiting resources'
+								},
+								{
+									target: 'not required'
+								}
+							]
+						}
+					},
+					'awaiting resources': {
+						on: {
+							'db connected': {
+								target: 'in progress'
+							},
+							'db will not arrive': {
+								target: 'not possible'
+							},
+							'ws rejected': {
+								target: 'did not begin executing before rejection'
+							}
+						}
+					},
+					'in progress': {
+						entry: 'editDb',
+						on: {
+							'db edit failed': {
+								target: 'failed'
+							},
+							'db edit completed': {
+								target: 'completed'
+							}
+						}
+					},
+					completed: {
+						entry: 'finaliseIfApplicable',
+						on: {
+							'ws rejected': {
+								target: 'reverting'
+							}
+						}
+					},
+					failed: {
+						entry: [
+							{ type: 'logFailure', params: 'db' },
+							'finaliseIfApplicable'
+						],
+						type: 'final'
+					},
+					reverting: {
+						entry: 'revertDb',
+						on: {
+							'db revert failed': {
+								target: 'failed'
+							},
+							'db revert completed': {
+								target: 'reverted'
+							}
+						}
+					},
+					reverted: {
+						entry: 'finaliseIfApplicable',
+						type: 'final'
+					},
+					'did not begin executing before rejection': {
+						type: 'final'
+					},
+					'not required': {
+						type: 'final'
+					},
+					'not possible': {
+						entry: 'finaliseIfApplicable',
+						type: 'final'
+					}
+				}
+			}
+		}
+	})
+	private readonly machineActorRef: ActorRefFrom<typeof this.machine>
 
 	public constructor(
 		ingredients: Ingredients<MemoryModel, TransitionImpact.OptimisticPush>
 	) {
 		super(ingredients)
-
-		if ('editMemoryModel' in this.localHandler) {
-			this.editStatus.memoryModel = EditStatus.InProgress
-			const promise = Promise.resolve(
-				this.localHandler.editMemoryModel({
-					data: this.transitionObj.data,
-					memoryModel: this.memoryModel
-				})
-			)
-			promise.then(() => {
-				this.editStatus.memoryModel = EditStatus.Complete
-			})
-			this.edits.memoryModel = promise
-		} else this.editStatus.memoryModel = EditStatus.NotRequired
-
-		if ('editDb' in this.localHandler) {
-			if (!this.attemptDbHandler())
-				this.editStatus.db = EditStatus.AwaitingResource
-		} else this.editStatus.db = EditStatus.NotRequired
-
-		this.attemptWsMessageIfRelevant()
-	}
-
-	public reportWsResponse(resolved: boolean) {
-		if (typeof this.wsResolvedRequest === 'undefined') return true
-		this.wsResolvedRequest = resolved
-
-		// TODO: start allowing reverts via some Mechanism
-	}
-
-	private considerThrowingErrorOnDbResourceEvent(): void {
-		switch (this.editStatus.db) {
-			case EditStatus.NotRequired:
-				return
-			case EditStatus.NotEvaluated:
-				throw new InternalStateError(OPTIMISTIC_PUSH_NOT_EVALUATED)
-			case EditStatus.Complete:
-			case EditStatus.Failed:
-			case EditStatus.InProgress:
-			case EditStatus.Reverting:
-			case EditStatus.Reverted:
-				throw new InternalStateError(
-					OPTIMISTIC_PUSH_IN_USE_BEFORE_DATBASE_STATE_FINALISED
-				)
-		}
+		this.machineActorRef = createActor(this.machine)
 	}
 	protected override onDbConnected() {
-		if (this.editStatus.db === EditStatus.AwaitingResource)
-			this.attemptDbHandler()
-		else this.considerThrowingErrorOnDbResourceEvent()
+		this.machineActorRef.send({ type: 'db connected' })
 	}
 	protected override onDbConfirmedNeverConnecting() {
-		if (this.editStatus.db === EditStatus.AwaitingResource)
-			this.editStatus.db = EditStatus.NotRequired
-		else this.considerThrowingErrorOnDbResourceEvent()
+		this.machineActorRef.send({ type: 'db will not arrive' })
 	}
 	protected override onWsConnected() {
-		if (!this.attemptWsMessageIfRelevant())
-			// If attemptWsMessageIfRelevant returns false, it means the ws
-			// wasn't actually available, which means there's an issue with the
-			// whole event that was fired that shouldn't be ignored.
-			throw new ImproperResourceChangeEventError(
-				improperResourceChangeEvent('ws')
-			)
+		this.machineActorRef.send({ type: 'ws connected' })
 	}
 }
