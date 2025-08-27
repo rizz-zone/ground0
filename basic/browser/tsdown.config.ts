@@ -1,4 +1,7 @@
+// Uncomment to analyse the overall bundle.
+
 import { defineConfig } from 'tsdown'
+// import { unstableRolldownAdapter, analyzer } from 'vite-bundle-analyzer'
 
 export default defineConfig({
 	exports: true,
@@ -10,4 +13,7 @@ export default defineConfig({
 	entry: {
 		index: 'src/index.ts'
 	}
+	// ,minify: true,
+	// noExternal: [/[\s\S]*/],
+	// plugins: [unstableRolldownAdapter(analyzer())]
 })
