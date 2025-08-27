@@ -10,9 +10,7 @@ export class OptimisticPushTransitionRunner<
 	private readonly machine = setup({
 		types: {
 			events: {} as
-				| {
-						type: 'init'
-				  }
+				| { type: 'init' }
 				| { type: 'memory model edit completed' }
 				| { type: 'memory model edit failed' }
 				| { type: 'memory model revert completed' }
