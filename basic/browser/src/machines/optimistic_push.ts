@@ -1,10 +1,26 @@
-import type { LocalDatabase } from '@ground0/shared'
+import type { ResourceBundle } from '@/types/status/ResourceBundle'
+import type {
+	LocalDatabase,
+	LocalHandlers,
+	Transition,
+	TransitionImpact
+} from '@ground0/shared'
 import { and, assign, setup } from 'xstate'
 
 export const optimisticPushMachine = setup({
 	types: {
 		events: {} as
-			| { type: 'init' /* a bunch of other stuff */ }
+			| {
+					type: 'init'
+					resourceBundle: ResourceBundle
+					finalise: () => unknown
+					memoryModel: object
+					localHandlers: LocalHandlers<
+						object,
+						Transition & { impact: TransitionImpact.OptimisticPush }
+					>
+					transitionObj: Transition
+			  }
 			| { type: 'memory model edit completed' }
 			| { type: 'memory model edit failed' }
 			| { type: 'memory model revert completed' }
