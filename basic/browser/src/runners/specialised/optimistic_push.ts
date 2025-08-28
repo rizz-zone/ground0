@@ -120,7 +120,7 @@ export class OptimisticPushTransitionRunner<
 			},
 			logFailure: (_, responsibleHandlerArea: 'memory model' | 'db') => {
 				console.warn(
-					`A handler that edits the ${responsibleHandlerArea} failed! If it is reversible, the reverse method will not be called.`
+					`A handler function that edits the ${responsibleHandlerArea} failed! If it is reversible, the reverse method will not be called.`
 				) // TODO: Make this external maybe?
 			},
 			sendWsMessage: () => {
