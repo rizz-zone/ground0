@@ -5,19 +5,20 @@ import type { WsResourceStatus } from './WsResourceStatus'
 export type ResourceBundle = {
 	ws:
 		| {
-				status: WsResourceStatus.Disconnected
-				resource?: WebSocket
+				readonly status: WsResourceStatus.Disconnected
 		  }
 		| {
-				status: WsResourceStatus.Connected
-				resource: WebSocket
+				readonly status: WsResourceStatus.Connected
+				readonly instance: WebSocket
 		  }
 	db:
 		| {
-				status: DbResourceStatus.Disconnected | DbResourceStatus.NeverConnecting
+				readonly status:
+					| DbResourceStatus.Disconnected
+					| DbResourceStatus.NeverConnecting
 		  }
 		| {
-				status: DbResourceStatus.ConnectedAndMigrated
-				resource: LocalDatabase
+				readonly status: DbResourceStatus.ConnectedAndMigrated
+				readonly instance: LocalDatabase
 		  }
 }
