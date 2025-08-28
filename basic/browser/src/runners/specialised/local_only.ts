@@ -34,16 +34,20 @@ export class LocalOnlyTransitionRunner<
 				})
 			).then(() => this.closeIfPossible('memoryModel'))
 
-		if (this.resourceStatus.db === DbResourceStatus.ConnectedAndMigrated)
+		if (this.resources.db.status === DbResourceStatus.ConnectedAndMigrated)
 			this.onDbConnected()
-		else if (this.resourceStatus.db === DbResourceStatus.NeverConnecting)
+		else if (this.resources.db.status === DbResourceStatus.NeverConnecting)
 			this.onDbConfirmedNeverConnecting()
 	}
 	protected override onDbConnected(): void {
-		if (!this.db || !('editDb' in this.localHandler)) return
+		if (
+			this.resources.db.status !== DbResourceStatus.ConnectedAndMigrated ||
+			!('editDb' in this.localHandler)
+		)
+			return
 		Promise.resolve(
 			this.localHandler.editDb({
-				db: this.db,
+				db: this.resources.db.instance,
 				data: this.transitionObj.data
 			})
 		).then(() => this.closeIfPossible('db'))
