@@ -6,7 +6,13 @@ import {
 	type UpstreamWsMessage
 } from '@ground0/shared'
 import { TransitionRunner, type Ingredients } from '../base'
-import { and, createActor, setup, type ActorRefFrom } from 'xstate'
+import {
+	and,
+	createActor,
+	setup,
+	type ActorRefFrom,
+	type SnapshotFrom
+} from 'xstate'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import { WsResourceStatus } from '@/types/status/WsResourceStatus'
 import SuperJSON from 'superjson'
@@ -128,8 +134,33 @@ export class OptimisticPushTransitionRunner<
 						} satisfies UpstreamWsMessage)
 					)
 			},
-			finaliseIfApplicable: () => {
-				// TODO: Make this work too
+			finaliseIfApplicable: ({ self }) => {
+				const snapshot = self.getSnapshot() as SnapshotFrom<typeof this.machine>
+				if (snapshot.matches({ ws: 'no response' })) return
+				const wsConfirmed = snapshot.matches({ ws: 'confirmed' })
+
+				// Check if we're in a 'completed' state. If we're not, we
+				// shouldn't finalise yet.
+				if (
+					!(
+						snapshot.matches({ db: 'not required' }) ||
+						snapshot.matches({ db: 'failed' }) ||
+						snapshot.matches({ db: 'not possible' }) ||
+						(wsConfirmed && snapshot.matches({ db: 'completed' })) ||
+						(!wsConfirmed && snapshot.matches({ db: 'reverted' }))
+					) ||
+					!(
+						snapshot.matches({ 'memory model': 'not required' }) ||
+						snapshot.matches({ 'memory model': 'failed' }) ||
+						(wsConfirmed &&
+							snapshot.matches({ 'memory model': 'completed' })) ||
+						(!wsConfirmed && snapshot.matches({ 'memory model': 'reverted' }))
+					)
+				)
+					return
+
+				// The transition is complete.
+				this.markComplete()
 			}
 		},
 		guards: {
@@ -346,5 +377,11 @@ export class OptimisticPushTransitionRunner<
 	}
 	protected override onWsConnected() {
 		this.machineActorRef.send({ type: 'ws connected' })
+	}
+
+	public reportWsResult(confirmed: boolean) {
+		this.machineActorRef.send({
+			type: confirmed ? 'ws confirmed' : 'ws rejected'
+		})
 	}
 }
