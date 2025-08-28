@@ -1,22 +1,21 @@
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
-import type { ResourceStatus } from '@/types/status/ResourceStatus'
 import { WsResourceStatus } from '@/types/status/WsResourceStatus'
-import type {
-	LocalHandlers,
-	Transition,
-	TransitionImpact,
-	LocalDatabase
+import {
+	type LocalHandlers,
+	type Transition,
+	type TransitionImpact,
+	InternalStateError
 } from '@ground0/shared'
 import type { ActorRefFrom } from 'xstate'
 import type { clientMachine } from '@/machines/worker'
+import type { ResourceBundle } from '@/types/status/ResourceBundle'
 
 export type Ingredients<
 	MemoryModel extends object,
 	Impact extends TransitionImpact
 > = {
-	initialResources: SomeResources
 	memoryModel: MemoryModel
-	resourceStatus: ResourceStatus
+	resources: ResourceBundle
 	id: number
 	transition: Transition & { impact: Impact }
 	actorRef: ActorRefFrom<typeof clientMachine>
@@ -25,44 +24,49 @@ export type Ingredients<
 		Transition & { impact: Impact }
 	>[keyof LocalHandlers<MemoryModel, Transition & { impact: Impact }>]
 }
-type SomeResources = Partial<{
-	ws: WebSocket
-	db: LocalDatabase
-}>
 
 export abstract class TransitionRunner<
 	MemoryModel extends object,
 	Impact extends TransitionImpact
 > {
-	protected ws?: WebSocket
-	protected db?: LocalDatabase
-	protected resourceStatus: ResourceStatus
+	protected resources: ResourceBundle
 
 	protected abstract onDbConnected(): unknown
 	protected abstract onDbConfirmedNeverConnecting(): unknown
 	protected abstract onWsConnected(): unknown
 
-	public syncResources(changed: SomeResources, newStatus: ResourceStatus) {
-		const beforeStatus = { ...this.resourceStatus }
-		this.resourceStatus = newStatus
-		if (changed.ws) this.ws = changed.ws
-		if (changed.db) this.db = changed.db
+	public syncResources(newBundle: Partial<ResourceBundle>) {
+		if (newBundle.db && this.resources.db !== newBundle.db) {
+			// Instead of calling onDbConnected or onConfirmedNeverConnecting
+			// immediately, we use the action variable to queue it for after
+			// this.resources.db has updated.
+			let action: (() => unknown) | undefined
 
-		if (
-			beforeStatus.db === DbResourceStatus.Disconnected &&
-			newStatus.db === DbResourceStatus.ConnectedAndMigrated
-		)
-			this.onDbConnected()
-		if (
-			beforeStatus.db === DbResourceStatus.Disconnected &&
-			newStatus.db === DbResourceStatus.NeverConnecting
-		)
-			this.onDbConfirmedNeverConnecting()
-		if (
-			beforeStatus.ws === WsResourceStatus.Disconnected &&
-			newStatus.ws === WsResourceStatus.Connected
-		)
-			this.onWsConnected()
+			if (this.resources.db.status !== DbResourceStatus.Disconnected)
+				throw new InternalStateError('') // TODO: Choose a message
+
+			if (newBundle.db.status === DbResourceStatus.ConnectedAndMigrated)
+				action = this.onDbConnected.bind(this)
+			if (newBundle.db.status === DbResourceStatus.NeverConnecting)
+				action = this.onDbConfirmedNeverConnecting.bind(this)
+
+			// We can do this without spreading because it's the caller's job
+			// to ensure it changes its own ResourceBundle by only assigning
+			// top-level values (instead of changing status and instance
+			// individually), so we don't need to worry about the objects we
+			// reference in this.resources changing without a call to the
+			// syncResources method.
+			this.resources.db = newBundle.db
+
+			action?.()
+		}
+		if (newBundle.ws) {
+			const shouldCall =
+				this.resources.ws.status === WsResourceStatus.Disconnected &&
+				newBundle.ws.status === WsResourceStatus.Connected
+			this.resources.ws = newBundle.ws
+			if (shouldCall) this.onWsConnected()
+		}
 	}
 
 	// Communication with the object
@@ -89,12 +93,8 @@ export abstract class TransitionRunner<
 		this.localHandler = ingredients.localHandler
 		this.memoryModel = ingredients.memoryModel
 		this.actorRef = ingredients.actorRef
-		this.resourceStatus = ingredients.resourceStatus
+		this.resources = { ...ingredients.resources }
 		this.transitionObj = ingredients.transition
 		this.id = ingredients.id
-		if (ingredients.initialResources.ws)
-			this.ws = ingredients.initialResources.ws
-		if (ingredients.initialResources.db)
-			this.db = ingredients.initialResources.db
 	}
 }
