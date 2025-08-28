@@ -2,6 +2,8 @@ import { type TransitionImpact } from '@ground0/shared'
 import { TransitionRunner, type Ingredients } from '../base'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 
+// TODO: Handle errors
+
 export class LocalOnlyTransitionRunner<
 	MemoryModel extends object
 > extends TransitionRunner<MemoryModel, TransitionImpact.LocalOnly> {

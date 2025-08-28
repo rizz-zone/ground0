@@ -31,3 +31,6 @@ export const handlerThrew = (handlerName: string, promiseRejection: boolean) =>
 // @__PURE__
 export const improperResourceChangeEvent = (resource: 'ws' | 'db') =>
 	`on${resource.charAt(0).toUpperCase() + resource.slice(1)}Connected fired, but the ${resource} connection was not actually available. ${INTERNAL_PROCESS} ${reportAt('incomplete_handler_resource_change')}`
+// @__PURE__
+export const nonexistentHandlerFnRequired = (fnName: string) =>
+	`A transition runner tried to use a handler function ${fnName ? `(${fnName})` : ' '}that has not been provided. ${INTERNAL_PROCESS} You should, however, check that you have provided this handler function first. ${reportAt('nonexistent_handler_fn_required')}`
