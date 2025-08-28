@@ -7,7 +7,6 @@ import {
 } from '@ground0/shared'
 import { TransitionRunner, type Ingredients } from '../base'
 import {
-	and,
 	createActor,
 	setup,
 	type ActorRefFrom,
@@ -164,14 +163,13 @@ export class OptimisticPushTransitionRunner<
 			}
 		},
 		guards: {
-			memoryModelFunctionInProvidedHandler: ({ event }) =>
-				event.type === 'init' /* && event.something */,
-			dbFunctionInProvidedHandler: ({ event }) =>
-				event.type === 'init' /* && event.somethingElse */,
-			dbConnectedAndProvided: ({ event }) =>
-				event.type === 'init' /* && event.somethingElse */,
-			dbWillNotArrive: ({ event }) =>
-				event.type === 'init' /* && event.somethingElse */
+			memoryModelFunctionNotInHandler: () =>
+				!('editMemoryModel' in this.localHandler),
+			dbFunctionNotInHandler: () => !('editDb' in this.localHandler),
+			dbConnected: () =>
+				this.resources.db.status === DbResourceStatus.ConnectedAndMigrated,
+			dbWillNotArrive: () =>
+				this.resources.db.status === DbResourceStatus.NeverConnecting
 		}
 	}).createMachine({
 		type: 'parallel',
@@ -212,7 +210,7 @@ export class OptimisticPushTransitionRunner<
 						on: {
 							init: [
 								{
-									guard: 'memoryModelFunctionInProvidedHandler',
+									guard: 'memoryModelFunctionNotInHandler',
 									target: 'in progress'
 								},
 								{
@@ -273,22 +271,19 @@ export class OptimisticPushTransitionRunner<
 						on: {
 							init: [
 								{
+									guard: 'dbFunctionNotInHandler',
+									target: 'not required'
+								},
+								{
 									guard: 'dbWillNotArrive',
 									target: 'not possible'
 								},
 								{
-									guard: and([
-										'dbFunctionInProvidedHandler',
-										'dbConnectedAndProvided'
-									]),
+									guard: 'dbConnected',
 									target: 'in progress'
 								},
 								{
-									guard: 'dbFunctionInProvidedHandler',
 									target: 'awaiting resources'
-								},
-								{
-									target: 'not required'
 								}
 							]
 						}
