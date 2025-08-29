@@ -211,10 +211,10 @@ export class OptimisticPushTransitionRunner<
 							init: [
 								{
 									guard: 'memoryModelFunctionNotInHandler',
-									target: 'in progress'
+									target: 'not required'
 								},
 								{
-									target: 'not required'
+									target: 'in progress'
 								}
 							]
 						}

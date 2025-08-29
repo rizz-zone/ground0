@@ -14,11 +14,12 @@ const bareMinimumIngredients = {
 	},
 	id: {},
 	actorRef: {},
-	localHandler: {}
-} as Omit<
-	Ingredients<Record<string, never>, TransitionImpact.OptimisticPush>,
-	'transition'
->
+	localHandler: {},
+	transition: {
+		action: 'transition4',
+		impact: TransitionImpact.OptimisticPush
+	}
+} as Ingredients<Record<string, never>, TransitionImpact.OptimisticPush>
 
 vi.mock('xstate', { spy: true })
 afterEach(vi.clearAllMocks)
@@ -28,11 +29,7 @@ test('constructor creates one instance of the machine, starts it, and inits it',
 		Record<string, never>,
 		TransitionImpact.OptimisticPush
 	> = {
-		...bareMinimumIngredients,
-		transition: {
-			action: 'transition4',
-			impact: TransitionImpact.OptimisticPush
-		}
+		...bareMinimumIngredients
 	}
 
 	const startFn = vi.fn()
@@ -57,6 +54,15 @@ test('constructor creates one instance of the machine, starts it, and inits it',
 })
 describe('init', () => {
 	test('no immediate errors', () => {
-		// TODO: Complete this
+		expect(
+			() =>
+				new OptimisticPushTransitionRunner({
+					...bareMinimumIngredients,
+					localHandler: {
+						editDb: () => {},
+						revertDb: () => {}
+					}
+				})
+		).not.toThrow()
 	})
 })
