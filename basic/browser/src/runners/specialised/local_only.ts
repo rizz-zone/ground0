@@ -1,8 +1,9 @@
-import { type TransitionImpact } from '@ground0/shared'
+import {
+	minimallyIdentifiedErrorLog,
+	type TransitionImpact
+} from '@ground0/shared'
 import { TransitionRunner, type Ingredients } from '../base'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
-
-// TODO: Handle errors
 
 export class LocalOnlyTransitionRunner<
 	MemoryModel extends object
@@ -28,13 +29,23 @@ export class LocalOnlyTransitionRunner<
 	) {
 		super(ingredients)
 
-		if ('editMemoryModel' in this.localHandler)
-			Promise.resolve(
-				this.localHandler.editMemoryModel({
-					data: this.transitionObj.data,
-					memoryModel: this.memoryModel
-				})
-			).then(() => this.closeIfPossible('memoryModel'))
+		if ('editMemoryModel' in this.localHandler) {
+			const onSucceed = () => this.closeIfPossible('memoryModel')
+			const onFail = () => {
+				console.warn(minimallyIdentifiedErrorLog('memory model'))
+				onSucceed()
+			}
+			try {
+				Promise.resolve(
+					this.localHandler.editMemoryModel({
+						data: this.transitionObj.data,
+						memoryModel: this.memoryModel
+					})
+				).then(onSucceed, onFail)
+			} catch {
+				onFail()
+			}
+		}
 
 		if (this.resources.db.status === DbResourceStatus.ConnectedAndMigrated)
 			this.onDbConnected()
@@ -47,12 +58,22 @@ export class LocalOnlyTransitionRunner<
 			!('editDb' in this.localHandler)
 		)
 			return
-		Promise.resolve(
-			this.localHandler.editDb({
-				db: this.resources.db.instance,
-				data: this.transitionObj.data
-			})
-		).then(() => this.closeIfPossible('db'))
+
+		const onSucceed = () => this.closeIfPossible('db')
+		const onFail = () => {
+			console.warn(minimallyIdentifiedErrorLog('database'))
+			onSucceed()
+		}
+		try {
+			Promise.resolve(
+				this.localHandler.editDb({
+					db: this.resources.db.instance,
+					data: this.transitionObj.data
+				})
+			).then(onSucceed, onFail)
+		} catch {
+			onFail()
+		}
 	}
 	protected override onDbConfirmedNeverConnecting(): void {
 		this.closeIfPossible('db')
