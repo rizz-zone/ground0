@@ -1,4 +1,4 @@
-import type { TransitionImpact } from '@ground0/shared'
+import { InternalStateError, type TransitionImpact } from '@ground0/shared'
 import { TransitionRunner, type Ingredients } from './base'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
@@ -32,18 +32,16 @@ class NotVeryUsefulRunner extends TransitionRunner<
 }
 
 const bareMinimumIngredients = {
-	initialResources: {},
 	memoryModel: {},
-	resourceStatus: {
-		db: DbResourceStatus.Disconnected,
-		ws: WsResourceStatus.Disconnected
+	resources: {
+		db: { status: DbResourceStatus.Disconnected },
+		ws: { status: WsResourceStatus.Disconnected }
 	},
 	id: {},
 	transition: {},
 	actorRef: {},
 	localHandler: {}
 } as Ingredients<Record<string, never>, TransitionImpact>
-type ResourcesForSync = Partial<{ ws: WebSocket; db: LocalDatabase }>
 
 describe('constructor', () => {
 	test('sets the things that always have to be set', () => {
@@ -55,151 +53,131 @@ describe('constructor', () => {
 		// @ts-expect-error We need to see the private stuff
 		expect(runnerInstance.actorRef).toBe(bareMinimumIngredients.actorRef)
 		// @ts-expect-error We need to see the private stuff
-		expect(runnerInstance.resourceStatus).toBe(
-			bareMinimumIngredients.resourceStatus
+		expect(runnerInstance.resources).toMatchObject(
+			bareMinimumIngredients.resources
 		)
 		// @ts-expect-error We need to see the private stuff
 		expect(runnerInstance.transitionObj).toBe(bareMinimumIngredients.transition)
 		// @ts-expect-error We need to see the private stuff
 		expect(runnerInstance.id).toBe(bareMinimumIngredients.id)
-
-		// @ts-expect-error We need to see the private stuff
-		expect(runnerInstance.ws).toBeUndefined()
-		// @ts-expect-error We need to see the private stuff
-		expect(runnerInstance.db).toBeUndefined()
 	})
-	describe('conditional resource assignments', () => {
+	describe('initial resource assignments', () => {
 		test('assigns ws resource if present', () => {
-			const slightlyLessBareMinimumIngredients = {
+			const instance = {}
+			const runnerInstance = new NotVeryUsefulRunner({
 				...bareMinimumIngredients,
-				initialResources: {
-					ws: {}
+				resources: {
+					db: { status: DbResourceStatus.Disconnected },
+					ws: { status: WsResourceStatus.Connected, instance }
 				}
-			} as Ingredients<Record<string, never>, TransitionImpact>
-			const runnerInstance = new NotVeryUsefulRunner(
-				slightlyLessBareMinimumIngredients
-			)
+			} as Ingredients<Record<string, never>, TransitionImpact>)
 			// @ts-expect-error We need to see the private stuff
-			expect(runnerInstance.ws).toBe(
-				slightlyLessBareMinimumIngredients.initialResources.ws
-			)
+			expect(runnerInstance.resources.db.instance).toBeUndefined()
 			// @ts-expect-error We need to see the private stuff
-			expect(runnerInstance.db).toBeUndefined()
+			expect(runnerInstance.resources.ws.instance).toBe(instance)
 		})
 		test('assigns db resource if present', () => {
-			const slightlyLessBareMinimumIngredients = {
+			const instance = {}
+			const runnerInstance = new NotVeryUsefulRunner({
 				...bareMinimumIngredients,
-				initialResources: {
-					db: {}
+				resources: {
+					db: { status: DbResourceStatus.ConnectedAndMigrated, instance },
+					ws: { status: WsResourceStatus.Disconnected }
 				}
-			} as Ingredients<Record<string, never>, TransitionImpact>
-			const runnerInstance = new NotVeryUsefulRunner(
-				slightlyLessBareMinimumIngredients
-			)
+			} as Ingredients<Record<string, never>, TransitionImpact>)
 			// @ts-expect-error We need to see the private stuff
-			expect(runnerInstance.ws).toBeUndefined()
+			expect(runnerInstance.resources.db.instance).toBe(instance)
 			// @ts-expect-error We need to see the private stuff
-			expect(runnerInstance.db).toBe(
-				slightlyLessBareMinimumIngredients.initialResources.db
-			)
+			expect(runnerInstance.resources.ws.instance).toBeUndefined()
 		})
 		test('assigns ws and db resource if present', () => {
-			const slightlyLessBareMinimumIngredients = {
+			const instances = [{}, {}]
+			const runnerInstance = new NotVeryUsefulRunner({
 				...bareMinimumIngredients,
-				initialResources: {
-					ws: {},
-					db: {}
+				resources: {
+					db: {
+						status: DbResourceStatus.ConnectedAndMigrated,
+						instance: instances[0]
+					},
+					ws: { status: WsResourceStatus.Connected, instance: instances[1] }
 				}
-			} as Ingredients<Record<string, never>, TransitionImpact>
-			const runnerInstance = new NotVeryUsefulRunner(
-				slightlyLessBareMinimumIngredients
-			)
+			} as Ingredients<Record<string, never>, TransitionImpact>)
 			// @ts-expect-error We need to see the private stuff
-			expect(runnerInstance.ws).toBe(
-				slightlyLessBareMinimumIngredients.initialResources.ws
-			)
+			expect(runnerInstance.resources.db.instance).toBe(instances[0])
 			// @ts-expect-error We need to see the private stuff
-			expect(runnerInstance.db).toBe(
-				slightlyLessBareMinimumIngredients.initialResources.db
-			)
+			expect(runnerInstance.resources.ws.instance).toBe(instances[1])
 		})
 	})
 })
 describe('syncResources', () => {
-	describe('change-based assignments', () => {
+	beforeEach(vi.clearAllMocks)
+	describe('instance assignments', () => {
 		test('db only', () => {
 			const runnerInstance = new NotVeryUsefulRunner(bareMinimumIngredients)
+			const db = {
+				status: DbResourceStatus.ConnectedAndMigrated,
+				instance: {} as LocalDatabase
+			}
+			runnerInstance.syncResources({ db })
 			// @ts-expect-error We need to see the private stuff
-			expect(runnerInstance.db).toBeUndefined()
+			expect(runnerInstance.resources.db).toBe(db)
 			// @ts-expect-error We need to see the private stuff
-			expect(runnerInstance.ws).toBeUndefined()
-			const db = {}
-			runnerInstance.syncResources({ db } as ResourcesForSync, {
-				db: DbResourceStatus.ConnectedAndMigrated,
-				ws: WsResourceStatus.Disconnected
-			})
-			// @ts-expect-error We need to see the private stuff
-			expect(runnerInstance.db).toBe(db)
-			// @ts-expect-error We need to see the private stuff
-			expect(runnerInstance.ws).toBeUndefined()
+			expect(runnerInstance.resources.ws).toBe(
+				bareMinimumIngredients.resources.ws
+			)
 		})
 		test('ws only', () => {
 			const runnerInstance = new NotVeryUsefulRunner(bareMinimumIngredients)
+			const ws = {
+				status: WsResourceStatus.Connected,
+				instance: {} as WebSocket
+			}
+			runnerInstance.syncResources({ ws })
 			// @ts-expect-error We need to see the private stuff
-			expect(runnerInstance.ws).toBeUndefined()
+			expect(runnerInstance.resources.ws).toBe(ws)
 			// @ts-expect-error We need to see the private stuff
-			expect(runnerInstance.db).toBeUndefined()
-			const ws = {}
-			runnerInstance.syncResources({ ws } as ResourcesForSync, {
-				db: DbResourceStatus.Disconnected,
-				ws: WsResourceStatus.Connected
-			})
-			// @ts-expect-error We need to see the private stuff
-			expect(runnerInstance.ws).toBe(ws)
-			// @ts-expect-error We need to see the private stuff
-			expect(runnerInstance.db).toBeUndefined()
+			expect(runnerInstance.resources.db).toBe(
+				bareMinimumIngredients.resources.db
+			)
 		})
 		test('both', () => {
 			const runnerInstance = new NotVeryUsefulRunner(bareMinimumIngredients)
+			const db = {
+				status: DbResourceStatus.ConnectedAndMigrated,
+				instance: {} as LocalDatabase
+			}
+			const ws = {
+				status: WsResourceStatus.Connected,
+				instance: {} as WebSocket
+			}
+			runnerInstance.syncResources({ ws, db })
 			// @ts-expect-error We need to see the private stuff
-			expect(runnerInstance.ws).toBeUndefined()
+			expect(runnerInstance.resources.ws).toBe(ws)
 			// @ts-expect-error We need to see the private stuff
-			expect(runnerInstance.db).toBeUndefined()
-			const ws = {}
-			const db = {}
-			runnerInstance.syncResources({ ws, db } as ResourcesForSync, {
-				db: DbResourceStatus.ConnectedAndMigrated,
-				ws: WsResourceStatus.Connected
-			})
-			// @ts-expect-error We need to see the private stuff
-			expect(runnerInstance.ws).toBe(ws)
-			// @ts-expect-error We need to see the private stuff
-			expect(runnerInstance.db).toBe(db)
+			expect(runnerInstance.resources.db).toBe(db)
 		})
 		test('neither', () => {
 			const runnerInstance = new NotVeryUsefulRunner(bareMinimumIngredients)
+			runnerInstance.syncResources({})
 			// @ts-expect-error We need to see the private stuff
-			expect(runnerInstance.ws).toBeUndefined()
+			expect(runnerInstance.resources.ws).toBe(
+				bareMinimumIngredients.resources.ws
+			)
 			// @ts-expect-error We need to see the private stuff
-			expect(runnerInstance.db).toBeUndefined()
-			runnerInstance.syncResources({} as ResourcesForSync, {
-				db: DbResourceStatus.Disconnected,
-				ws: WsResourceStatus.Disconnected
-			})
-			// @ts-expect-error We need to see the private stuff
-			expect(runnerInstance.ws).toBeUndefined()
-			// @ts-expect-error We need to see the private stuff
-			expect(runnerInstance.db).toBeUndefined()
+			expect(runnerInstance.resources.db).toBe(
+				bareMinimumIngredients.resources.db
+			)
 		})
 	})
 	describe('status changes', () => {
-		beforeEach(vi.clearAllMocks)
 		describe('requiring callbacks', () => {
 			test('db Disconnected → ConnectedAndMigrated', () => {
 				const runnerInstance = new NotVeryUsefulRunner(bareMinimumIngredients)
-				runnerInstance.syncResources({} as ResourcesForSync, {
-					db: DbResourceStatus.ConnectedAndMigrated,
-					ws: WsResourceStatus.Disconnected
+				runnerInstance.syncResources({
+					db: {
+						status: DbResourceStatus.ConnectedAndMigrated,
+						instance: {} as LocalDatabase
+					}
 				})
 				expect(onDbConnected).toHaveBeenCalledOnce()
 				expect(onDbConfirmedNeverConnecting).not.toHaveBeenCalled()
@@ -207,9 +185,8 @@ describe('syncResources', () => {
 			})
 			test('db Disconnected → NeverConnecting', () => {
 				const runnerInstance = new NotVeryUsefulRunner(bareMinimumIngredients)
-				runnerInstance.syncResources({} as ResourcesForSync, {
-					db: DbResourceStatus.NeverConnecting,
-					ws: WsResourceStatus.Disconnected
+				runnerInstance.syncResources({
+					db: { status: DbResourceStatus.NeverConnecting }
 				})
 				expect(onDbConnected).not.toHaveBeenCalled()
 				expect(onDbConfirmedNeverConnecting).toHaveBeenCalledOnce()
@@ -217,9 +194,8 @@ describe('syncResources', () => {
 			})
 			test('ws Disconnected → Connected', () => {
 				const runnerInstance = new NotVeryUsefulRunner(bareMinimumIngredients)
-				runnerInstance.syncResources({} as ResourcesForSync, {
-					db: DbResourceStatus.Disconnected,
-					ws: WsResourceStatus.Connected
+				runnerInstance.syncResources({
+					ws: { status: WsResourceStatus.Connected, instance: {} as WebSocket }
 				})
 				expect(onDbConnected).not.toHaveBeenCalled()
 				expect(onDbConfirmedNeverConnecting).not.toHaveBeenCalled()
@@ -227,67 +203,26 @@ describe('syncResources', () => {
 			})
 		})
 		describe('not requiring callbacks', () => {
-			test('existing conditions', () => {
-				for (const status of [
-					{
-						db: DbResourceStatus.Disconnected,
-						ws: WsResourceStatus.Connected
-					},
-					{
-						db: DbResourceStatus.ConnectedAndMigrated,
-						ws: WsResourceStatus.Disconnected
-					},
-					{
-						db: DbResourceStatus.NeverConnecting,
-						ws: WsResourceStatus.Disconnected
-					},
-					{
-						db: DbResourceStatus.ConnectedAndMigrated,
-						ws: WsResourceStatus.Connected
-					},
-					{
-						db: DbResourceStatus.NeverConnecting,
-						ws: WsResourceStatus.Disconnected
+			test('db status is not disconnected', () => {
+				const runnerInstance = new NotVeryUsefulRunner({
+					...bareMinimumIngredients,
+					resources: {
+						...bareMinimumIngredients.resources,
+						// @ts-expect-error This *is* incorrect and that's the
+						// point of the test
+						db: { status: DbResourceStatus.ConnectedAndMigrated }
 					}
-				]) {
-					const runnerInstance = new NotVeryUsefulRunner({
-						...bareMinimumIngredients,
-						resourceStatus: status
+				})
+				expect(() => {
+					runnerInstance.syncResources({
+						db: {
+							status: DbResourceStatus.ConnectedAndMigrated,
+							instance: {} as LocalDatabase
+						}
 					})
-					runnerInstance.syncResources({}, status)
-					expect(onDbConnected).not.toHaveBeenCalled()
-					expect(onDbConfirmedNeverConnecting).not.toHaveBeenCalled()
-					expect(onWsConnected).not.toHaveBeenCalled()
-				}
+				}).toThrow(InternalStateError)
 			})
 		})
-	})
-	test('sets this.resourceStatus', () => {
-		const runnerInstance = new NotVeryUsefulRunner(bareMinimumIngredients)
-		const newStatus = {
-			db: DbResourceStatus.Disconnected,
-			ws: WsResourceStatus.Disconnected
-		}
-
-		// Note for the future: It might eventually make more sense to copy the
-		// status instead of simply using it, as there is a minimal amount of
-		// risk the current approach presents (the status *could* change
-		// without a call to syncResources). If a copy is used, this test and a
-		// few others will need to use toDeepEqual instead.
-
-		// @ts-expect-error We need to see the private stuff
-		expect(runnerInstance.resourceStatus).toBe(
-			bareMinimumIngredients.resourceStatus
-		)
-		// @ts-expect-error We need to see the private stuff
-		expect(runnerInstance.resourceStatus).not.toBe(newStatus)
-		runnerInstance.syncResources({}, newStatus)
-		// @ts-expect-error We need to see the private stuff
-		expect(runnerInstance.resourceStatus).not.toBe(
-			bareMinimumIngredients.resourceStatus
-		)
-		// @ts-expect-error We need to see the private stuff
-		expect(runnerInstance.resourceStatus).toBe(newStatus)
 	})
 })
 test('markComplete sends transition complete event', () => {
@@ -309,4 +244,23 @@ test('markComplete sends transition complete event', () => {
 		// @ts-expect-error We need to see the private stuff
 		id: runnerInstance.id
 	})
+})
+
+test('markComplete only sends event once', () => {
+	const fn = vi.fn()
+	const ingredientsWithActor = {
+		...bareMinimumIngredients,
+		actorRef: {
+			send: fn
+		}
+	} as unknown as Ingredients<Record<string, never>, TransitionImpact>
+	const runnerInstance = new NotVeryUsefulRunner(ingredientsWithActor)
+	expect(fn).not.toHaveBeenCalled()
+
+	// @ts-expect-error We need to see the private stuff
+	runnerInstance.markComplete()
+	expect(fn).toHaveBeenCalledOnce()
+	// @ts-expect-error We need to see the private stuff
+	runnerInstance.markComplete()
+	expect(fn).toHaveBeenCalledOnce()
 })
