@@ -1,5 +1,7 @@
 import {
+	DATABASE_HANDLER_REQUESTED_WITHOUT_DB,
 	InternalStateError,
+	minimallyIdentifiedErrorLog,
 	nonexistentHandlerFnRequired,
 	UpstreamWsMessageAction,
 	type TransitionImpact,
@@ -64,7 +66,7 @@ export class OptimisticPushTransitionRunner<
 				if (!('editDb' in this.localHandler))
 					throw new InternalStateError(nonexistentHandlerFnRequired('editDb'))
 				if (this.resources.db.status !== DbResourceStatus.ConnectedAndMigrated)
-					throw new Error() // TODO: use a Relevant error here
+					throw new InternalStateError(DATABASE_HANDLER_REQUESTED_WITHOUT_DB)
 
 				const onSucceed = () => self.send({ type: 'db edit completed' })
 				const onFail = () => self.send({ type: 'db edit failed' })
@@ -103,7 +105,7 @@ export class OptimisticPushTransitionRunner<
 				if (!('revertDb' in this.localHandler))
 					throw new InternalStateError(nonexistentHandlerFnRequired('revertDb'))
 				if (this.resources.db.status !== DbResourceStatus.ConnectedAndMigrated)
-					throw new Error() // TODO: use a Relevant error here
+					throw new InternalStateError(DATABASE_HANDLER_REQUESTED_WITHOUT_DB)
 
 				const onSucceed = () => self.send({ type: 'db revert completed' })
 				const onFail = () => self.send({ type: 'db revert failed' })
@@ -119,9 +121,7 @@ export class OptimisticPushTransitionRunner<
 				}
 			},
 			logFailure: (_, responsibleHandlerArea: 'memory model' | 'db') => {
-				console.warn(
-					`A handler function that edits the ${responsibleHandlerArea} failed! If it is reversible, the reverse method will not be called.`
-				) // TODO: Make this external maybe?
+				console.warn(minimallyIdentifiedErrorLog(responsibleHandlerArea)) // TODO: Make this external maybe?
 			},
 			sendWsMessage: () => {
 				if (this.resources.ws.status === WsResourceStatus.Connected)
