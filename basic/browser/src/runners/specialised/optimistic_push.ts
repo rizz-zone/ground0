@@ -363,6 +363,8 @@ export class OptimisticPushTransitionRunner<
 	) {
 		super(ingredients)
 		this.machineActorRef = createActor(this.machine)
+		this.machineActorRef.start()
+		this.machineActorRef.send({ type: 'init' })
 	}
 	protected override onDbConnected() {
 		this.machineActorRef.send({ type: 'db connected' })
