@@ -4,6 +4,7 @@ import {
 	type LocalHandlers,
 	type Transition,
 	type TransitionImpact,
+	DATABASE_CHANGED_STATUS_FROM_CONNECTING_OR_NEVER_CONNECTING,
 	InternalStateError
 } from '@ground0/shared'
 import type { ActorRefFrom } from 'xstate'
@@ -43,7 +44,9 @@ export abstract class TransitionRunner<
 			let action: (() => unknown) | undefined
 
 			if (this.resources.db.status !== DbResourceStatus.Disconnected)
-				throw new InternalStateError('') // TODO: Choose a message
+				throw new InternalStateError(
+					DATABASE_CHANGED_STATUS_FROM_CONNECTING_OR_NEVER_CONNECTING
+				)
 
 			if (newBundle.db.status === DbResourceStatus.ConnectedAndMigrated)
 				action = this.onDbConnected.bind(this)

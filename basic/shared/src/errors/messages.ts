@@ -17,6 +17,7 @@ export const DOUBLE_SHAREDWORKER_PORT_INIT = createInitString(
 	'SharedWorker port',
 	'sw_double_init'
 )
+export const DATABASE_CHANGED_STATUS_FROM_CONNECTING_OR_NEVER_CONNECTING = `Database status changed in an invalid way. ${INTERNAL_PROCESS} ${reportAt('invalid_db_status_change')}`
 export const OPTIMISTIC_PUSH_NOT_EVALUATED = `An OptimisticPush transition was informed about a resource change, but the need for it was not evaluated at the time of construction. ${INTERNAL_PROCESS} ${reportAt('database_not_evaluated')}`
 export const OPTIMISTIC_PUSH_IN_USE_BEFORE_DATBASE_STATE_FINALISED = `An OptimisticPush transition was given a database init event after the database had already started being used. ${INTERNAL_PROCESS} ${reportAt('database_init_after_used')}`
 
