@@ -44,6 +44,7 @@ export class OptimisticPushTransitionRunner<
 		actions: {
 			editMemoryModel: ({ self }) => {
 				if (!('editMemoryModel' in this.localHandler))
+					/* v8 ignore next */
 					throw new InternalStateError(
 						nonexistentHandlerFnRequired('editMemoryModel')
 					)
@@ -64,8 +65,10 @@ export class OptimisticPushTransitionRunner<
 			},
 			editDb: ({ self }) => {
 				if (!('editDb' in this.localHandler))
+					/* v8 ignore next */
 					throw new InternalStateError(nonexistentHandlerFnRequired('editDb'))
 				if (this.resources.db.status !== DbResourceStatus.ConnectedAndMigrated)
+					/* v8 ignore next */
 					throw new InternalStateError(DATABASE_HANDLER_REQUESTED_WITHOUT_DB)
 
 				const onSucceed = () => self.send({ type: 'db edit completed' })
@@ -105,6 +108,7 @@ export class OptimisticPushTransitionRunner<
 				if (!('revertDb' in this.localHandler))
 					throw new InternalStateError(nonexistentHandlerFnRequired('revertDb'))
 				if (this.resources.db.status !== DbResourceStatus.ConnectedAndMigrated)
+					/* v8 ignore next */
 					throw new InternalStateError(DATABASE_HANDLER_REQUESTED_WITHOUT_DB)
 
 				const onSucceed = () => self.send({ type: 'db revert completed' })
