@@ -138,13 +138,11 @@ export class OptimisticPushTransitionRunner<
 					)
 			},
 			finaliseIfApplicable: ({ self }) => {
-				Promise.resolve().then(() => {
-					console.log('finalising if applilcable...')
+				queueMicrotask(() => {
 					const snapshot = self.getSnapshot() as SnapshotFrom<
 						typeof this.machine
 					>
-					if (snapshot.matches({ ws: 'no response' }))
-						return console.log('no response yet!')
+					if (snapshot.matches({ ws: 'no response' })) return
 					const wsConfirmed = snapshot.matches({ ws: 'confirmed' })
 
 					// Check if we're in a 'completed' state. If we're not, we
@@ -165,7 +163,7 @@ export class OptimisticPushTransitionRunner<
 							(!wsConfirmed && snapshot.matches({ 'memory model': 'reverted' }))
 						)
 					)
-						return console.log('not quite ready yet!')
+						return
 
 					// The transition is complete.
 					this.markComplete()
@@ -242,7 +240,8 @@ export class OptimisticPushTransitionRunner<
 						entry: [
 							{ type: 'logFailure', params: 'memory model' },
 							'finaliseIfApplicable'
-						]
+						],
+						type: 'final'
 					},
 					completed: {
 						entry: 'finaliseIfApplicable',
@@ -263,9 +262,10 @@ export class OptimisticPushTransitionRunner<
 						}
 					},
 					reverted: {
-						entry: 'finaliseIfApplicable'
+						entry: 'finaliseIfApplicable',
+						type: 'final'
 					},
-					'not required': {}
+					'not required': { type: 'final' }
 				}
 			},
 			db: {
@@ -328,7 +328,8 @@ export class OptimisticPushTransitionRunner<
 						entry: [
 							{ type: 'logFailure', params: 'db' },
 							'finaliseIfApplicable'
-						]
+						],
+						type: 'final'
 					},
 					reverting: {
 						entry: 'revertDb',
@@ -342,7 +343,8 @@ export class OptimisticPushTransitionRunner<
 						}
 					},
 					reverted: {
-						entry: 'finaliseIfApplicable'
+						entry: 'finaliseIfApplicable',
+						type: 'final'
 					},
 					'did not begin executing before rejection': {
 						type: 'final'
@@ -351,7 +353,8 @@ export class OptimisticPushTransitionRunner<
 						type: 'final'
 					},
 					'not possible': {
-						entry: 'finaliseIfApplicable'
+						entry: 'finaliseIfApplicable',
+						type: 'final'
 					}
 				}
 			}

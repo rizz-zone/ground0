@@ -316,12 +316,14 @@ describe('happy execution path', () => {
 								})
 							).toBeTruthy()
 						}
-						Promise.resolve()
-							.then(() => {
+						queueMicrotask(() => {
+							try {
 								expect(markComplete).toHaveBeenCalledOnce()
-								resolve()
-							})
-							.catch(reject)
+							} catch (e) {
+								return reject(e)
+							}
+							resolve()
+						})
 					} catch (e) {
 						reject(e)
 					}
