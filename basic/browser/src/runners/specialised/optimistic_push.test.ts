@@ -1,6 +1,6 @@
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import { WsResourceStatus } from '@/types/status/WsResourceStatus'
-import { TransitionImpact } from '@ground0/shared'
+import { TransitionImpact, type LocalDatabase } from '@ground0/shared'
 import type { Ingredients } from '../base'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { createActor } from 'xstate'
@@ -65,4 +65,161 @@ describe('init', () => {
 				})
 		).not.toThrow()
 	})
+	describe('memory model', () => {
+		test('becomes in progress if there is an editMemoryModel', () => {
+			const editMemoryModel = vi
+				.fn()
+				.mockImplementation(() => new Promise(() => {}))
+			const revertMemoryModel = vi
+				.fn()
+				.mockImplementation(() => new Promise(() => {}))
+
+			const runner = new OptimisticPushTransitionRunner({
+				...bareMinimumIngredients,
+				localHandler: {
+					editMemoryModel,
+					revertMemoryModel
+				}
+			})
+			// @ts-expect-error We need to see the private stuff
+			const snapshot = runner.machineActorRef.getSnapshot()
+
+			expect(snapshot.matches({ 'memory model': 'in progress' })).toBeTruthy()
+			expect(editMemoryModel).toHaveBeenCalledOnce()
+			expect(revertMemoryModel).not.toHaveBeenCalled()
+		})
+		test('becomes not required if there is no editMemoryModel', () => {
+			const runner = new OptimisticPushTransitionRunner({
+				...bareMinimumIngredients,
+				localHandler: {
+					editDb: () => {},
+					revertDb: () => {}
+				}
+			})
+			// @ts-expect-error We need to see the private stuff
+			const snapshot = runner.machineActorRef.getSnapshot()
+
+			expect(snapshot.matches({ 'memory model': 'not required' })).toBeTruthy()
+		})
+	})
+	describe('db', () => {
+		test('becomes in progress if there is an editDb and a connected db', () => {
+			const editDb = vi.fn().mockImplementation(() => new Promise(() => {}))
+			const revertDb = vi.fn().mockImplementation(() => new Promise(() => {}))
+
+			const runner = new OptimisticPushTransitionRunner({
+				...bareMinimumIngredients,
+				resources: {
+					db: {
+						status: DbResourceStatus.ConnectedAndMigrated,
+						instance: {} as LocalDatabase
+					},
+					ws: { status: WsResourceStatus.Disconnected }
+				},
+				localHandler: {
+					editDb,
+					revertDb
+				}
+			})
+			// @ts-expect-error We need to see the private stuff
+			const snapshot = runner.machineActorRef.getSnapshot()
+
+			expect(snapshot.matches({ db: 'in progress' })).toBeTruthy()
+			expect(editDb).toHaveBeenCalledOnce()
+			expect(revertDb).not.toHaveBeenCalled()
+		})
+		test('becomes not possible if there is an editDb but the db will never connect', () => {
+			const editDb = vi.fn().mockImplementation(() => new Promise(() => {}))
+			const revertDb = vi.fn().mockImplementation(() => new Promise(() => {}))
+
+			const runner = new OptimisticPushTransitionRunner({
+				...bareMinimumIngredients,
+				resources: {
+					db: { status: DbResourceStatus.NeverConnecting },
+					ws: { status: WsResourceStatus.Disconnected }
+				},
+				localHandler: {
+					editDb,
+					revertDb
+				}
+			})
+			// @ts-expect-error We need to see the private stuff
+			const snapshot = runner.machineActorRef.getSnapshot()
+
+			expect(snapshot.matches({ db: 'not possible' })).toBeTruthy()
+			expect(editDb).not.toHaveBeenCalled()
+			expect(revertDb).not.toHaveBeenCalled()
+		})
+		test('becomes awaiting resources if there is an editDb but db is not available yet', () => {
+			const editDb = vi.fn().mockImplementation(() => new Promise(() => {}))
+			const revertDb = vi.fn().mockImplementation(() => new Promise(() => {}))
+
+			const runner = new OptimisticPushTransitionRunner({
+				...bareMinimumIngredients,
+				localHandler: {
+					editDb,
+					revertDb
+				}
+			})
+			// @ts-expect-error We need to see the private stuff
+			const snapshot = runner.machineActorRef.getSnapshot()
+
+			expect(snapshot.matches({ db: 'awaiting resources' })).toBeTruthy()
+			expect(editDb).not.toHaveBeenCalled()
+			expect(revertDb).not.toHaveBeenCalled()
+		})
+		describe('becomes not required if there is no editDb and db is', () => {
+			test('not available yet', () => {
+				const runner = new OptimisticPushTransitionRunner({
+					...bareMinimumIngredients,
+					localHandler: {
+						editMemoryModel: () => {},
+						revertMemoryModel: () => {}
+					}
+				})
+				// @ts-expect-error We need to see the private stuff
+				const snapshot = runner.machineActorRef.getSnapshot()
+
+				expect(snapshot.matches({ db: 'not required' })).toBeTruthy()
+			})
+			test('never connecting', () => {
+				const runner = new OptimisticPushTransitionRunner({
+					...bareMinimumIngredients,
+					resources: {
+						db: { status: DbResourceStatus.NeverConnecting },
+						ws: { status: WsResourceStatus.Disconnected }
+					},
+					localHandler: {
+						editMemoryModel: () => {},
+						revertMemoryModel: () => {}
+					}
+				})
+				// @ts-expect-error We need to see the private stuff
+				const snapshot = runner.machineActorRef.getSnapshot()
+
+				expect(snapshot.matches({ db: 'not required' })).toBeTruthy()
+			})
+			test('connected', () => {
+				const runner = new OptimisticPushTransitionRunner({
+					...bareMinimumIngredients,
+					resources: {
+						db: {
+							status: DbResourceStatus.ConnectedAndMigrated,
+							instance: {} as LocalDatabase
+						},
+						ws: { status: WsResourceStatus.Disconnected }
+					},
+					localHandler: {
+						editMemoryModel: () => {},
+						revertMemoryModel: () => {}
+					}
+				})
+				// @ts-expect-error We need to see the private stuff
+				const snapshot = runner.machineActorRef.getSnapshot()
+
+				expect(snapshot.matches({ db: 'not required' })).toBeTruthy()
+			})
+		})
+	})
+	// TODO: ws tests
 })
