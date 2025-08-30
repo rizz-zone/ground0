@@ -287,7 +287,6 @@ describe('happy execution path', () => {
 			return new Promise<void>((resolve, reject) =>
 				setImmediate(() => {
 					try {
-						console.log('being immediate...')
 						runChecks()
 						expect(markComplete).not.toHaveBeenCalled()
 						{
@@ -313,6 +312,170 @@ describe('happy execution path', () => {
 									ws: 'confirmed',
 									'memory model': 'completed',
 									db: 'not required'
+								})
+							).toBeTruthy()
+						}
+						queueMicrotask(() => {
+							try {
+								expect(markComplete).toHaveBeenCalledOnce()
+							} catch (e) {
+								return reject(e)
+							}
+							resolve()
+						})
+					} catch (e) {
+						reject(e)
+					}
+				})
+			)
+		})
+		test('db only', () => {
+			const send = vi.fn()
+			const editDb = vi.fn()
+			const revertDb = vi.fn()
+			const runner = new OptimisticPushTransitionRunner({
+				...bareMinimumIngredients,
+				resources: {
+					db: {
+						status: DbResourceStatus.Disconnected
+					},
+					ws: {
+						status: WsResourceStatus.Connected,
+						instance: { send } as unknown as WebSocket
+					}
+				},
+				localHandler: {
+					editDb,
+					revertDb
+				}
+			})
+			const markComplete = vi.fn()
+			// @ts-expect-error We do this to know whether it's completed
+			runner.markComplete = markComplete
+			const runChecks = () => {
+				expect(send).toHaveBeenCalledOnce()
+				expect(editDb).toHaveBeenCalledOnce()
+				expect(revertDb).not.toHaveBeenCalled()
+			}
+			runner.syncResources({
+				db: {
+					status: DbResourceStatus.ConnectedAndMigrated,
+					instance: {} as LocalDatabase
+				}
+			})
+			return new Promise<void>((resolve, reject) =>
+				setImmediate(() => {
+					try {
+						runChecks()
+						expect(markComplete).not.toHaveBeenCalled()
+						{
+							// @ts-expect-error We need to see the private stuff
+							const snapshot = runner.machineActorRef.getSnapshot()
+							console.log(snapshot.value)
+							expect(
+								snapshot.matches({
+									ws: 'no response',
+									'memory model': 'not required',
+									db: 'completed'
+								})
+							).toBeTruthy()
+						}
+						runner.reportWsResult(true)
+						runChecks()
+						{
+							// @ts-expect-error We need to see the private stuff
+							const snapshot = runner.machineActorRef.getSnapshot()
+							console.log(snapshot.value)
+							expect(
+								snapshot.matches({
+									ws: 'confirmed',
+									'memory model': 'not required',
+									db: 'completed'
+								})
+							).toBeTruthy()
+						}
+						queueMicrotask(() => {
+							try {
+								expect(markComplete).toHaveBeenCalledOnce()
+							} catch (e) {
+								return reject(e)
+							}
+							resolve()
+						})
+					} catch (e) {
+						reject(e)
+					}
+				})
+			)
+		})
+		test('db and memory model', () => {
+			const send = vi.fn()
+			const editDb = vi.fn()
+			const revertDb = vi.fn()
+			const editMemoryModel = vi.fn()
+			const revertMemoryModel = vi.fn()
+			const runner = new OptimisticPushTransitionRunner({
+				...bareMinimumIngredients,
+				resources: {
+					db: {
+						status: DbResourceStatus.Disconnected
+					},
+					ws: {
+						status: WsResourceStatus.Connected,
+						instance: { send } as unknown as WebSocket
+					}
+				},
+				localHandler: {
+					editDb,
+					revertDb,
+					editMemoryModel,
+					revertMemoryModel
+				}
+			})
+			const markComplete = vi.fn()
+			// @ts-expect-error We do this to know whether it's completed
+			runner.markComplete = markComplete
+			const runChecks = () => {
+				expect(send).toHaveBeenCalledOnce()
+				expect(editDb).toHaveBeenCalledOnce()
+				expect(revertDb).not.toHaveBeenCalled()
+				expect(editMemoryModel).toHaveBeenCalledOnce()
+				expect(revertMemoryModel).not.toHaveBeenCalled()
+			}
+			runner.syncResources({
+				db: {
+					status: DbResourceStatus.ConnectedAndMigrated,
+					instance: {} as LocalDatabase
+				}
+			})
+			return new Promise<void>((resolve, reject) =>
+				setImmediate(() => {
+					try {
+						runChecks()
+						expect(markComplete).not.toHaveBeenCalled()
+						{
+							// @ts-expect-error We need to see the private stuff
+							const snapshot = runner.machineActorRef.getSnapshot()
+							console.log(snapshot.value)
+							expect(
+								snapshot.matches({
+									ws: 'no response',
+									'memory model': 'completed',
+									db: 'completed'
+								})
+							).toBeTruthy()
+						}
+						runner.reportWsResult(true)
+						runChecks()
+						{
+							// @ts-expect-error We need to see the private stuff
+							const snapshot = runner.machineActorRef.getSnapshot()
+							console.log(snapshot.value)
+							expect(
+								snapshot.matches({
+									ws: 'confirmed',
+									'memory model': 'completed',
+									db: 'completed'
 								})
 							).toBeTruthy()
 						}
