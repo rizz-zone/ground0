@@ -292,7 +292,6 @@ describe('happy execution path', () => {
 						{
 							// @ts-expect-error We need to see the private stuff
 							const snapshot = runner.machineActorRef.getSnapshot()
-							console.log(snapshot.value)
 							expect(
 								snapshot.matches({
 									ws: 'no response',
@@ -306,7 +305,6 @@ describe('happy execution path', () => {
 						{
 							// @ts-expect-error We need to see the private stuff
 							const snapshot = runner.machineActorRef.getSnapshot()
-							console.log(snapshot.value)
 							expect(
 								snapshot.matches({
 									ws: 'confirmed',
@@ -371,7 +369,6 @@ describe('happy execution path', () => {
 						{
 							// @ts-expect-error We need to see the private stuff
 							const snapshot = runner.machineActorRef.getSnapshot()
-							console.log(snapshot.value)
 							expect(
 								snapshot.matches({
 									ws: 'no response',
@@ -385,7 +382,6 @@ describe('happy execution path', () => {
 						{
 							// @ts-expect-error We need to see the private stuff
 							const snapshot = runner.machineActorRef.getSnapshot()
-							console.log(snapshot.value)
 							expect(
 								snapshot.matches({
 									ws: 'confirmed',
@@ -456,7 +452,6 @@ describe('happy execution path', () => {
 						{
 							// @ts-expect-error We need to see the private stuff
 							const snapshot = runner.machineActorRef.getSnapshot()
-							console.log(snapshot.value)
 							expect(
 								snapshot.matches({
 									ws: 'no response',
@@ -470,7 +465,6 @@ describe('happy execution path', () => {
 						{
 							// @ts-expect-error We need to see the private stuff
 							const snapshot = runner.machineActorRef.getSnapshot()
-							console.log(snapshot.value)
 							expect(
 								snapshot.matches({
 									ws: 'confirmed',
@@ -488,6 +482,835 @@ describe('happy execution path', () => {
 							resolve()
 						})
 					} catch (e) {
+						reject(e)
+					}
+				})
+			)
+		})
+	})
+	describe('async', () => {
+		test('memory model only', () => {
+			const send = vi.fn()
+			const editMemoryModel = vi
+				.fn()
+				.mockImplementation(
+					() => new Promise((resolve) => setTimeout(resolve, 1000))
+				)
+			const revertMemoryModel = vi
+				.fn()
+				.mockImplementation(
+					() => new Promise((resolve) => setTimeout(resolve, 1000))
+				)
+			const runner = new OptimisticPushTransitionRunner({
+				...bareMinimumIngredients,
+				resources: {
+					db: { status: DbResourceStatus.Disconnected },
+					ws: {
+						status: WsResourceStatus.Connected,
+						instance: { send } as unknown as WebSocket
+					}
+				},
+				localHandler: {
+					editMemoryModel,
+					revertMemoryModel
+				}
+			})
+			const markComplete = vi.fn()
+			// @ts-expect-error We do this to know whether it's completed
+			runner.markComplete = markComplete
+			const runChecks = () => {
+				expect(send).toHaveBeenCalledOnce()
+				expect(editMemoryModel).toHaveBeenCalledOnce()
+				expect(revertMemoryModel).not.toHaveBeenCalled()
+			}
+			return new Promise<void>((resolve, reject) =>
+				setImmediate(async () => {
+					try {
+						runChecks()
+						expect(markComplete).not.toHaveBeenCalled()
+						await vi.waitUntil(
+							() => {
+								// @ts-expect-error We need to see the private stuff
+								const snapshot = runner.machineActorRef.getSnapshot()
+								return snapshot.matches({
+									ws: 'no response',
+									'memory model': 'completed',
+									db: 'not required'
+								})
+							},
+							{
+								timeout: 1600,
+								interval: 100
+							}
+						)
+						expect(markComplete).not.toHaveBeenCalled()
+						runner.reportWsResult(true)
+						runChecks()
+						{
+							// @ts-expect-error We need to see the private stuff
+							const snapshot = runner.machineActorRef.getSnapshot()
+							expect(
+								snapshot.matches({
+									ws: 'confirmed',
+									'memory model': 'completed',
+									db: 'not required'
+								})
+							).toBeTruthy()
+						}
+						queueMicrotask(() => {
+							try {
+								expect(markComplete).toHaveBeenCalledOnce()
+							} catch (e) {
+								return reject(e)
+							}
+							resolve()
+						})
+					} catch (e) {
+						reject(e)
+					}
+				})
+			)
+		})
+		test('db only', () => {
+			const send = vi.fn()
+			const editDb = vi
+				.fn()
+				.mockImplementation(
+					() => new Promise((resolve) => setTimeout(resolve, 1000))
+				)
+			const revertDb = vi
+				.fn()
+				.mockImplementation(
+					() => new Promise((resolve) => setTimeout(resolve, 1000))
+				)
+			const runner = new OptimisticPushTransitionRunner({
+				...bareMinimumIngredients,
+				resources: {
+					db: {
+						status: DbResourceStatus.Disconnected
+					},
+					ws: {
+						status: WsResourceStatus.Connected,
+						instance: { send } as unknown as WebSocket
+					}
+				},
+				localHandler: {
+					editDb,
+					revertDb
+				}
+			})
+			const markComplete = vi.fn()
+			// @ts-expect-error We do this to know whether it's completed
+			runner.markComplete = markComplete
+			const runChecks = () => {
+				expect(send).toHaveBeenCalledOnce()
+				expect(editDb).toHaveBeenCalledOnce()
+				expect(revertDb).not.toHaveBeenCalled()
+			}
+			runner.syncResources({
+				db: {
+					status: DbResourceStatus.ConnectedAndMigrated,
+					instance: {} as LocalDatabase
+				}
+			})
+			return new Promise<void>((resolve, reject) =>
+				setImmediate(async () => {
+					try {
+						runChecks()
+						expect(markComplete).not.toHaveBeenCalled()
+						await vi.waitUntil(
+							() => {
+								// @ts-expect-error We need to see the private stuff
+								const snapshot = runner.machineActorRef.getSnapshot()
+								return snapshot.matches({
+									ws: 'no response',
+									'memory model': 'not required',
+									db: 'completed'
+								})
+							},
+							{
+								timeout: 1600,
+								interval: 100
+							}
+						)
+						expect(markComplete).not.toHaveBeenCalled()
+						runner.reportWsResult(true)
+						runChecks()
+						{
+							// @ts-expect-error We need to see the private stuff
+							const snapshot = runner.machineActorRef.getSnapshot()
+							expect(
+								snapshot.matches({
+									ws: 'confirmed',
+									'memory model': 'not required',
+									db: 'completed'
+								})
+							).toBeTruthy()
+						}
+						queueMicrotask(() => {
+							try {
+								expect(markComplete).toHaveBeenCalledOnce()
+							} catch (e) {
+								return reject(e)
+							}
+							resolve()
+						})
+					} catch (e) {
+						reject(e)
+					}
+				})
+			)
+		})
+		test('db and memory model', () => {
+			const send = vi.fn()
+			const editDb = vi
+				.fn()
+				.mockImplementation(
+					() => new Promise((resolve) => setTimeout(resolve, 1000))
+				)
+			const revertDb = vi
+				.fn()
+				.mockImplementation(
+					() => new Promise((resolve) => setTimeout(resolve, 1000))
+				)
+			const editMemoryModel = vi
+				.fn()
+				.mockImplementation(
+					() => new Promise((resolve) => setTimeout(resolve, 1000))
+				)
+			const revertMemoryModel = vi
+				.fn()
+				.mockImplementation(
+					() => new Promise((resolve) => setTimeout(resolve, 1000))
+				)
+			const runner = new OptimisticPushTransitionRunner({
+				...bareMinimumIngredients,
+				resources: {
+					db: {
+						status: DbResourceStatus.Disconnected
+					},
+					ws: {
+						status: WsResourceStatus.Connected,
+						instance: { send } as unknown as WebSocket
+					}
+				},
+				localHandler: {
+					editDb,
+					revertDb,
+					editMemoryModel,
+					revertMemoryModel
+				}
+			})
+			const markComplete = vi.fn()
+			// @ts-expect-error We do this to know whether it's completed
+			runner.markComplete = markComplete
+			const runChecks = () => {
+				expect(send).toHaveBeenCalledOnce()
+				expect(editDb).toHaveBeenCalledOnce()
+				expect(revertDb).not.toHaveBeenCalled()
+				expect(editMemoryModel).toHaveBeenCalledOnce()
+				expect(revertMemoryModel).not.toHaveBeenCalled()
+			}
+			runner.syncResources({
+				db: {
+					status: DbResourceStatus.ConnectedAndMigrated,
+					instance: {} as LocalDatabase
+				}
+			})
+			return new Promise<void>((resolve, reject) =>
+				setImmediate(async () => {
+					try {
+						runChecks()
+						expect(markComplete).not.toHaveBeenCalled()
+						await vi.waitUntil(
+							() => {
+								// @ts-expect-error We need to see the private stuff
+								const snapshot = runner.machineActorRef.getSnapshot()
+								return snapshot.matches({
+									ws: 'no response',
+									'memory model': 'completed',
+									db: 'completed'
+								})
+							},
+							{
+								timeout: 1600,
+								interval: 100
+							}
+						)
+						runner.reportWsResult(true)
+						runChecks()
+						{
+							// @ts-expect-error We need to see the private stuff
+							const snapshot = runner.machineActorRef.getSnapshot()
+							expect(
+								snapshot.matches({
+									ws: 'confirmed',
+									'memory model': 'completed',
+									db: 'completed'
+								})
+							).toBeTruthy()
+						}
+						queueMicrotask(() => {
+							try {
+								expect(markComplete).toHaveBeenCalledOnce()
+							} catch (e) {
+								return reject(e)
+							}
+							resolve()
+						})
+					} catch (e) {
+						reject(e)
+					}
+				})
+			)
+		})
+	})
+})
+describe('failure execution path', () => {
+	describe('sync', () => {
+		test('memory model only', () => {
+			const send = vi.fn()
+			const editMemoryModel = vi.fn(() => {
+				throw new Error('editMemoryModel failed')
+			})
+			const revertMemoryModel = vi.fn()
+			const runner = new OptimisticPushTransitionRunner({
+				...bareMinimumIngredients,
+				resources: {
+					db: { status: DbResourceStatus.Disconnected },
+					ws: {
+						status: WsResourceStatus.Connected,
+						instance: { send } as unknown as WebSocket
+					}
+				},
+				localHandler: {
+					editMemoryModel,
+					revertMemoryModel
+				}
+			})
+			const markComplete = vi.fn()
+			const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+			// @ts-expect-error We do this to know whether it's completed
+			runner.markComplete = markComplete
+			const runChecks = () => {
+				expect(send).toHaveBeenCalledOnce()
+				expect(editMemoryModel).toHaveBeenCalledOnce()
+				expect(revertMemoryModel).not.toHaveBeenCalled()
+			}
+			return new Promise<void>((resolve, reject) =>
+				setImmediate(() => {
+					try {
+						runChecks()
+						expect(markComplete).not.toHaveBeenCalled()
+						{
+							// @ts-expect-error We need to see the private stuff
+							const snapshot = runner.machineActorRef.getSnapshot()
+							expect(
+								snapshot.matches({
+									ws: 'no response',
+									'memory model': 'failed',
+									db: 'not required'
+								})
+							).toBeTruthy()
+						}
+						expect(warnSpy).toHaveBeenCalledWith(
+							expect.stringContaining('memory model')
+						)
+						runner.reportWsResult(true)
+						runChecks()
+						{
+							// @ts-expect-error We need to see the private stuff
+							const snapshot = runner.machineActorRef.getSnapshot()
+							expect(
+								snapshot.matches({
+									ws: 'confirmed',
+									'memory model': 'failed',
+									db: 'not required'
+								})
+							).toBeTruthy()
+						}
+						queueMicrotask(() => {
+							try {
+								expect(markComplete).toHaveBeenCalledOnce()
+								warnSpy.mockRestore()
+							} catch (e) {
+								warnSpy.mockRestore()
+								return reject(e)
+							}
+							resolve()
+						})
+					} catch (e) {
+						warnSpy.mockRestore()
+						reject(e)
+					}
+				})
+			)
+		})
+		test('db only', () => {
+			const send = vi.fn()
+			const editDb = vi.fn(() => {
+				throw new Error('editDb failed')
+			})
+			const revertDb = vi.fn()
+			const runner = new OptimisticPushTransitionRunner({
+				...bareMinimumIngredients,
+				resources: {
+					db: {
+						status: DbResourceStatus.Disconnected
+					},
+					ws: {
+						status: WsResourceStatus.Connected,
+						instance: { send } as unknown as WebSocket
+					}
+				},
+				localHandler: {
+					editDb,
+					revertDb
+				}
+			})
+			const markComplete = vi.fn()
+			const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+			// @ts-expect-error We do this to know whether it's completed
+			runner.markComplete = markComplete
+			const runChecks = () => {
+				expect(send).toHaveBeenCalledOnce()
+				expect(editDb).toHaveBeenCalledOnce()
+				expect(revertDb).not.toHaveBeenCalled()
+			}
+			runner.syncResources({
+				db: {
+					status: DbResourceStatus.ConnectedAndMigrated,
+					instance: {} as LocalDatabase
+				}
+			})
+			return new Promise<void>((resolve, reject) =>
+				setImmediate(() => {
+					try {
+						runChecks()
+						expect(markComplete).not.toHaveBeenCalled()
+						{
+							// @ts-expect-error We need to see the private stuff
+							const snapshot = runner.machineActorRef.getSnapshot()
+							expect(
+								snapshot.matches({
+									ws: 'no response',
+									'memory model': 'not required',
+									db: 'failed'
+								})
+							).toBeTruthy()
+						}
+						expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('db'))
+						runner.reportWsResult(true)
+						runChecks()
+						{
+							// @ts-expect-error We need to see the private stuff
+							const snapshot = runner.machineActorRef.getSnapshot()
+							expect(
+								snapshot.matches({
+									ws: 'confirmed',
+									'memory model': 'not required',
+									db: 'failed'
+								})
+							).toBeTruthy()
+						}
+						queueMicrotask(() => {
+							try {
+								expect(markComplete).toHaveBeenCalledOnce()
+								warnSpy.mockRestore()
+							} catch (e) {
+								warnSpy.mockRestore()
+								return reject(e)
+							}
+							resolve()
+						})
+					} catch (e) {
+						warnSpy.mockRestore()
+						reject(e)
+					}
+				})
+			)
+		})
+		test('db and memory model', () => {
+			const send = vi.fn()
+			const editDb = vi.fn(() => {
+				throw new Error('editDb failed')
+			})
+			const revertDb = vi.fn()
+			const editMemoryModel = vi.fn(() => {
+				throw new Error('editMemoryModel failed')
+			})
+			const revertMemoryModel = vi.fn()
+			const runner = new OptimisticPushTransitionRunner({
+				...bareMinimumIngredients,
+				resources: {
+					db: {
+						status: DbResourceStatus.Disconnected
+					},
+					ws: {
+						status: WsResourceStatus.Connected,
+						instance: { send } as unknown as WebSocket
+					}
+				},
+				localHandler: {
+					editDb,
+					revertDb,
+					editMemoryModel,
+					revertMemoryModel
+				}
+			})
+			const markComplete = vi.fn()
+			const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+			// @ts-expect-error We do this to know whether it's completed
+			runner.markComplete = markComplete
+			const runChecks = () => {
+				expect(send).toHaveBeenCalledOnce()
+				expect(editDb).toHaveBeenCalledOnce()
+				expect(revertDb).not.toHaveBeenCalled()
+				expect(editMemoryModel).toHaveBeenCalledOnce()
+				expect(revertMemoryModel).not.toHaveBeenCalled()
+			}
+			runner.syncResources({
+				db: {
+					status: DbResourceStatus.ConnectedAndMigrated,
+					instance: {} as LocalDatabase
+				}
+			})
+			return new Promise<void>((resolve, reject) =>
+				setImmediate(() => {
+					try {
+						runChecks()
+						expect(markComplete).not.toHaveBeenCalled()
+						{
+							// @ts-expect-error We need to see the private stuff
+							const snapshot = runner.machineActorRef.getSnapshot()
+							expect(
+								snapshot.matches({
+									ws: 'no response',
+									'memory model': 'failed',
+									db: 'failed'
+								})
+							).toBeTruthy()
+						}
+						expect(warnSpy).toHaveBeenCalledWith(
+							expect.stringContaining('memory model')
+						)
+						expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('db'))
+						runner.reportWsResult(true)
+						runChecks()
+						{
+							// @ts-expect-error We need to see the private stuff
+							const snapshot = runner.machineActorRef.getSnapshot()
+							expect(
+								snapshot.matches({
+									ws: 'confirmed',
+									'memory model': 'failed',
+									db: 'failed'
+								})
+							).toBeTruthy()
+						}
+						queueMicrotask(() => {
+							try {
+								expect(markComplete).toHaveBeenCalledOnce()
+								warnSpy.mockRestore()
+							} catch (e) {
+								warnSpy.mockRestore()
+								return reject(e)
+							}
+							resolve()
+						})
+					} catch (e) {
+						warnSpy.mockRestore()
+						reject(e)
+					}
+				})
+			)
+		})
+	})
+	describe('async', () => {
+		test('memory model only', () => {
+			const send = vi.fn()
+			const editMemoryModel = vi
+				.fn()
+				.mockImplementation(() =>
+					Promise.reject(new Error('editMemoryModel failed'))
+				)
+			const revertMemoryModel = vi
+				.fn()
+				.mockImplementation(() =>
+					Promise.reject(new Error('revertMemoryModel should not be called'))
+				)
+			const runner = new OptimisticPushTransitionRunner({
+				...bareMinimumIngredients,
+				resources: {
+					db: { status: DbResourceStatus.Disconnected },
+					ws: {
+						status: WsResourceStatus.Connected,
+						instance: { send } as unknown as WebSocket
+					}
+				},
+				localHandler: {
+					editMemoryModel,
+					revertMemoryModel
+				}
+			})
+			const markComplete = vi.fn()
+			const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+			// @ts-expect-error We do this to know whether it's completed
+			runner.markComplete = markComplete
+			const runChecks = () => {
+				expect(send).toHaveBeenCalledOnce()
+				expect(editMemoryModel).toHaveBeenCalledOnce()
+				expect(revertMemoryModel).not.toHaveBeenCalled()
+			}
+			return new Promise<void>((resolve, reject) =>
+				setImmediate(async () => {
+					try {
+						runChecks()
+						expect(markComplete).not.toHaveBeenCalled()
+						await vi.waitUntil(
+							() => {
+								// @ts-expect-error We need to see the private stuff
+								const snapshot = runner.machineActorRef.getSnapshot()
+								return snapshot.matches({
+									ws: 'no response',
+									'memory model': 'failed',
+									db: 'not required'
+								})
+							},
+							{
+								timeout: 1600,
+								interval: 100
+							}
+						)
+						expect(warnSpy).toHaveBeenCalledWith(
+							expect.stringContaining('memory model')
+						)
+						runner.reportWsResult(true)
+						runChecks()
+						{
+							// @ts-expect-error We need to see the private stuff
+							const snapshot = runner.machineActorRef.getSnapshot()
+							expect(
+								snapshot.matches({
+									ws: 'confirmed',
+									'memory model': 'failed',
+									db: 'not required'
+								})
+							).toBeTruthy()
+						}
+						queueMicrotask(() => {
+							try {
+								expect(markComplete).toHaveBeenCalledOnce()
+								warnSpy.mockRestore()
+							} catch (e) {
+								warnSpy.mockRestore()
+								return reject(e)
+							}
+							resolve()
+						})
+					} catch (e) {
+						warnSpy.mockRestore()
+						reject(e)
+					}
+				})
+			)
+		})
+		test('db only', () => {
+			const send = vi.fn()
+			const editDb = vi
+				.fn()
+				.mockImplementation(() => Promise.reject(new Error('editDb failed')))
+			const revertDb = vi
+				.fn()
+				.mockImplementation(() =>
+					Promise.reject(new Error('revertDb should not be called'))
+				)
+			const runner = new OptimisticPushTransitionRunner({
+				...bareMinimumIngredients,
+				resources: {
+					db: {
+						status: DbResourceStatus.Disconnected
+					},
+					ws: {
+						status: WsResourceStatus.Connected,
+						instance: { send } as unknown as WebSocket
+					}
+				},
+				localHandler: {
+					editDb,
+					revertDb
+				}
+			})
+			const markComplete = vi.fn()
+			const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+			// @ts-expect-error We do this to know whether it's completed
+			runner.markComplete = markComplete
+			const runChecks = () => {
+				expect(send).toHaveBeenCalledOnce()
+				expect(editDb).toHaveBeenCalledOnce()
+				expect(revertDb).not.toHaveBeenCalled()
+			}
+			runner.syncResources({
+				db: {
+					status: DbResourceStatus.ConnectedAndMigrated,
+					instance: {} as LocalDatabase
+				}
+			})
+			return new Promise<void>((resolve, reject) =>
+				setImmediate(async () => {
+					try {
+						runChecks()
+						expect(markComplete).not.toHaveBeenCalled()
+						await vi.waitUntil(
+							() => {
+								// @ts-expect-error We need to see the private stuff
+								const snapshot = runner.machineActorRef.getSnapshot()
+								return snapshot.matches({
+									ws: 'no response',
+									'memory model': 'not required',
+									db: 'failed'
+								})
+							},
+							{
+								timeout: 1600,
+								interval: 100
+							}
+						)
+						expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('db'))
+						runner.reportWsResult(true)
+						runChecks()
+						{
+							// @ts-expect-error We need to see the private stuff
+							const snapshot = runner.machineActorRef.getSnapshot()
+							expect(
+								snapshot.matches({
+									ws: 'confirmed',
+									'memory model': 'not required',
+									db: 'failed'
+								})
+							).toBeTruthy()
+						}
+						queueMicrotask(() => {
+							try {
+								expect(markComplete).toHaveBeenCalledOnce()
+								warnSpy.mockRestore()
+							} catch (e) {
+								warnSpy.mockRestore()
+								return reject(e)
+							}
+							resolve()
+						})
+					} catch (e) {
+						warnSpy.mockRestore()
+						reject(e)
+					}
+				})
+			)
+		})
+		test('db and memory model', () => {
+			const send = vi.fn()
+			const editDb = vi
+				.fn()
+				.mockImplementation(() => Promise.reject(new Error('editDb failed')))
+			const revertDb = vi
+				.fn()
+				.mockImplementation(() =>
+					Promise.reject(new Error('revertDb should not be called'))
+				)
+			const editMemoryModel = vi
+				.fn()
+				.mockImplementation(() =>
+					Promise.reject(new Error('editMemoryModel failed'))
+				)
+			const revertMemoryModel = vi
+				.fn()
+				.mockImplementation(() =>
+					Promise.reject(new Error('revertMemoryModel should not be called'))
+				)
+			const runner = new OptimisticPushTransitionRunner({
+				...bareMinimumIngredients,
+				resources: {
+					db: {
+						status: DbResourceStatus.Disconnected
+					},
+					ws: {
+						status: WsResourceStatus.Connected,
+						instance: { send } as unknown as WebSocket
+					}
+				},
+				localHandler: {
+					editDb,
+					revertDb,
+					editMemoryModel,
+					revertMemoryModel
+				}
+			})
+			const markComplete = vi.fn()
+			const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+			// @ts-expect-error We do this to know whether it's completed
+			runner.markComplete = markComplete
+			const runChecks = () => {
+				expect(send).toHaveBeenCalledOnce()
+				expect(editDb).toHaveBeenCalledOnce()
+				expect(revertDb).not.toHaveBeenCalled()
+				expect(editMemoryModel).toHaveBeenCalledOnce()
+				expect(revertMemoryModel).not.toHaveBeenCalled()
+			}
+			runner.syncResources({
+				db: {
+					status: DbResourceStatus.ConnectedAndMigrated,
+					instance: {} as LocalDatabase
+				}
+			})
+			return new Promise<void>((resolve, reject) =>
+				setImmediate(async () => {
+					try {
+						runChecks()
+						expect(markComplete).not.toHaveBeenCalled()
+						await vi.waitUntil(
+							() => {
+								// @ts-expect-error We need to see the private stuff
+								const snapshot = runner.machineActorRef.getSnapshot()
+								return snapshot.matches({
+									ws: 'no response',
+									'memory model': 'failed',
+									db: 'failed'
+								})
+							},
+							{
+								timeout: 1600,
+								interval: 100
+							}
+						)
+						expect(warnSpy).toHaveBeenCalledWith(
+							expect.stringContaining('memory model')
+						)
+						expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('db'))
+						runner.reportWsResult(true)
+						runChecks()
+						{
+							// @ts-expect-error We need to see the private stuff
+							const snapshot = runner.machineActorRef.getSnapshot()
+							expect(
+								snapshot.matches({
+									ws: 'confirmed',
+									'memory model': 'failed',
+									db: 'failed'
+								})
+							).toBeTruthy()
+						}
+						queueMicrotask(() => {
+							try {
+								expect(markComplete).toHaveBeenCalledOnce()
+								warnSpy.mockRestore()
+							} catch (e) {
+								warnSpy.mockRestore()
+								return reject(e)
+							}
+							resolve()
+						})
+					} catch (e) {
+						warnSpy.mockRestore()
 						reject(e)
 					}
 				})
