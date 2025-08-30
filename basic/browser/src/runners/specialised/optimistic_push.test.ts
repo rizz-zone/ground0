@@ -1,10 +1,16 @@
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import { WsResourceStatus } from '@/types/status/WsResourceStatus'
-import { TransitionImpact, type LocalDatabase } from '@ground0/shared'
+import {
+	TransitionImpact,
+	UpstreamWsMessageAction,
+	type LocalDatabase,
+	type UpstreamWsMessage
+} from '@ground0/shared'
 import type { Ingredients } from '../base'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { createActor } from 'xstate'
 import { OptimisticPushTransitionRunner } from './optimistic_push'
+import SuperJSON from 'superjson'
 
 const bareMinimumIngredients = {
 	memoryModel: {},
@@ -12,7 +18,7 @@ const bareMinimumIngredients = {
 		db: { status: DbResourceStatus.Disconnected },
 		ws: { status: WsResourceStatus.Disconnected }
 	},
-	id: {},
+	id: 3,
 	actorRef: {},
 	localHandler: {},
 	transition: {
@@ -221,5 +227,102 @@ describe('init', () => {
 			})
 		})
 	})
-	// TODO: ws tests
+	test('ws message sent on init if available', () => {
+		const send = vi.fn()
+		const runner = new OptimisticPushTransitionRunner({
+			...bareMinimumIngredients,
+			resources: {
+				db: { status: DbResourceStatus.Disconnected },
+				ws: {
+					status: WsResourceStatus.Connected,
+					instance: { send } as unknown as WebSocket
+				}
+			},
+			localHandler: {
+				editMemoryModel: () => {},
+				revertMemoryModel: () => {}
+			}
+		})
+		// @ts-expect-error We need to see the private stuff
+		const snapshot = runner.machineActorRef.getSnapshot()
+
+		expect(snapshot.matches({ ws: 'no response' })).toBeTruthy()
+		expect(send).toHaveBeenCalledExactlyOnceWith(
+			SuperJSON.stringify({
+				action: UpstreamWsMessageAction.Transition,
+				id: bareMinimumIngredients.id,
+				data: bareMinimumIngredients.transition
+			} satisfies UpstreamWsMessage)
+		)
+	})
+})
+describe('happy execution path', () => {
+	describe('sync', () => {
+		test('memory model only', () => {
+			const send = vi.fn()
+			const editMemoryModel = vi.fn()
+			const revertMemoryModel = vi.fn()
+			const runner = new OptimisticPushTransitionRunner({
+				...bareMinimumIngredients,
+				resources: {
+					db: { status: DbResourceStatus.Disconnected },
+					ws: {
+						status: WsResourceStatus.Connected,
+						instance: { send } as unknown as WebSocket
+					}
+				},
+				localHandler: {
+					editMemoryModel,
+					revertMemoryModel
+				}
+			})
+			const markComplete = vi.fn()
+			// @ts-expect-error We do this to know whether it's completed
+			runner.markComplete = markComplete
+			const runChecks = () => {
+				expect(send).toHaveBeenCalledOnce()
+				expect(editMemoryModel).toHaveBeenCalledOnce()
+				expect(revertMemoryModel).not.toHaveBeenCalled()
+			}
+			return new Promise<void>((resolve, reject) =>
+				setImmediate(() => {
+					try {
+						console.log('being immediate...')
+						runChecks()
+						expect(markComplete).not.toHaveBeenCalled()
+						{
+							// @ts-expect-error We need to see the private stuff
+							const snapshot = runner.machineActorRef.getSnapshot()
+							console.log(snapshot.value)
+							expect(
+								snapshot.matches({
+									ws: 'no response',
+									'memory model': 'completed',
+									db: 'not required'
+								})
+							).toBeTruthy()
+						}
+						runner.reportWsResult(true)
+						runChecks()
+						expect(markComplete).toHaveBeenCalledOnce()
+						{
+							// @ts-expect-error We need to see the private stuff
+							const snapshot = runner.machineActorRef.getSnapshot()
+							console.log(snapshot.value)
+							expect(
+								snapshot.matches({
+									ws: 'confirmed',
+									'memory model': 'completed',
+									db: 'not required'
+								})
+							).toBeTruthy()
+						}
+						resolve()
+					} catch (e) {
+						reject(e)
+					}
+				})
+			)
+		})
+	})
 })
