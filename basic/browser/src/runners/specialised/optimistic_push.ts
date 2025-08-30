@@ -121,7 +121,7 @@ export class OptimisticPushTransitionRunner<
 				}
 			},
 			logFailure: (_, responsibleHandlerArea: 'memory model' | 'db') => {
-				console.warn(minimallyIdentifiedErrorLog(responsibleHandlerArea)) // TODO: Make this external maybe?
+				console.warn(minimallyIdentifiedErrorLog(responsibleHandlerArea))
 			},
 			sendWsMessage: () => {
 				if (this.resources.ws.status === WsResourceStatus.Connected)
