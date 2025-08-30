@@ -138,32 +138,38 @@ export class OptimisticPushTransitionRunner<
 					)
 			},
 			finaliseIfApplicable: ({ self }) => {
-				const snapshot = self.getSnapshot() as SnapshotFrom<typeof this.machine>
-				if (snapshot.matches({ ws: 'no response' })) return
-				const wsConfirmed = snapshot.matches({ ws: 'confirmed' })
+				Promise.resolve().then(() => {
+					console.log('finalising if applilcable...')
+					const snapshot = self.getSnapshot() as SnapshotFrom<
+						typeof this.machine
+					>
+					if (snapshot.matches({ ws: 'no response' }))
+						return console.log('no response yet!')
+					const wsConfirmed = snapshot.matches({ ws: 'confirmed' })
 
-				// Check if we're in a 'completed' state. If we're not, we
-				// shouldn't finalise yet.
-				if (
-					!(
-						snapshot.matches({ db: 'not required' }) ||
-						snapshot.matches({ db: 'failed' }) ||
-						snapshot.matches({ db: 'not possible' }) ||
-						(wsConfirmed && snapshot.matches({ db: 'completed' })) ||
-						(!wsConfirmed && snapshot.matches({ db: 'reverted' }))
-					) ||
-					!(
-						snapshot.matches({ 'memory model': 'not required' }) ||
-						snapshot.matches({ 'memory model': 'failed' }) ||
-						(wsConfirmed &&
-							snapshot.matches({ 'memory model': 'completed' })) ||
-						(!wsConfirmed && snapshot.matches({ 'memory model': 'reverted' }))
+					// Check if we're in a 'completed' state. If we're not, we
+					// shouldn't finalise yet.
+					if (
+						!(
+							snapshot.matches({ db: 'not required' }) ||
+							snapshot.matches({ db: 'failed' }) ||
+							snapshot.matches({ db: 'not possible' }) ||
+							(wsConfirmed && snapshot.matches({ db: 'completed' })) ||
+							(!wsConfirmed && snapshot.matches({ db: 'reverted' }))
+						) ||
+						!(
+							snapshot.matches({ 'memory model': 'not required' }) ||
+							snapshot.matches({ 'memory model': 'failed' }) ||
+							(wsConfirmed &&
+								snapshot.matches({ 'memory model': 'completed' })) ||
+							(!wsConfirmed && snapshot.matches({ 'memory model': 'reverted' }))
+						)
 					)
-				)
-					return
+						return console.log('not quite ready yet!')
 
-				// The transition is complete.
-				this.markComplete()
+					// The transition is complete.
+					this.markComplete()
+				})
 			}
 		},
 		guards: {
@@ -198,12 +204,10 @@ export class OptimisticPushTransitionRunner<
 						}
 					},
 					confirmed: {
-						entry: 'finaliseIfApplicable',
-						type: 'final'
+						entry: 'finaliseIfApplicable'
 					},
 					rejected: {
-						entry: 'finaliseIfApplicable',
-						type: 'final'
+						entry: 'finaliseIfApplicable'
 					}
 				}
 			},
@@ -238,8 +242,7 @@ export class OptimisticPushTransitionRunner<
 						entry: [
 							{ type: 'logFailure', params: 'memory model' },
 							'finaliseIfApplicable'
-						],
-						type: 'final'
+						]
 					},
 					completed: {
 						entry: 'finaliseIfApplicable',
@@ -260,12 +263,9 @@ export class OptimisticPushTransitionRunner<
 						}
 					},
 					reverted: {
-						entry: 'finaliseIfApplicable',
-						type: 'final'
+						entry: 'finaliseIfApplicable'
 					},
-					'not required': {
-						type: 'final'
-					}
+					'not required': {}
 				}
 			},
 			db: {
@@ -328,8 +328,7 @@ export class OptimisticPushTransitionRunner<
 						entry: [
 							{ type: 'logFailure', params: 'db' },
 							'finaliseIfApplicable'
-						],
-						type: 'final'
+						]
 					},
 					reverting: {
 						entry: 'revertDb',
@@ -343,8 +342,7 @@ export class OptimisticPushTransitionRunner<
 						}
 					},
 					reverted: {
-						entry: 'finaliseIfApplicable',
-						type: 'final'
+						entry: 'finaliseIfApplicable'
 					},
 					'did not begin executing before rejection': {
 						type: 'final'
@@ -353,8 +351,7 @@ export class OptimisticPushTransitionRunner<
 						type: 'final'
 					},
 					'not possible': {
-						entry: 'finaliseIfApplicable',
-						type: 'final'
+						entry: 'finaliseIfApplicable'
 					}
 				}
 			}

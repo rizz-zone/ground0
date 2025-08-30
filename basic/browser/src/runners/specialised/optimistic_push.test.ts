@@ -304,7 +304,6 @@ describe('happy execution path', () => {
 						}
 						runner.reportWsResult(true)
 						runChecks()
-						expect(markComplete).toHaveBeenCalledOnce()
 						{
 							// @ts-expect-error We need to see the private stuff
 							const snapshot = runner.machineActorRef.getSnapshot()
@@ -317,7 +316,12 @@ describe('happy execution path', () => {
 								})
 							).toBeTruthy()
 						}
-						resolve()
+						Promise.resolve()
+							.then(() => {
+								expect(markComplete).toHaveBeenCalledOnce()
+								resolve()
+							})
+							.catch(reject)
 					} catch (e) {
 						reject(e)
 					}
