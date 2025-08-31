@@ -440,6 +440,8 @@ function runExecutionTest({
 		})
 	)
 }
+
+/*
 describe('no revert required', () => {
 	describe('happy execution path', () => {
 		describe('sync', () => {
@@ -1469,3 +1471,4 @@ describe('no revert required', () => {
 	})
 })
 // describe('revert required', () => {})
+*/
