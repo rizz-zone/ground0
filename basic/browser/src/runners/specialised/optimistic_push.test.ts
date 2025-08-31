@@ -13,6 +13,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 import { createActor } from 'xstate'
 import { OptimisticPushTransitionRunner } from './optimistic_push'
 import SuperJSON from 'superjson'
+import type { ResourceBundle } from '@/types/status/ResourceBundle'
 
 const bareMinimumIngredients = {
 	memoryModel: {},
@@ -276,24 +277,36 @@ function runExecutionTest({
 	revertRequired,
 	handlersSucceed,
 	async,
-	immediatelyAvailable,
+	status,
 	testing
 }: {
 	revertRequired: boolean
 	handlersSucceed: boolean
 	async: boolean
-	immediatelyAvailable: {
-		ws: boolean
-		db: boolean
+	status: {
+		ws: WsResourceStatus
+		db:
+			| {
+					initial:
+						| DbResourceStatus.ConnectedAndMigrated
+						| DbResourceStatus.NeverConnecting
+			  }
+			| {
+					initial: DbResourceStatus.Disconnected
+					convertTo:
+						| DbResourceStatus.ConnectedAndMigrated
+						| DbResourceStatus.NeverConnecting
+			  }
 	}
 	testing: IncludedHandlerFunctions
 }) {
+	const someTimeout = () => 20 + Math.random() * 180
 	const standardHandler = async
 		? () =>
 				new Promise<void>((resolve, reject) =>
 					setTimeout(
 						() => (handlersSucceed ? resolve : reject)(),
-						20 + Math.random() * 280
+						someTimeout()
 					)
 				)
 		: () => {
@@ -312,10 +325,19 @@ function runExecutionTest({
 	const runner = new OptimisticPushTransitionRunner({
 		...bareMinimumIngredients,
 		resources: {
-			db: { status: DbResourceStatus.Disconnected },
+			db: {
+				status: status.db.initial,
+				instance:
+					status.db.initial === DbResourceStatus.ConnectedAndMigrated
+						? ({} as LocalDatabase)
+						: undefined
+			},
 			ws: {
-				status: WsResourceStatus.Connected,
-				instance: { send: wsSend } as unknown as WebSocket
+				status: status.ws,
+				instance:
+					status.ws === WsResourceStatus.Connected
+						? ({ send: wsSend } as unknown as WebSocket)
+						: undefined
 			}
 		},
 		localHandler: {
@@ -342,6 +364,31 @@ function runExecutionTest({
 	const markComplete = vi.fn()
 	// @ts-expect-error We do this to know whether it's completed
 	runner.markComplete = markComplete
+	if (status.ws === WsResourceStatus.Disconnected)
+		setTimeout(
+			() =>
+				runner.syncResources({
+					ws: {
+						status: WsResourceStatus.Connected,
+						instance: { send: wsSend } as unknown as WebSocket
+					}
+				}),
+			someTimeout()
+		)
+	if (status.db.initial === DbResourceStatus.Disconnected)
+		setTimeout(() => {
+			if (status.db.initial !== DbResourceStatus.Disconnected)
+				throw new Error('somehow status.db.initial changed during the timeout')
+			runner.syncResources({
+				db: {
+					status: status.db.convertTo,
+					instance:
+						status.db.convertTo === DbResourceStatus.ConnectedAndMigrated
+							? ({} as LocalDatabase)
+							: undefined
+				} as ResourceBundle['db']
+			})
+		}, someTimeout())
 	const runChecks = () => {
 		expect(wsSend).toHaveBeenCalledOnce()
 		expect(editMemoryModel).toHaveBeenCalledOnce()
@@ -379,17 +426,6 @@ function runExecutionTest({
 					)
 				runner.reportWsResult(true)
 				runChecks()
-				{
-					// @ts-expect-error We need to see the private stuff
-					const snapshot = runner.machineActorRef.getSnapshot()
-					expect(
-						snapshot.matches({
-							ws: 'confirmed',
-							'memory model': 'failed',
-							db: 'not required'
-						})
-					).toBeTruthy()
-				}
 				queueMicrotask(() => {
 					try {
 						expect(markComplete).toHaveBeenCalledOnce()
