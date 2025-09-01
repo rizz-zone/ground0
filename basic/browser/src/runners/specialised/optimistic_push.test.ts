@@ -4,8 +4,6 @@ import {
 	TransitionImpact,
 	UpstreamWsMessageAction,
 	type LocalDatabase,
-	type LocalHandlers,
-	type Transition,
 	type UpstreamWsMessage
 } from '@ground0/shared'
 import type { Ingredients } from '../base'
@@ -273,7 +271,7 @@ const enum IncludedHandlerFunctions {
 	DbOnly,
 	Both
 }
-function runExecutionTest({
+async function runExecutionTest({
 	revertRequired,
 	handlersSucceed,
 	async,
@@ -364,6 +362,17 @@ function runExecutionTest({
 	const markComplete = vi.fn()
 	// @ts-expect-error We do this to know whether it's completed
 	runner.markComplete = markComplete
+
+	let sent = false
+	const sendAction = () =>
+		setTimeout(() => {
+			if (sent) return
+			runner.reportWsResult(!revertRequired)
+			sent = true
+		}, someTimeout())
+	wsSend.mockImplementation(sendAction)
+	if (status.ws === WsResourceStatus.Connected) sendAction()
+
 	if (status.ws === WsResourceStatus.Disconnected)
 		setTimeout(
 			() =>
@@ -389,54 +398,40 @@ function runExecutionTest({
 				} as ResourceBundle['db']
 			})
 		}, someTimeout())
-	const runChecks = () => {
-		expect(wsSend).toHaveBeenCalledOnce()
-		expect(editMemoryModel).toHaveBeenCalledOnce()
-		expect(revertMemoryModel).not.toHaveBeenCalled()
-	}
-	return new Promise<void>((resolve, reject) =>
-		setImmediate(async () => {
+
+	// Do the main chunk of the test
+	await vi.waitUntil(
+		() => {
+			// @ts-expect-error We need to see the private stuff
+			const snapshot = runner.machineActorRef.getSnapshot()
+			return snapshot.matches({
+				ws: revertRequired ? 'rejected' : 'confirmed',
+				'memory model': [
+					IncludedHandlerFunctions.Both,
+					IncludedHandlerFunctions.MemoryModelOnly
+				].includes(testing)
+					? handlersSucceed
+						? revertRequired
+							? 'reverted'
+							: 'completed'
+						: 'failed'
+					: 'not required',
+				db: 'not required'
+			})
+		},
+		{
+			timeout: 1600,
+			interval: 10
+		}
+	)
+	return await new Promise<void>((resolve, reject) =>
+		queueMicrotask(() => {
 			try {
-				runChecks()
-				expect(markComplete).not.toHaveBeenCalled()
-				if (async)
-					await vi.waitUntil(
-						() => {
-							// @ts-expect-error We need to see the private stuff
-							const snapshot = runner.machineActorRef.getSnapshot()
-							return snapshot.matches({
-								ws: 'no response',
-								'memory model': [
-									IncludedHandlerFunctions.Both,
-									IncludedHandlerFunctions.MemoryModelOnly
-								].includes(testing)
-									? handlersSucceed
-										? revertRequired
-											? 'reverted'
-											: 'completed'
-										: 'failed'
-									: 'not required',
-								db: 'not required'
-							})
-						},
-						{
-							timeout: 1600,
-							interval: 20
-						}
-					)
-				runner.reportWsResult(true)
-				runChecks()
-				queueMicrotask(() => {
-					try {
-						expect(markComplete).toHaveBeenCalledOnce()
-					} catch (e) {
-						return reject(e)
-					}
-					resolve()
-				})
+				expect(markComplete).toHaveBeenCalledOnce()
 			} catch (e) {
-				reject(e)
+				return reject(e)
 			}
+			resolve()
 		})
 	)
 }
