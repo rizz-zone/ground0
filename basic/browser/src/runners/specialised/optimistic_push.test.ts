@@ -7,7 +7,7 @@ import {
 	type UpstreamWsMessage
 } from '@ground0/shared'
 import type { Ingredients } from '../base'
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { createActor } from 'xstate'
 import { OptimisticPushTransitionRunner } from './optimistic_push'
 import SuperJSON from 'superjson'
@@ -39,6 +39,9 @@ afterEach(vi.clearAllMocks)
 // Hours wasted here so far: 1
 //
 // const _ = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+beforeEach(() => consoleWarn.mockImplementation(() => {}))
 
 test('constructor creates one instance of the machine, starts it, and inits it', () => {
 	const ingredients: Ingredients<
@@ -298,7 +301,7 @@ async function runExecutionTest({
 	}
 	testing: IncludedHandlerFunctions
 }) {
-	const someTimeout = () => 20 + Math.random() * 180
+	const someTimeout = () => 20 + Math.random() * 80
 	const standardHandler = async
 		? () =>
 				new Promise<void>((resolve, reject) =>
@@ -404,6 +407,7 @@ async function runExecutionTest({
 		() => {
 			// @ts-expect-error We need to see the private stuff
 			const snapshot = runner.machineActorRef.getSnapshot()
+			console.log(snapshot.value)
 			return snapshot.matches({
 				ws: revertRequired ? 'rejected' : 'confirmed',
 				'memory model': [
@@ -435,6 +439,91 @@ async function runExecutionTest({
 		})
 	)
 }
+
+describe('execution', () => {
+	for (const async of [true, false]) {
+		describe(async ? 'async' : 'sync', () => {
+			for (const handlersSucceed of [true, false]) {
+				describe(handlersSucceed ? 'handler errors' : 'no errors', () => {
+					for (const revertRequired of [true, false]) {
+						describe(revertRequired ? 'ws confirms' : 'ws rejects', () => {
+							for (const testing of [
+								IncludedHandlerFunctions.MemoryModelOnly,
+								IncludedHandlerFunctions.DbOnly,
+								IncludedHandlerFunctions.Both
+							]) {
+								describe(
+									testing === IncludedHandlerFunctions.MemoryModelOnly
+										? 'memory model only'
+										: testing === IncludedHandlerFunctions.DbOnly
+											? 'db only'
+											: 'both handlers' + ' required',
+									() => {
+										for (const ws of [
+											WsResourceStatus.Connected,
+											WsResourceStatus.Disconnected
+										]) {
+											describe(`ws ${ws === WsResourceStatus.Connected ? 'connected' : 'initially disconnected'}`, () => {
+												for (const db of [
+													{ initial: DbResourceStatus.ConnectedAndMigrated },
+													{ initial: DbResourceStatus.NeverConnecting },
+													{
+														initial: DbResourceStatus.Disconnected,
+														convertTo: DbResourceStatus.ConnectedAndMigrated
+													},
+													{
+														initial: DbResourceStatus.Disconnected,
+														convertTo: DbResourceStatus.NeverConnecting
+													}
+												] as (
+													| {
+															initial:
+																| DbResourceStatus.ConnectedAndMigrated
+																| DbResourceStatus.NeverConnecting
+													  }
+													| {
+															initial: DbResourceStatus.Disconnected
+															convertTo:
+																| DbResourceStatus.ConnectedAndMigrated
+																| DbResourceStatus.NeverConnecting
+													  }
+												)[]) {
+													const testFn = () =>
+														runExecutionTest({
+															async,
+															handlersSucceed,
+															revertRequired,
+															testing,
+															status: {
+																ws,
+																db
+															}
+														})
+													if (db.initial === DbResourceStatus.Disconnected)
+														describe(`db initially disconnected`, () => {
+															test(
+																`becomes ${db.convertTo === DbResourceStatus.ConnectedAndMigrated ? 'connected' : 'never connecting'}`,
+																testFn
+															)
+														})
+													else
+														test(
+															`db ${db.initial === DbResourceStatus.ConnectedAndMigrated ? 'connected' : 'never connecting'}`,
+															testFn
+														)
+												}
+											})
+										}
+									}
+								)
+							}
+						})
+					}
+				})
+			}
+		})
+	}
+})
 
 /*
 describe('no revert required', () => {
