@@ -425,11 +425,15 @@ async function runExecutionTest({
 					IncludedHandlerFunctions.Both,
 					IncludedHandlerFunctions.DbOnly
 				].includes(testing)
-					? handlersSucceed
-						? revertRequired
-							? 'reverted'
-							: 'completed'
-						: 'failed'
+					? status.db.initial === DbResourceStatus.NeverConnecting ||
+						(status.db.initial === DbResourceStatus.Disconnected &&
+							status.db.convertTo === DbResourceStatus.NeverConnecting)
+						? 'not possible'
+						: handlersSucceed
+							? revertRequired
+								? 'reverted'
+								: 'completed'
+							: 'failed'
 					: 'not required'
 			})
 		},
