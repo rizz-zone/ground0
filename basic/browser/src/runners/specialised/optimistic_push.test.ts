@@ -301,13 +301,14 @@ async function runExecutionTest({
 	}
 	testing: IncludedHandlerFunctions
 }) {
-	const someTimeout = () => 20 + Math.random() * 80
+	const someTimeout = (extended: boolean) =>
+		(extended ? 20 : 120) + Math.random() * 60
 	const standardHandler = async
 		? () =>
 				new Promise<void>((resolve, reject) =>
 					setTimeout(
 						() => (handlersSucceed ? resolve : reject)(),
-						someTimeout()
+						someTimeout(false)
 					)
 				)
 		: () => {
@@ -372,7 +373,7 @@ async function runExecutionTest({
 			if (sent) return
 			runner.reportWsResult(!revertRequired)
 			sent = true
-		}, someTimeout())
+		}, someTimeout(false))
 	wsSend.mockImplementation(sendAction)
 	if (status.ws === WsResourceStatus.Connected) sendAction()
 
@@ -385,7 +386,7 @@ async function runExecutionTest({
 						instance: { send: wsSend } as unknown as WebSocket
 					}
 				}),
-			someTimeout()
+			someTimeout(false)
 		)
 	if (status.db.initial === DbResourceStatus.Disconnected)
 		setTimeout(() => {
@@ -400,7 +401,7 @@ async function runExecutionTest({
 							: undefined
 				} as ResourceBundle['db']
 			})
-		}, someTimeout())
+		}, someTimeout(false))
 
 	// Do the main chunk of the test
 	await vi.waitUntil(
@@ -420,7 +421,16 @@ async function runExecutionTest({
 							: 'completed'
 						: 'failed'
 					: 'not required',
-				db: 'not required'
+				db: [
+					IncludedHandlerFunctions.Both,
+					IncludedHandlerFunctions.DbOnly
+				].includes(testing)
+					? handlersSucceed
+						? revertRequired
+							? 'reverted'
+							: 'completed'
+						: 'failed'
+					: 'not required'
 			})
 		},
 		{
@@ -444,9 +454,9 @@ describe('execution', () => {
 	for (const async of [true, false]) {
 		describe(async ? 'async' : 'sync', () => {
 			for (const handlersSucceed of [true, false]) {
-				describe(handlersSucceed ? 'handler errors' : 'no errors', () => {
+				describe(handlersSucceed ? 'no errors' : 'handler errors', () => {
 					for (const revertRequired of [true, false]) {
-						describe(revertRequired ? 'ws confirms' : 'ws rejects', () => {
+						describe(revertRequired ? 'ws rejects' : 'ws confirms', () => {
 							for (const testing of [
 								IncludedHandlerFunctions.MemoryModelOnly,
 								IncludedHandlerFunctions.DbOnly,
