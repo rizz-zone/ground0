@@ -404,11 +404,14 @@ async function runExecutionTest({
 		}, someTimeout(false))
 
 	// Do the main chunk of the test
+	let calledTimes = 0
 	await vi.waitUntil(
 		() => {
 			// @ts-expect-error We need to see the private stuff
 			const snapshot = runner.machineActorRef.getSnapshot()
-			console.log(snapshot.value)
+			if (calledTimes > 50 && calledTimes % 10 === 0)
+				console.log(snapshot.value)
+			calledTimes++
 			return snapshot.matches({
 				ws: revertRequired ? 'rejected' : 'confirmed',
 				'memory model': [
