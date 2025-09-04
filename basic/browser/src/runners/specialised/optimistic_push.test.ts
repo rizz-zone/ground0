@@ -373,7 +373,7 @@ async function runExecutionTest({
 			if (sent) return
 			runner.reportWsResult(!revertRequired)
 			sent = true
-		}, someTimeout(false))
+		}, someTimeout(true))
 	wsSend.mockImplementation(sendAction)
 	if (status.ws === WsResourceStatus.Connected) sendAction()
 

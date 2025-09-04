@@ -252,6 +252,7 @@ export class OptimisticPushTransitionRunner<
 						}
 					},
 					reverting: {
+						entry: 'revertMemoryModel',
 						on: {
 							'memory model revert failed': {
 								target: 'failed'
