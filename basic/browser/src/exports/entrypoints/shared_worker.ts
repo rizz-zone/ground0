@@ -1,7 +1,10 @@
 /// <reference lib="webworker" />
 
-import { WorkerDoubleInitError, workerDoubleInit } from '@ground0/shared'
-import type { Transition } from '@ground0/shared'
+import {
+	WorkerDoubleInitError,
+	workerDoubleInit,
+	type Transition
+} from '@ground0/shared'
 import { portManager } from '@/helpers/port_manager'
 import type { EffectiveLocalDefinition } from '@/types/EffectiveLocalDefinition'
 
