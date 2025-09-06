@@ -44,10 +44,11 @@ export class OptimisticPushTransitionRunner<
 		actions: {
 			editMemoryModel: ({ self }) => {
 				if (!('editMemoryModel' in this.localHandler))
-					/* v8 ignore next */
+					/* v8 ignore start */
 					throw new InternalStateError(
 						nonexistentHandlerFnRequired('editMemoryModel')
 					)
+				/* v8 ignore stop */
 
 				const onSucceed = () =>
 					self.send({ type: 'memory model edit completed' })
