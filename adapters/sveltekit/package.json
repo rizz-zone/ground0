@@ -1,0 +1,29 @@
+{
+  "name": "@ground0/sveletkit",
+  "module": "./dist/index.js",
+  "type": "module",
+  "version": "0.0.1",
+  "private": false,
+  "sideEffects": false,
+  "packageManager": "bun@1.2.18",
+  "peerDependencies": {
+    "typescript": "^5.8.3"
+  },
+  "scripts": {
+    "test": "vitest run --coverage",
+    "test:watch": "vitest watch --coverage",
+    "build": "tsdown",
+    "dev": "tsdown --watch --no-clean",
+    "check-types": "tsc",
+    "lint": "eslint ."
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@ground0/browser": "workspace:*"
+  }
+}
