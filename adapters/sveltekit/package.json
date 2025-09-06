@@ -1,5 +1,5 @@
 {
-  "name": "@ground0/sveletkit",
+  "name": "@ground0/sveltekit",
   "module": "./dist/index.js",
   "type": "module",
   "version": "0.0.1",
