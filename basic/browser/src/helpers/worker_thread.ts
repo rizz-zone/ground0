@@ -1,26 +1,28 @@
 /// <reference lib="webworker" />
 
-import { createActor } from 'xstate'
-import { clientMachine } from '@/machines/worker'
 import type {
 	LocalHandlers,
 	SyncEngineDefinition,
 	Transition
 } from '@ground0/shared'
 import type { Transformation } from '@/types/memory_model/Tranformation'
+import type { ResourceBundle } from '@/types/status/ResourceBundle'
+import { WsResourceStatus } from '@/types/status/WsResourceStatus'
+import { DbResourceStatus } from '@/types/status/DbResourceStatus'
+import { createMemoryModel } from './memory_model'
 
 export class WorkerLocalFirst<
 	MemoryModel extends object,
 	TransitionSchema extends Transition
 > {
-	private machine
+	private readonly resourceBundle: ResourceBundle
+	private readonly wsUrl: string
+	private readonly dbName: string
+	private readonly engineDef: SyncEngineDefinition<TransitionSchema>
+	private readonly localHandlers: LocalHandlers<MemoryModel, TransitionSchema>
+	private readonly memoryModel: MemoryModel
 
-	constructor() {
-		this.machine = createActor(clientMachine)
-		this.machine.start()
-	}
-
-	init({
+	public constructor({
 		wsUrl,
 		dbName,
 		engineDef,
@@ -35,19 +37,38 @@ export class WorkerLocalFirst<
 		initialMemoryModel: MemoryModel
 		announceTransformation: (transformation: Transformation) => unknown
 	}) {
-		this.machine.send({
-			type: 'init',
-			wsUrl,
-			dbName,
-			engineDef,
-			// @ts-expect-error We can't cover every combination ever. It's, like, the whole point of narrowing our types.
-			localHandlers,
+		const shared = 'onconnect' in self
+		this.resourceBundle = {
+			ws: { status: WsResourceStatus.Disconnected },
+			db: {
+				status: shared
+					? DbResourceStatus.Disconnected
+					: DbResourceStatus.NeverConnecting
+			}
+		}
+
+		this.wsUrl = wsUrl
+		this.dbName = dbName
+		this.engineDef = engineDef
+		this.localHandlers = localHandlers
+		this.memoryModel = createMemoryModel(
 			initialMemoryModel,
 			announceTransformation
-		})
+		)
+
+		if (shared) this.connectDb()
+		this.connectWs()
 	}
 
+	private syncResources(modifications: Partial<ResourceBundle>) {
+		if (modifications.db) {
+			this.resourceBundle.db = modifications.db
+		}
+	}
+	private async connectDb() {}
+	private async connectWs() {}
+
 	public [Symbol.dispose] = () => {
-		this.machine.stop()
+		// TODO: Put something here if it feels particularly relevant. But it doesn't really
 	}
 }
