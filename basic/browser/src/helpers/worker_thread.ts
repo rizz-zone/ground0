@@ -98,6 +98,8 @@ export class WorkerLocalFirst<
 			this.syncResources({
 				ws: { status: WsResourceStatus.Connected, instance: ws }
 			})
+
+			// TODO: Establish a ping interval
 		}
 		// TODO: Complete these
 		ws.onmessage = (message) => {
