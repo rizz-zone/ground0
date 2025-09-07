@@ -4,6 +4,7 @@ import {
 	DownstreamWsMessageAction,
 	UpstreamWsMessageAction,
 	WsCloseCode,
+	type TransitionImpact,
 	type DownstreamWsMessage,
 	type LocalHandlers,
 	type SyncEngineDefinition,
@@ -16,6 +17,8 @@ import { WsResourceStatus } from '@/types/status/WsResourceStatus'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import { createMemoryModel } from './memory_model'
 import SuperJSON from 'superjson'
+import type { TransitionRunner } from '@/runners/base'
+import { runners } from '@/runners/all'
 
 export class WorkerLocalFirst<
 	MemoryModel extends object,
@@ -65,7 +68,6 @@ export class WorkerLocalFirst<
 		if (shared) this.connectDb()
 		this.connectWs()
 	}
-	public transition() {}
 
 	private syncResources(modifications: Partial<ResourceBundle>) {
 		if (modifications.db) {
@@ -81,7 +83,7 @@ export class WorkerLocalFirst<
 	// TODO: actual like db value and stuff
 	private async connectDb() {}
 
-	private missedPings = 0
+	private dissatisfiedPings = 0
 	private ws?: WebSocket
 	private async connectWs() {
 		const ws = new WebSocket(this.wsUrl)
@@ -112,9 +114,9 @@ export class WorkerLocalFirst<
 							}
 							return
 						}
-						if (this.missedPings <= 3) return this.connectWs()
+						if (this.dissatisfiedPings <= 3) return this.connectWs()
 						this.ws.send('?')
-						this.missedPings++
+						this.dissatisfiedPings++
 					},
 					5000 / 3
 				)
@@ -127,7 +129,7 @@ export class WorkerLocalFirst<
 
 			// Handle pong messages first
 			if (message.data === '!') {
-				if (this.ws === ws) this.missedPings--
+				if (this.ws === ws) this.dissatisfiedPings--
 				return
 			}
 
@@ -157,6 +159,40 @@ export class WorkerLocalFirst<
 			if (this.ws !== ws) return
 			this.connectWs()
 		}
+	}
+
+	private readonly transitions = new Map<
+		number,
+		{
+			[K in keyof typeof TransitionImpact]: TransitionRunner<
+				MemoryModel,
+				(typeof TransitionImpact)[K]
+			>
+		}[keyof typeof TransitionImpact]
+	>()
+	private nextTransitionId = 0
+	public transition(
+		transition: NonNullable<
+			(typeof this.engineDef.transitions.schema)['types']
+		>['input']
+	) {
+		this.transitions.set(
+			this.nextTransitionId,
+			// TODO: Because we can't just pass an actorRef in anymore
+			// (because there is no actor), we need to update
+			// TransitionRunner so there's a different way to give us a
+			// nudge here when a transition is done.
+			new runners[transition.impact]({
+				resources: this.resourceBundle,
+				memoryModel: this.memoryModel,
+				id: this.nextTransitionId,
+				// @ts-expect-error TS can't narrow the type down as narrowly as it wants to, and there's no convenient way to make it
+				transition,
+				// @ts-expect-error TS can't narrow the type down as narrowly as it wants to, and there's no convenient way to make it
+				localHandler: this.localHandlers[transition.action]
+			})
+		)
+		this.nextTransitionId++
 	}
 
 	public [Symbol.dispose] = () => {
