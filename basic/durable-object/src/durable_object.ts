@@ -87,7 +87,7 @@ export abstract class SyncEngineBackend<
 		super(ctx, env)
 		this.db = drizzle(ctx.storage, { logger: false })
 
-		// We need Itanbul to ignore this because it's hard to test
+		// We need Istanbul to ignore this because it's hard to test
 		// constructors, and we test that this works by ensuring that a pair is
 		// set after the fact, not by mocking `ctx`. It is largely irrelevant
 		// whether we call setWebSocketAutoResponse when there's already a pair
