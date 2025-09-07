@@ -3,6 +3,7 @@
 import {
 	DownstreamWsMessageAction,
 	UpstreamWsMessageAction,
+	WsCloseCode,
 	type DownstreamWsMessage,
 	type LocalHandlers,
 	type SyncEngineDefinition,
@@ -80,6 +81,7 @@ export class WorkerLocalFirst<
 	// TODO: actual like db value and stuff
 	private async connectDb() {}
 
+	private missedPings = 0
 	private ws?: WebSocket
 	private async connectWs() {
 		const ws = new WebSocket(this.wsUrl)
@@ -99,16 +101,43 @@ export class WorkerLocalFirst<
 				ws: { status: WsResourceStatus.Connected, instance: ws }
 			})
 
-			// TODO: Establish a ping interval
+			// Ping interval
+			{
+				let interval: ReturnType<typeof setInterval> | undefined = setInterval(
+					() => {
+						if (this.ws !== ws) {
+							if (interval) {
+								clearInterval(interval)
+								interval = undefined
+							}
+							return
+						}
+						if (this.missedPings <= 3) return this.connectWs()
+						this.ws.send('?')
+						this.missedPings++
+					},
+					5000 / 3
+				)
+			}
 		}
-		// TODO: Complete these
 		ws.onmessage = (message) => {
+			// It's unlikely for us to get messages if this.ws !== ws, because
+			// the connection should always close if that is the case, but it
+			// *is* still possible to get relevant responses, potentially.
+
+			// Handle pong messages first
+			if (message.data === '!') {
+				if (this.ws === ws) this.missedPings--
+				return
+			}
+
 			let decoded: DownstreamWsMessage
 			try {
 				decoded = SuperJSON.parse(message.data)
 				if (!('action' in decoded)) throw new Error()
 			} catch {
-				// TODO: Handle this
+				// TODO: Use a user-defined 'wildcard' handler, log instead if
+				// one isn't present
 				return
 			}
 			switch (decoded.action) {
@@ -121,7 +150,7 @@ export class WorkerLocalFirst<
 			}
 		}
 		ws.onerror = () => {
-			ws.close()
+			ws.close(WsCloseCode.Error)
 			if (this.ws === ws) this.connectWs()
 		}
 		ws.onclose = () => {
