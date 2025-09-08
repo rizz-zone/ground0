@@ -101,18 +101,36 @@ export class WorkerLocalFirst<
 
 		// Get the wasm with the code of the adapter. It's the adapter's
 		// responsibility to do this, including providing a retry method
-		const wasm = await pullWasmBinary()
-		const module = await SQLiteESMFactory({
-			instantiateWasm: (
-				imports: WebAssembly.Imports,
-				successCallback: (instance: WebAssembly.Instance) => void
-			) => {
-				WebAssembly.instantiate(wasm, imports).then(({ instance }) => {
-					successCallback(instance)
-				})
-				return {} // emscripten requires this return
+		const module = await pullWasmBinary().then(
+			(wasm) =>
+				SQLiteESMFactory({
+					instantiateWasm: (
+						imports: WebAssembly.Imports,
+						successCallback: (instance: WebAssembly.Instance) => void
+					) => {
+						WebAssembly.instantiate(wasm, imports).then(({ instance }) => {
+							successCallback(instance)
+						})
+						return {} // emscripten requires this return
+					}
+				}),
+			() => {
+				this.syncResources({ db: { status: DbResourceStatus.NeverConnecting } })
 			}
-		})
+		)
+		// The module will be undefined if onrejected was called
+		if (typeof module === 'undefined') return
+
+		const sqlite3 = SQLite.Factory(module)
+
+		// Register a custom file system.
+		// TODO: Figure out if we can / should just be calling it 'hello' or if
+		// that's bad and should cnange
+		const vfs = await OPFSCoopSyncVFS.create('hello', module)
+		sqlite3.vfs_register(vfs, true)
+
+		// Open the database.
+		const db = await sqlite3.open_v2(this.dbName) // NOTE TO SELF: THIS IS A POINTER
 	}
 
 	private dissatisfiedPings = 0
