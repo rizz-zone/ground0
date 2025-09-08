@@ -19,6 +19,7 @@ import { createMemoryModel } from './memory_model'
 import SuperJSON from 'superjson'
 import type { TransitionRunner } from '@/runners/base'
 import { runners } from '@/runners/all'
+import type { OptimisticPushTransitionRunner } from '@/runners/specialised/optimistic_push'
 
 export class WorkerLocalFirst<
 	MemoryModel extends object,
@@ -145,7 +146,18 @@ export class WorkerLocalFirst<
 			switch (decoded.action) {
 				case DownstreamWsMessageAction.OptimisticCancel:
 				case DownstreamWsMessageAction.OptimisticResolve: {
-					return
+					const runner = this.transitionRunners.get(decoded.id) as
+						| OptimisticPushTransitionRunner<MemoryModel>
+						| undefined
+
+					// It's unlikely but we might not have the runner anymore
+					if (!runner) return
+
+					// reportWsResult takes a boolean for whether the ws
+					// confirmed or not
+					return runner.reportWsResult(
+						decoded.action === DownstreamWsMessageAction.OptimisticResolve
+					)
 				}
 				default:
 					return
@@ -161,7 +173,7 @@ export class WorkerLocalFirst<
 		}
 	}
 
-	private readonly transitions = new Map<
+	private readonly transitionRunners = new Map<
 		number,
 		{
 			[K in keyof typeof TransitionImpact]: TransitionRunner<
@@ -176,7 +188,7 @@ export class WorkerLocalFirst<
 			(typeof this.engineDef.transitions.schema)['types']
 		>['input']
 	) {
-		this.transitions.set(
+		this.transitionRunners.set(
 			this.nextTransitionId,
 			// TODO: Because we can't just pass an actorRef in anymore
 			// (because there is no actor), we need to update
