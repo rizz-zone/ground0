@@ -39,7 +39,7 @@ export class WorkerLocalFirst<
 		localHandlers,
 		initialMemoryModel,
 		announceTransformation,
-		pullWasm
+		pullWasmBinary
 	}: {
 		wsUrl: string
 		dbName: string
@@ -47,7 +47,7 @@ export class WorkerLocalFirst<
 		localHandlers: LocalHandlers<MemoryModel, TransitionSchema>
 		initialMemoryModel: MemoryModel
 		announceTransformation: (transformation: Transformation) => unknown
-		pullWasm: () => unknown // TODO: use a proper type that actually helps. also set this
+		pullWasmBinary: () => Promise<ArrayBuffer> // TODO: use a proper type that actually helps. also set this
 	}) {
 		const shared = 'onconnect' in self
 		this.resourceBundle = {
