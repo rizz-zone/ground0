@@ -20,6 +20,12 @@ import SuperJSON from 'superjson'
 import type { TransitionRunner } from '@/runners/base'
 import { runners } from '@/runners/all'
 import type { OptimisticPushTransitionRunner } from '@/runners/specialised/optimistic_push'
+// @ts-expect-error wa-sqlite has no type definitions
+import { OPFSCoopSyncVFS } from 'wa-sqlite/src/examples/OPFSCoopSyncVFS.js'
+// @ts-expect-error wa-sqlite has no type definitions
+import SQLiteESMFactory from 'wa-sqlite/dist/wa-sqlite.mjs'
+// @ts-expect-error wa-sqlite has no type definitions
+import * as SQLite from 'wa-sqlite/src/sqlite-api.js'
 
 export class WorkerLocalFirst<
 	MemoryModel extends object,
@@ -68,7 +74,7 @@ export class WorkerLocalFirst<
 			announceTransformation
 		)
 
-		if (shared) this.connectDb()
+		if (shared) this.connectDb(pullWasmBinary)
 		this.connectWs()
 	}
 
@@ -84,7 +90,7 @@ export class WorkerLocalFirst<
 	}
 
 	// TODO: Finish connectDb, which will be a bit painful because sqlite
-	private async connectDb() {
+	private async connectDb(pullWasmBinary: () => Promise<ArrayBuffer>) {
 		// connectDb shouldn't be called if the db will never connect, but it's
 		// worth checking anyway
 		// TODO: Make this error message more Detailed
@@ -93,7 +99,20 @@ export class WorkerLocalFirst<
 				'there is a db, or the db is not connecting, why has connectDb been called'
 			)
 
-		// First, we need to actually get the wasm
+		// Get the wasm with the code of the adapter. It's the adapter's
+		// responsibility to do this, including providing a retry method
+		const wasm = await pullWasmBinary()
+		const module = await SQLiteESMFactory({
+			instantiateWasm: (
+				imports: WebAssembly.Imports,
+				successCallback: (instance: WebAssembly.Instance) => void
+			) => {
+				WebAssembly.instantiate(wasm, imports).then(({ instance }) => {
+					successCallback(instance)
+				})
+				return {} // emscripten requires this return
+			}
+		})
 	}
 
 	private dissatisfiedPings = 0
