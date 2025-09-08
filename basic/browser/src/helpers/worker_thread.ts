@@ -38,7 +38,8 @@ export class WorkerLocalFirst<
 		engineDef,
 		localHandlers,
 		initialMemoryModel,
-		announceTransformation
+		announceTransformation,
+		pullWasm
 	}: {
 		wsUrl: string
 		dbName: string
@@ -46,6 +47,7 @@ export class WorkerLocalFirst<
 		localHandlers: LocalHandlers<MemoryModel, TransitionSchema>
 		initialMemoryModel: MemoryModel
 		announceTransformation: (transformation: Transformation) => unknown
+		pullWasm: () => unknown // TODO: use a proper type that actually helps. also set this
 	}) {
 		const shared = 'onconnect' in self
 		this.resourceBundle = {
@@ -85,8 +87,13 @@ export class WorkerLocalFirst<
 	private async connectDb() {
 		// connectDb shouldn't be called if the db will never connect, but it's
 		// worth checking anyway
-		// TODO: Warn if this happens as it's Bad
-		if (this.resourceBundle.db.status !== DbResourceStatus.Disconnected) return
+		// TODO: Make this error message more Detailed
+		if (this.resourceBundle.db.status !== DbResourceStatus.Disconnected)
+			return console.warn(
+				'there is a db, or the db is not connecting, why has connectDb been called'
+			)
+
+		// First, we need to actually get the wasm
 	}
 
 	private dissatisfiedPings = 0
@@ -94,6 +101,7 @@ export class WorkerLocalFirst<
 	private async connectWs() {
 		const ws = new WebSocket(this.wsUrl)
 		this.ws = ws
+		this.dissatisfiedPings = 0
 		ws.onopen = () => {
 			if (this.ws !== ws) {
 				ws.close()
