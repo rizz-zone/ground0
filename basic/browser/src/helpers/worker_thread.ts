@@ -81,8 +81,13 @@ export class WorkerLocalFirst<
 		}
 	}
 
-	// TODO: actual like db value and stuff
-	private async connectDb() {}
+	// TODO: Finish connectDb, which will be a bit painful because sqlite
+	private async connectDb() {
+		// connectDb shouldn't be called if the db will never connect, but it's
+		// worth checking anyway
+		// TODO: Warn if this happens as it's Bad
+		if (this.resourceBundle.db.status !== DbResourceStatus.Disconnected) return
+	}
 
 	private dissatisfiedPings = 0
 	private ws?: WebSocket
