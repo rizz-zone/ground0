@@ -1,12 +1,13 @@
-// @ts-expect-error wa-sqlite has no type definitions
+// @ts-expect-error wa-sqlite has limited type definitions
 import { OPFSCoopSyncVFS } from 'wa-sqlite/src/examples/OPFSCoopSyncVFS.js'
-// @ts-expect-error wa-sqlite has no type definitions
-import SQLiteESMFactory from 'wa-sqlite/dist/wa-sqlite.mjs'
-// @ts-expect-error wa-sqlite has no type definitions
-import * as SQLite from 'wa-sqlite/src/sqlite-api.js'
+// @ts-expect-error wa-sqlite has limited type definitions
+import { Factory } from 'wa-sqlite/src/sqlite-api.js'
+import * as DbConstants from 'wa-sqlite/src/sqlite-constants.js'
 import type { ResourceBundle } from '@/types/status/ResourceBundle'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import { brandedLog } from '@/common/branded_log'
+import { createModule } from './create_module'
+import { sizeInfo } from './size_info'
 
 export async function connectDb({
 	syncResources,
@@ -19,61 +20,28 @@ export async function connectDb({
 }) {
 	// Get the wasm with the code of the adapter. It's the adapter's
 	// responsibility to do this, including providing a retry method
-	const module = await pullWasmBinary().then(
-		(wasm) =>
-			SQLiteESMFactory({
-				instantiateWasm: (
-					imports: WebAssembly.Imports,
-					successCallback: (instance: WebAssembly.Instance) => void
-				) => {
-					WebAssembly.instantiate(wasm, imports).then(({ instance }) => {
-						successCallback(instance)
-					})
-					return {} // emscripten requires this return
-				}
-			}),
-		() => {
-			syncResources({ db: { status: DbResourceStatus.NeverConnecting } })
-		}
-	)
+	const module = await createModule(pullWasmBinary)
 	// The module will be undefined if onrejected was called
-	if (typeof module === 'undefined') return
+	if (typeof module === 'undefined')
+		return syncResources({ db: { status: DbResourceStatus.NeverConnecting } })
 
-	const sqlite3 = SQLite.Factory(module)
+	const sqlite3: SQLiteAPI = Factory(module)
 
-	// Register a custom file system.
+	// Register our virtual filesystem and set it as the default immediately.
 	const vfs = await OPFSCoopSyncVFS.create('opfs', module)
 	sqlite3.vfs_register(vfs, true)
 
-	// Open the database.
-	const db = await sqlite3.open_v2(dbName) // NOTE TO SELF: THIS IS A POINTER
+	// Open the database. db is a pointer to this specific opened db, and must
+	// be passed in to methods under sqlite3 so it knows where to apply things.
+	const db = await sqlite3.open_v2(dbName)
 
-	// TODO: Use our own errors instead of these ones for Clarity
-
-	let pageSize: number | undefined
-	if (
-		(await sqlite3.exec(db, `PRAGMA page_size;`, (row: number[]) => {
-			pageSize = row[0]
-		})) !== SQLite.SQLITE_OK
-	)
-		throw new Error('Could not get page size')
-	let pageCount: number | undefined
-	if (
-		(await sqlite3.exec(db, `PRAGMA page_count;`, (row: number[]) => {
-			pageCount = row[0]
-		})) !== SQLite.SQLITE_OK
-	)
-		throw new Error('Could not get page count')
-	if (typeof pageSize === 'undefined' || typeof pageCount === 'undefined')
-		throw new Error('SQLite is not reporting storage')
-
-	const { quota } = await navigator.storage.estimate()
-	if (!quota) throw new Error('Browser is not reporting storage quota')
+	const { dbSizeBytes, quotaBytes } = await sizeInfo(sqlite3, db)
 	brandedLog(
 		console.debug,
-		`${dbName} is using ${pageSize * pageCount}B (${quota}B available - ${Math.floor((pageSize * pageCount) / quota)}% used)`
+		`${dbName} is using ${dbSizeBytes}B (${quotaBytes}B available - ${Math.floor(dbSizeBytes / quotaBytes) * 100}% used)`
 	)
 
+	// TODO: Make this external as well, and use the new values that are provided by the function
 	// Set a page limit so that the database doesn't exceed available
 	// quota. We'll use 90% of the available quota as a safety margin.
 	const maxBytes = Math.floor(quota * 0.9)
@@ -82,7 +50,7 @@ export async function connectDb({
 		db,
 		`PRAGMA max_page_count = ${maxPages};`
 	)
-	if (setPageLimitResult !== SQLite.SQLITE_OK) {
+	if (setPageLimitResult !== DbConstants.SQLITE_OK) {
 		throw new Error('Could not set max_page_count')
 	}
 	brandedLog(console.debug, `Set max_page_count to ${maxPages} (~${maxBytes}B)`)

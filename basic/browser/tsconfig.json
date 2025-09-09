@@ -28,7 +28,9 @@
 
 		"paths": {
 			"@/*": ["./src/*"]
-		}
+		},
+
+		"types": ["wa-sqlite/src/types"]
 	},
 	"include": ["src/**/*.ts"]
 }

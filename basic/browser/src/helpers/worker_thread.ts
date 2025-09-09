@@ -22,7 +22,6 @@ import { runners } from '@/runners/all'
 import type { OptimisticPushTransitionRunner } from '@/runners/specialised/optimistic_push'
 // @ts-expect-error wa-sqlite has no type definitions
 import { OPFSCoopSyncVFS } from 'wa-sqlite/src/examples/OPFSCoopSyncVFS.js'
-// @ts-expect-error wa-sqlite has no type definitions
 import SQLiteESMFactory from 'wa-sqlite/dist/wa-sqlite.mjs'
 // @ts-expect-error wa-sqlite has no type definitions
 import * as SQLite from 'wa-sqlite/src/sqlite-api.js'
