@@ -174,8 +174,4 @@ export class WorkerLocalFirst<
 		)
 		this.nextTransitionId++
 	}
-
-	public [Symbol.dispose] = () => {
-		// TODO: Put something here if it feels particularly relevant. But it doesn't really
-	}
 }
