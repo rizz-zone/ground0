@@ -20,7 +20,7 @@ const bareMinimumIngredients = {
 		ws: { status: WsResourceStatus.Disconnected }
 	},
 	id: 3,
-	actorRef: {},
+	markComplete: {},
 	localHandler: {},
 	transition: {
 		action: 'transition4',

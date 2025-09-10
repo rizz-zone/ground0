@@ -7,8 +7,6 @@ import {
 	DATABASE_CHANGED_STATUS_FROM_CONNECTING_OR_NEVER_CONNECTING,
 	InternalStateError
 } from '@ground0/shared'
-import type { ActorRefFrom } from 'xstate'
-import type { clientMachine } from '@/machines/worker'
 import type { ResourceBundle } from '@/types/status/ResourceBundle'
 
 export type Ingredients<
@@ -19,7 +17,7 @@ export type Ingredients<
 	resources: ResourceBundle
 	id: number
 	transition: Transition & { impact: Impact }
-	actorRef: ActorRefFrom<typeof clientMachine>
+	markComplete: () => unknown
 	localHandler: LocalHandlers<
 		MemoryModel,
 		Transition & { impact: Impact }
@@ -73,18 +71,15 @@ export abstract class TransitionRunner<
 	}
 
 	// Communication with the object
+	private sourceMarkComplete
 	protected markComplete() {
 		if (this.previouslyCompleted) return
 		this.previouslyCompleted = true
-		this.actorRef.send({
-			type: 'transition complete',
-			id: this.id
-		})
+		this.sourceMarkComplete()
 	}
 
 	protected readonly id: number
 	protected readonly transitionObj: Transition & { impact: Impact }
-	private readonly actorRef: ActorRefFrom<typeof clientMachine>
 	protected readonly localHandler: Ingredients<
 		MemoryModel,
 		Impact
@@ -95,7 +90,7 @@ export abstract class TransitionRunner<
 	protected constructor(ingredients: Ingredients<MemoryModel, Impact>) {
 		this.localHandler = ingredients.localHandler
 		this.memoryModel = ingredients.memoryModel
-		this.actorRef = ingredients.actorRef
+		this.sourceMarkComplete = ingredients.markComplete
 		this.resources = { ...ingredients.resources }
 		this.transitionObj = ingredients.transition
 		this.id = ingredients.id

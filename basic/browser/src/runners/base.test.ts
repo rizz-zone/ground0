@@ -39,7 +39,7 @@ const bareMinimumIngredients = {
 	},
 	id: {},
 	transition: {},
-	actorRef: {},
+	markComplete: {},
 	localHandler: {}
 } as Ingredients<Record<string, never>, TransitionImpact>
 
@@ -51,7 +51,9 @@ describe('constructor', () => {
 			bareMinimumIngredients.localHandler
 		)
 		// @ts-expect-error We need to see the private stuff
-		expect(runnerInstance.actorRef).toBe(bareMinimumIngredients.actorRef)
+		expect(runnerInstance.sourceMarkComplete).toBe(
+			bareMinimumIngredients.markComplete
+		)
 		// @ts-expect-error We need to see the private stuff
 		expect(runnerInstance.resources).toMatchObject(
 			bareMinimumIngredients.resources
@@ -229,9 +231,7 @@ test('markComplete sends transition complete event', () => {
 	const fn = vi.fn()
 	const ingredientsWithActor = {
 		...bareMinimumIngredients,
-		actorRef: {
-			send: fn
-		}
+		markComplete: fn
 	} as unknown as Ingredients<Record<string, never>, TransitionImpact>
 	const runnerInstance = new NotVeryUsefulRunner(ingredientsWithActor)
 	expect(fn).not.toHaveBeenCalled()
@@ -239,20 +239,14 @@ test('markComplete sends transition complete event', () => {
 	// @ts-expect-error We need to see the private stuff
 	runnerInstance.markComplete()
 
-	expect(fn).toHaveBeenCalledExactlyOnceWith({
-		type: 'transition complete',
-		// @ts-expect-error We need to see the private stuff
-		id: runnerInstance.id
-	})
+	expect(fn).toHaveBeenCalledExactlyOnceWith()
 })
 
 test('markComplete only sends event once', () => {
 	const fn = vi.fn()
 	const ingredientsWithActor = {
 		...bareMinimumIngredients,
-		actorRef: {
-			send: fn
-		}
+		markComplete: fn
 	} as unknown as Ingredients<Record<string, never>, TransitionImpact>
 	const runnerInstance = new NotVeryUsefulRunner(ingredientsWithActor)
 	expect(fn).not.toHaveBeenCalled()
