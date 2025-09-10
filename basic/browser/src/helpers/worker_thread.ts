@@ -28,7 +28,7 @@ export class WorkerLocalFirst<
 	private readonly resourceBundle: ResourceBundle
 	private readonly engineDef: SyncEngineDefinition<TransitionSchema>
 	private readonly localHandlers: LocalHandlers<MemoryModel, TransitionSchema>
-	private readonly memoryModel: MemoryModel
+	public readonly memoryModel: MemoryModel
 
 	public constructor({
 		wsUrl,
