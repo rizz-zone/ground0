@@ -82,14 +82,18 @@ export class WorkerLocalFirst<
 	}
 
 	private syncResources(modifications: Partial<ResourceBundle>) {
+		let somethingChanged = false
 		if (modifications.db) {
 			this.resourceBundle.db = modifications.db
-			// TODO: Loop through anything that depends on the db
+			somethingChanged = true
 		}
 		if (modifications.ws) {
 			this.resourceBundle.ws = modifications.ws
-			// TODO: Loop through anything that depends on the ws
+			somethingChanged = true
 		}
+		if (somethingChanged)
+			for (const runner of this.transitionRunners.values())
+				runner.syncResources(this.resourceBundle)
 	}
 
 	private async handleMessage(
@@ -152,20 +156,20 @@ export class WorkerLocalFirst<
 			(typeof this.engineDef.transitions.schema)['types']
 		>['input']
 	) {
+		const id = this.nextTransitionId
 		this.transitionRunners.set(
-			this.nextTransitionId,
-			// TODO: Because we can't just pass an actorRef in anymore
-			// (because there is no actor), we need to update
-			// TransitionRunner so there's a different way to give us a
-			// nudge here when a transition is done.
+			id,
 			new runners[transition.impact]({
 				resources: this.resourceBundle,
 				memoryModel: this.memoryModel,
-				id: this.nextTransitionId,
+				id,
 				// @ts-expect-error TS can't narrow the type down as narrowly as it wants to, and there's no convenient way to make it
 				transition,
 				// @ts-expect-error TS can't narrow the type down as narrowly as it wants to, and there's no convenient way to make it
-				localHandler: this.localHandlers[transition.action]
+				localHandler: this.localHandlers[transition.action],
+				markComplete: () => {
+					this.transitionRunners.delete(id)
+				}
 			})
 		)
 		this.nextTransitionId++
