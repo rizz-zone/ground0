@@ -34,6 +34,9 @@ function generateResourceStatus(snapshot: SnapshotFrom<typeof clientMachine>) {
 	}
 }
 
+/**
+ * @deprecated clientMachine logic has been extracted into [`WorkerLocalFirst`](../helpers/worker_thread.ts).
+ */
 export const clientMachine = setup({
 	types: {
 		context: {} as {
