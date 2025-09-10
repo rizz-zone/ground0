@@ -2,14 +2,11 @@
 
 import {
 	DownstreamWsMessageAction,
-	UpstreamWsMessageAction,
-	WsCloseCode,
 	type TransitionImpact,
 	type DownstreamWsMessage,
 	type LocalHandlers,
 	type SyncEngineDefinition,
-	type Transition,
-	type UpstreamWsMessage
+	type Transition
 } from '@ground0/shared'
 import type { Transformation } from '@/types/memory_model/Tranformation'
 import type { ResourceBundle } from '@/types/status/ResourceBundle'
@@ -22,13 +19,13 @@ import { runners } from '@/runners/all'
 import type { OptimisticPushTransitionRunner } from '@/runners/specialised/optimistic_push'
 import { connectDb } from '@/resource_managers/db'
 import type { Migrations } from '@/types/Migrations'
+import { connectWs } from '@/resource_managers/ws'
 
 export class WorkerLocalFirst<
 	MemoryModel extends object,
 	TransitionSchema extends Transition
 > {
 	private readonly resourceBundle: ResourceBundle
-	private readonly wsUrl: string
 	private readonly engineDef: SyncEngineDefinition<TransitionSchema>
 	private readonly localHandlers: LocalHandlers<MemoryModel, TransitionSchema>
 	private readonly memoryModel: MemoryModel
@@ -62,7 +59,6 @@ export class WorkerLocalFirst<
 			}
 		}
 
-		this.wsUrl = wsUrl
 		this.engineDef = engineDef
 		this.localHandlers = localHandlers
 		this.memoryModel = createMemoryModel(
@@ -77,7 +73,12 @@ export class WorkerLocalFirst<
 				dbName,
 				migrations
 			})
-		this.connectWs()
+		connectWs({
+			wsUrl,
+			currentVersion: engineDef.version.current,
+			syncResources: this.syncResources.bind(this),
+			handleMessage: this.handleMessage.bind(this)
+		})
 	}
 
 	private syncResources(modifications: Partial<ResourceBundle>) {
@@ -91,93 +92,48 @@ export class WorkerLocalFirst<
 		}
 	}
 
-	private dissatisfiedPings = 0
-	private ws?: WebSocket
-	private async connectWs() {
-		const ws = new WebSocket(this.wsUrl)
-		this.ws = ws
-		this.dissatisfiedPings = 0
-		ws.onopen = () => {
-			if (this.ws !== ws) {
-				ws.close()
-				return
-			}
-			ws.send(
-				SuperJSON.stringify({
-					action: UpstreamWsMessageAction.Init,
-					version: this.engineDef.version.current
-				} satisfies UpstreamWsMessage)
-			)
-			this.syncResources({
-				ws: { status: WsResourceStatus.Connected, instance: ws }
-			})
+	private async handleMessage(
+		message: MessageEvent<string | Blob | ArrayBuffer>
+	) {
+		let decoded: DownstreamWsMessage | undefined
 
-			// Ping interval
-			{
-				let interval: ReturnType<typeof setInterval> | undefined = setInterval(
-					() => {
-						if (this.ws !== ws) {
-							if (interval) {
-								clearInterval(interval)
-								interval = undefined
-							}
-							return
-						}
-						if (this.dissatisfiedPings <= 3) return this.connectWs()
-						this.ws.send('?')
-						this.dissatisfiedPings++
-					},
-					5000 / 3
+		// Assign decoded, use wildcard if we didn't get a SuperJSON objet with
+		// an action on it
+		if (
+			typeof message.data !== 'string' ||
+			(() => {
+				try {
+					decoded = SuperJSON.parse(message.data)
+				} catch {
+					return true
+				}
+				if (!decoded || !('action' in decoded)) return true
+				return false
+			})() ||
+			!decoded
+		) {
+			// TODO: Use a 'wildcard' handler here
+			return
+		}
+
+		switch (decoded.action) {
+			case DownstreamWsMessageAction.OptimisticCancel:
+			case DownstreamWsMessageAction.OptimisticResolve: {
+				const runner = this.transitionRunners.get(decoded.id) as
+					| OptimisticPushTransitionRunner<MemoryModel>
+					| undefined
+
+				// It's unlikely but we might not have the runner anymore
+				if (!runner) return
+
+				// reportWsResult takes a boolean for whether the ws
+				// confirmed or not
+				return runner.reportWsResult(
+					decoded.action === DownstreamWsMessageAction.OptimisticResolve
 				)
 			}
-		}
-		ws.onmessage = (message) => {
-			// It's unlikely for us to get messages if this.ws !== ws, because
-			// the connection should always close if that is the case, but it
-			// *is* still possible to get relevant responses, potentially.
-
-			// Handle pong messages first
-			if (message.data === '!') {
-				if (this.ws === ws) this.dissatisfiedPings--
+			default:
 				return
-			}
-
-			let decoded: DownstreamWsMessage
-			try {
-				decoded = SuperJSON.parse(message.data)
-				if (!('action' in decoded)) throw new Error()
-			} catch {
-				// TODO: Use a user-defined 'wildcard' handler, log instead if
-				// one isn't present
-				return
-			}
-			switch (decoded.action) {
-				case DownstreamWsMessageAction.OptimisticCancel:
-				case DownstreamWsMessageAction.OptimisticResolve: {
-					const runner = this.transitionRunners.get(decoded.id) as
-						| OptimisticPushTransitionRunner<MemoryModel>
-						| undefined
-
-					// It's unlikely but we might not have the runner anymore
-					if (!runner) return
-
-					// reportWsResult takes a boolean for whether the ws
-					// confirmed or not
-					return runner.reportWsResult(
-						decoded.action === DownstreamWsMessageAction.OptimisticResolve
-					)
-				}
-				default:
-					return
-			}
-		}
-		ws.onerror = () => {
-			ws.close(WsCloseCode.Error)
-			if (this.ws === ws) this.connectWs()
-		}
-		ws.onclose = () => {
-			if (this.ws !== ws) return
-			this.connectWs()
 		}
 	}
 
