@@ -21,6 +21,7 @@ export async function connectWs({
 	let reconnectCooldown: Promise<void> = Promise.resolve()
 	let currentConnectionId = -1
 	async function connectAnew() {
+		syncResources({ ws: { status: WsResourceStatus.Disconnected } })
 		currentConnectionId++
 		const ourConnectionId = currentConnectionId
 		await reconnectCooldown
@@ -84,11 +85,11 @@ export async function connectWs({
 			handleMessage(message)
 		}
 		ws.onerror = () => reconnect(WsCloseCode.Error)
-        ws.onclose = () => {
-            if (ourConnectionId !== currentConnectionId) return
-            connectAnew()
-        }
-    }
+		ws.onclose = () => {
+			if (ourConnectionId !== currentConnectionId) return
+			connectAnew()
+		}
+	}
 
 	connectAnew()
 }
