@@ -21,7 +21,7 @@ import {
 	DownstreamWorkerMessageType,
 	type DownstreamWorkerMessage
 } from '@/types/internal_messages/DownstreamWorkerMessage'
-import type { EffectiveLocalDefinition } from '@/types/EffectiveLocalDefinition'
+import type { LocalEngineDefinition } from '@/types/LocalEngineDefinition'
 
 const ctx = self as unknown as SharedWorkerGlobalScope
 
@@ -108,7 +108,7 @@ class WorkerPort<
 		initialMemoryModel
 	}: {
 		port: MessagePort
-	} & EffectiveLocalDefinition<MemoryModel, TransitionSchema>) {
+	} & LocalEngineDefinition<MemoryModel, TransitionSchema>) {
 		this.engineDef = engineDef
 		this.localHandlers = localHandlers
 		this.initialMemoryModel = initialMemoryModel
@@ -151,10 +151,7 @@ class WorkerPort<
 }
 
 function init<MemoryModel extends object, TransitionSchema extends Transition>(
-	effectiveLocalDefinition: EffectiveLocalDefinition<
-		MemoryModel,
-		TransitionSchema
-	>
+	effectiveLocalDefinition: LocalEngineDefinition<MemoryModel, TransitionSchema>
 ) {
 	ctx.onconnect = (event) => {
 		const port = event.ports[0]

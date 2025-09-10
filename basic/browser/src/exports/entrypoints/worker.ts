@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 import { WorkerLocalFirst } from '@/helpers/worker_thread'
-import type { EffectiveLocalDefinition } from '@/types/EffectiveLocalDefinition'
+import type { LocalEngineDefinition } from '@/types/LocalEngineDefinition'
 import {
 	DownstreamWorkerMessageType,
 	type DownstreamWorkerMessage
@@ -24,7 +24,7 @@ export function workerEntrypoint<
 	engineDef,
 	localHandlers,
 	initialMemoryModel
-}: EffectiveLocalDefinition<MemoryModel, TransitionSchema>) {
+}: LocalEngineDefinition<MemoryModel, TransitionSchema>) {
 	if (called) throw new WorkerDoubleInitError(workerDoubleInit(false))
 	called = true
 
