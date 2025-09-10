@@ -31,15 +31,6 @@ const bareMinimumIngredients = {
 vi.mock('xstate', { spy: true })
 afterEach(vi.clearAllMocks)
 
-// This would normally ensure console.warn doesn't log anything, but it like,
-// completely doesn't. I've given up on suppressing and testing logging
-// entirely, but if you know what you're doing, a PR would be appreciated. At
-// least the console spam can prove that it works instead, in the meantime.
-//
-// Hours wasted here so far: 1
-//
-// const _ = vi.spyOn(console, 'warn').mockImplementation(() => {})
-
 const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
 beforeEach(() => consoleWarn.mockImplementation(() => {}))
 
