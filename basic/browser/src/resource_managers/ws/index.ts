@@ -81,7 +81,7 @@ export async function connectWs({
 				return
 			}
 
-			// Let `WorkerLocalFirst` handle literally anything else
+			// Let WorkerLocalFirst handle literally anything else
 			handleMessage(message)
 		}
 		ws.onerror = () => reconnect(WsCloseCode.Error)
