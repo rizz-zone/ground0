@@ -9,7 +9,9 @@ import { portManager } from '@/helpers/port_manager'
 import type { LocalEngineDefinition } from '@/types/LocalEngineDefinition'
 
 let called = false
-
+/**
+ * @deprecated Use the `workerEntrypoint` from [`general.ts`](./general.ts) instead.
+ */
 export function sharedWorkerEntrypoint<
 	MemoryModel extends object,
 	TransitionSchema extends Transition

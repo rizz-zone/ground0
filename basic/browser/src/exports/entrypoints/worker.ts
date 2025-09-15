@@ -17,6 +17,9 @@ import {
 } from '@ground0/shared'
 
 let called = false
+/**
+ * @deprecated Use the `workerEntrypoint` from [`general.ts`](./general.ts) instead.
+ */
 export function workerEntrypoint<
 	MemoryModel extends object,
 	TransitionSchema extends Transition
