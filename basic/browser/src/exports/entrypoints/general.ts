@@ -29,7 +29,7 @@ export function workerEntrypoint<
 }: LocalEngineDefinition<MemoryModel, T>) {
 	const ports: MessagePort[] = []
 
-	function broadcastMessage(message: DownstreamWorkerMessage) {
+	function broadcastMessage(message: DownstreamWorkerMessage<MemoryModel>) {
 		if ('onconnect' in ctx) for (const port of ports) port.postMessage(message)
 		else ctx.postMessage(message)
 	}
@@ -67,7 +67,7 @@ export function workerEntrypoint<
 
 	// Set listeners
 	// TODO: Send the state of the memory model on connect
-	if ('onconnect' in ctx) {
+	if ('onconnect' in ctx)
 		ctx.onconnect = (event) => {
 			const port = event.ports[0]
 			// TODO: Update error message
@@ -77,10 +77,14 @@ export function workerEntrypoint<
 				)
 
 			ports.push(port)
+			port.postMessage({
+				type: DownstreamWorkerMessageType.InitMemoryModel,
+				memoryModel: workerLocalFirst.memoryModel
+			} satisfies DownstreamWorkerMessage<MemoryModel>)
 			port.onmessage = onmessage
 			port.onmessageerror = onmessageerror
 		}
-	} else {
+	else {
 		ctx.onmessage = onmessage
 		ctx.onmessageerror = onmessageerror
 	}
