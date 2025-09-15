@@ -1,9 +1,9 @@
 /* v8 ignore start */
 
-const INTERNAL_PROCESS =
+export const INTERNAL_PROCESS =
 	'This is a process that happens internally, so this is probably a problem with ground0, not your code.'
 // @__PURE__
-const reportAt = (reportSnake: string) =>
+export const reportAt = (reportSnake: string) =>
 	`Report at https://ground0.rizz.zone/report/${reportSnake}`
 
 // @__PURE__

@@ -1,4 +1,5 @@
 import { brandedLog } from '@/common/branded_log'
+import { SHAREDWORKER_NO_PORTS } from '@/common/error_messages'
 import { WorkerLocalFirst } from '@/helpers/worker_thread'
 import type { LocalEngineDefinition } from '@/types/LocalEngineDefinition'
 import {
@@ -66,15 +67,10 @@ export function workerEntrypoint<
 	}
 
 	// Set listeners
-	// TODO: Send the state of the memory model on connect
 	if ('onconnect' in ctx)
 		ctx.onconnect = (event) => {
 			const port = event.ports[0]
-			// TODO: Update error message
-			if (!port)
-				throw new NoPortsError(
-					'onconnect fired, but there is no associated port'
-				)
+			if (!port) throw new NoPortsError(SHAREDWORKER_NO_PORTS)
 
 			ports.push(port)
 			port.postMessage({
@@ -85,6 +81,10 @@ export function workerEntrypoint<
 			port.onmessageerror = onmessageerror
 		}
 	else {
+		ctx.postMessage({
+			type: DownstreamWorkerMessageType.InitMemoryModel,
+			memoryModel: workerLocalFirst.memoryModel
+		} satisfies DownstreamWorkerMessage<MemoryModel>)
 		ctx.onmessage = onmessage
 		ctx.onmessageerror = onmessageerror
 	}
