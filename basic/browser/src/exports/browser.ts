@@ -20,25 +20,13 @@ export class BrowserLocalFirst<TransitionSchema extends Transition> {
 		this.worker.postMessage(message)
 	}
 
-	constructor({
-		dbName,
-		wsUrl,
-		worker
-	}: {
-		dbName: string
-		wsUrl: string
-		worker: Worker | SharedWorker
-	}) {
+	constructor(worker: Worker | SharedWorker) {
 		// It's the consumer's responsibility to provide this because, while
 		// Worker and SharedWorker are standard browser features, they are
 		// implemented differently depending on the build system. We need to
 		// find a way that always work for the core. Framework-specific
 		// adapters can decide how to provide it best, though.
 		this.worker = worker
-		this.submitWorkerMessage({
-			type: UpstreamWorkerMessageType.Init,
-			data: { dbName, wsUrl }
-		})
 	}
 	public transition(transition: TransitionSchema) {
 		this.submitWorkerMessage({
