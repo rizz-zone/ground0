@@ -1,8 +1,11 @@
 export enum UpstreamWorkerMessageType {
-	Transition
+	Transition,
+	Close
 }
 
-export type UpstreamWorkerMessage<T> = {
-	type: UpstreamWorkerMessageType.Transition
-	data: T
-}
+export type UpstreamWorkerMessage<T> =
+	| {
+			type: UpstreamWorkerMessageType.Transition
+			data: T
+	  }
+	| { type: UpstreamWorkerMessageType.Close }

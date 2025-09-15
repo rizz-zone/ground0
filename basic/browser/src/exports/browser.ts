@@ -35,5 +35,7 @@ export class BrowserLocalFirst<TransitionSchema extends Transition> {
 		})
 	}
 
-	// TODO: Symbol.dispose
+	[Symbol.dispose]() {
+		this.submitWorkerMessage({ type: UpstreamWorkerMessageType.Close })
+	}
 }
