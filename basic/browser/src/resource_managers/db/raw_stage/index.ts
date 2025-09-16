@@ -1,5 +1,5 @@
 // @ts-expect-error wa-sqlite has limited type definitions
-import { OPFSCoopSyncVFS } from 'wa-sqlite/src/examples/OPFSCoopSyncVFS.js'
+import { OPFSCoopSyncVFS } from './vfs'
 import { Factory } from 'wa-sqlite'
 import { createModule } from './create_module'
 

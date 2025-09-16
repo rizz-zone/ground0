@@ -32,5 +32,5 @@
 
 		"types": ["wa-sqlite/src/types"]
 	},
-	"include": ["src/**/*.ts"]
+	"include": ["src/**/*.ts", "src/resource_managers/db/raw_stage/vfs/*.js"]
 }

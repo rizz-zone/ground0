@@ -1,6 +1,6 @@
 // TODO: Put some tests in here
 
-import { describe, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import { workerEntrypoint } from './general'
 import { object, literal, type z } from 'zod'
 import { createTransitionSchema, TransitionImpact } from '@ground0/shared'
@@ -10,11 +10,12 @@ const sharedCtx = self as unknown as SharedWorkerGlobalScope
 const dedicatedCtx = self as DedicatedWorkerGlobalScope
 
 const WorkerLocalFirst = vi.fn()
-const workerThreadHelperMock = vi.mock('../helpers/worker_thread', () => {
+const _workerThreadHelperMock = vi.mock('../helpers/worker_thread', () => {
 	return {
 		WorkerLocalFirst
 	}
 })
+afterEach(vi.clearAllMocks)
 
 const OurTransitionSchema = object({
 	action: literal('abc'),
@@ -62,6 +63,8 @@ const minimumInput: LocalEngineDefinition<
 
 describe('always', () => {
 	test('creates a WorkerLocalFirst', () => {
+		expect(WorkerLocalFirst).not.toHaveBeenCalled()
 		workerEntrypoint(minimumInput)
+		expect(WorkerLocalFirst).toHaveBeenCalledOnce()
 	})
 })
