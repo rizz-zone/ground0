@@ -18,7 +18,6 @@ import type { TransitionRunner } from '@/runners/base'
 import { runners } from '@/runners/all'
 import type { OptimisticPushTransitionRunner } from '@/runners/specialised/optimistic_push'
 import { connectDb } from '@/resource_managers/db'
-import type { Migrations } from '@/types/Migrations'
 import { connectWs } from '@/resource_managers/ws'
 
 export class WorkerLocalFirst<
@@ -37,8 +36,7 @@ export class WorkerLocalFirst<
 		localHandlers,
 		initialMemoryModel,
 		announceTransformation,
-		pullWasmBinary,
-		migrations
+		pullWasmBinary
 	}: {
 		wsUrl: string
 		dbName: string
@@ -47,7 +45,6 @@ export class WorkerLocalFirst<
 		initialMemoryModel: MemoryModel
 		announceTransformation: (transformation: Transformation) => unknown
 		pullWasmBinary: () => Promise<ArrayBuffer>
-		migrations: Migrations
 	}) {
 		const shared = 'onconnect' in self
 		this.resourceBundle = {
@@ -71,7 +68,7 @@ export class WorkerLocalFirst<
 				pullWasmBinary,
 				syncResources: this.syncResources.bind(this),
 				dbName,
-				migrations
+				migrations: engineDef.db.migrations
 			})
 		connectWs({
 			wsUrl,

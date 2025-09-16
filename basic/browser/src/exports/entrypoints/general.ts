@@ -23,7 +23,6 @@ export function workerEntrypoint<
 	engineDef,
 	localHandlers,
 	initialMemoryModel,
-	migrations,
 	pullWasmBinary,
 	wsUrl,
 	dbName
@@ -47,8 +46,7 @@ export function workerEntrypoint<
 				type: DownstreamWorkerMessageType.Transformation,
 				transformation
 			}),
-		pullWasmBinary,
-		migrations
+		pullWasmBinary
 	})
 
 	function onmessage(event: MessageEvent<UpstreamWorkerMessage<T>>) {

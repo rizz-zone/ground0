@@ -2,9 +2,9 @@
 
 import { describe, test, vi } from 'vitest'
 import { workerEntrypoint } from './general'
-import { object, literal, type infer } from 'zod'
+import { object, literal, type z } from 'zod'
 import { createTransitionSchema, TransitionImpact } from '@ground0/shared'
-import type { GeneratedMigrationSchema } from '../../../../shared/dist/types/transitions/handling/GeneratedMigrationSchema'
+import type { LocalEngineDefinition } from '@/types/LocalEngineDefinition'
 
 const sharedCtx = self as unknown as SharedWorkerGlobalScope
 const dedicatedCtx = self as DedicatedWorkerGlobalScope
@@ -21,7 +21,10 @@ const OurTransitionSchema = object({
 	impact: literal(TransitionImpact.LocalOnly)
 })
 
-const minimumInput: Parameters<typeof workerEntrypoint<Record<unknown, never>, infer<typeof OurTransitionSchema>>[0] = {
+const minimumInput: LocalEngineDefinition<
+	Record<string, never>,
+	z.infer<typeof OurTransitionSchema>
+> = {
 	engineDef: {
 		transitions: {
 			schema: createTransitionSchema(OurTransitionSchema),
@@ -31,23 +34,34 @@ const minimumInput: Parameters<typeof workerEntrypoint<Record<unknown, never>, i
 			current: '1.2.3'
 		},
 		db: {
-			migrations: {} as GeneratedMigrationSchema
+			migrations: {
+				journal: {
+					entries: [
+						{
+							idx: 0,
+							when: 0,
+							tag: 'something',
+							breakpoints: true
+						}
+					]
+				},
+				migrations: { a: 'b' }
+			}
 		}
 	},
-    localHandlers: {
-		'abc': {
-
+	localHandlers: {
+		abc: {
+			editDb: () => {}
 		}
 	},
-    initialMemoryModel: {},
-    migrations: Migrations;
-    pullWasmBinary: () => Promise<ArrayBuffer>;
-    wsUrl: string;
-    dbName: string;
+	initialMemoryModel: {},
+	pullWasmBinary: async () => new ArrayBuffer(),
+	wsUrl: 'wss://jerry.io/ws',
+	dbName: 'dave'
 }
 
 describe('always', () => {
 	test('creates a WorkerLocalFirst', () => {
-		workerEntrypoint()
+		workerEntrypoint(minimumInput)
 	})
 })

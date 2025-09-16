@@ -3,7 +3,6 @@ import type {
 	SyncEngineDefinition,
 	LocalHandlers
 } from '@ground0/shared'
-import type { Migrations } from './Migrations'
 
 export type LocalEngineDefinition<
 	MemoryModel extends object,
@@ -12,7 +11,6 @@ export type LocalEngineDefinition<
 	engineDef: SyncEngineDefinition<T>
 	localHandlers: LocalHandlers<MemoryModel, T>
 	initialMemoryModel: MemoryModel
-	migrations: Migrations
 	pullWasmBinary: () => Promise<ArrayBuffer>
 	wsUrl: string
 	dbName: string
