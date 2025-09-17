@@ -13,10 +13,12 @@ const dedicatedCtx = self as DedicatedWorkerGlobalScope
 const postMessage = vi.fn()
 dedicatedCtx.postMessage = postMessage
 
+const transitionFn = vi.fn()
+
 vi.mock('@/helpers/worker_thread', () => ({
 	WorkerLocalFirst: vi.fn().mockImplementation(() => ({
 		memoryModel: {},
-		transition: vi.fn()
+		transition: transitionFn
 	}))
 }))
 
