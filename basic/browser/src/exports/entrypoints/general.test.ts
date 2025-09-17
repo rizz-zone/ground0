@@ -5,16 +5,21 @@ import { workerEntrypoint } from './general'
 import { object, literal, type z } from 'zod'
 import { createTransitionSchema, TransitionImpact } from '@ground0/shared'
 import type { LocalEngineDefinition } from '@/types/LocalEngineDefinition'
+import { WorkerLocalFirst } from '@/helpers/worker_thread'
 
-const sharedCtx = self as unknown as SharedWorkerGlobalScope
+const _sharedCtx = self as unknown as SharedWorkerGlobalScope
 const dedicatedCtx = self as DedicatedWorkerGlobalScope
 
-const WorkerLocalFirst = vi.fn()
-const _workerThreadHelperMock = vi.mock('../helpers/worker_thread', () => {
-	return {
-		WorkerLocalFirst
-	}
-})
+const postMessage = vi.fn()
+dedicatedCtx.postMessage = postMessage
+
+vi.mock('@/helpers/worker_thread', () => ({
+	WorkerLocalFirst: vi.fn().mockImplementation(() => ({
+		memoryModel: {},
+		transition: vi.fn()
+	}))
+}))
+
 afterEach(vi.clearAllMocks)
 
 const OurTransitionSchema = object({
