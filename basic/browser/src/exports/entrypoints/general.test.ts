@@ -7,14 +7,30 @@ vi.doMock('@/helpers/worker_thread', () => ({
 	WorkerLocalFirst: mockWorkerLocalFirst
 }))
 
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import {
+	afterAll,
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	test,
+	vi
+} from 'vitest'
 import { object, literal, type z } from 'zod'
-import { createTransitionSchema, TransitionImpact } from '@ground0/shared'
+import {
+	createTransitionSchema,
+	NoPortsError,
+	TransitionImpact
+} from '@ground0/shared'
 import type { LocalEngineDefinition } from '@/types/LocalEngineDefinition'
 import type { WorkerLocalFirst } from '@/helpers/worker_thread'
+import {
+	DownstreamWorkerMessageType,
+	type DownstreamWorkerMessage
+} from '@/types/internal_messages/DownstreamWorkerMessage'
 const { workerEntrypoint } = await import('./general')
 
-const _sharedCtx = self as unknown as SharedWorkerGlobalScope
+const sharedCtx = self as unknown as SharedWorkerGlobalScope
 const dedicatedCtx = self as DedicatedWorkerGlobalScope
 
 const postMessage = vi.fn()
@@ -84,20 +100,87 @@ describe('always', () => {
 })
 describe('shared worker', () => {
 	beforeEach(() => {
-		// @ts-expect-error We're just tacking onconnect on
-		dedicatedCtx.onconnect = undefined
+		sharedCtx.onconnect = null
 	})
 	afterEach(() => {
-		// @ts-expect-error We're just tacking onconnect on
-		dedicatedCtx.onconnect = undefined
+		sharedCtx.onconnect = null
 	})
-	test('sets onconnect', () => {
-		// @ts-expect-error We're just tacking onconnect on
-		dedicatedCtx.onconnect = 'a'
-		// @ts-expect-error We're just tacking onconnect on
-		expect(dedicatedCtx.onconnect).not.toBeTypeOf('function')
-		workerEntrypoint(minimumInput)
-		// @ts-expect-error We're just tacking onconnect on
-		expect(dedicatedCtx.onconnect).toBeTypeOf('function')
+	afterAll(() => {
+		// @ts-expect-error We can't just set it to undefined because it will
+		// still exist in that case.
+		delete dedicatedCtx.onconnect
+	})
+	describe('onconnect', () => {
+		test('is set', () => {
+			expect(sharedCtx.onconnect).not.toBeTypeOf('function')
+			workerEntrypoint(minimumInput)
+			expect(sharedCtx.onconnect).toBeTypeOf('function')
+		})
+		test('throws NoPortsError if no ports provided', ({ skip }) => {
+			workerEntrypoint(minimumInput)
+			expect(() => {
+				if (typeof sharedCtx.onconnect !== 'function') return skip()
+				sharedCtx.onconnect(new MessageEvent<'connect'>('connect'))
+			}).toThrow(NoPortsError)
+		})
+		test('sets listeners and posts message to provided port', ({ skip }) => {
+			workerEntrypoint(minimumInput)
+			if (typeof sharedCtx.onconnect !== 'function') return skip()
+			const channel = new MessageChannel()
+			const portPostMessage = vi.fn()
+			const mockPort1 = {
+				...channel.port1,
+				postMessage: portPostMessage
+			}
+			expect(mockPort1.onmessage).toBeUndefined()
+			expect(mockPort1.onmessageerror).toBeUndefined()
+			expect(portPostMessage).not.toHaveBeenCalled()
+			sharedCtx.onconnect(
+				new MessageEvent<'connect'>('connect', { ports: [mockPort1] })
+			)
+			expect(mockPort1.onmessage).toBeTypeOf('function')
+			expect(mockPort1.onmessageerror).toBeTypeOf('function')
+			expect(portPostMessage).toHaveBeenCalledExactlyOnceWith({
+				type: DownstreamWorkerMessageType.InitMemoryModel,
+				memoryModel: minimumInput.initialMemoryModel
+			} satisfies DownstreamWorkerMessage<object>)
+		})
+		test('sets listeners and posts message to only one provided port', ({
+			skip
+		}) => {
+			workerEntrypoint(minimumInput)
+			if (typeof sharedCtx.onconnect !== 'function') return skip()
+			const channel = new MessageChannel()
+			const port1PostMessage = vi.fn()
+			const port2PostMessage = vi.fn()
+			const mockPort1 = {
+				...channel.port1,
+				postMessage: port1PostMessage
+			}
+			const mockPort2 = {
+				...channel.port2,
+				postMessage: port2PostMessage
+			}
+			expect(mockPort1.onmessage).toBeUndefined()
+			expect(mockPort1.onmessageerror).toBeUndefined()
+			expect(mockPort2.onmessage).toBeUndefined()
+			expect(mockPort2.onmessageerror).toBeUndefined()
+			expect(port1PostMessage).not.toHaveBeenCalled()
+			expect(port2PostMessage).not.toHaveBeenCalled()
+			sharedCtx.onconnect(
+				new MessageEvent<'connect'>('connect', {
+					ports: [mockPort1, mockPort2]
+				})
+			)
+			expect(mockPort2.onmessage).toBeUndefined()
+			expect(mockPort1.onmessage).toBeTypeOf('function')
+			expect(mockPort1.onmessageerror).toBeTypeOf('function')
+			expect(mockPort2.onmessageerror).toBeUndefined()
+			expect(port1PostMessage).toHaveBeenCalledExactlyOnceWith({
+				type: DownstreamWorkerMessageType.InitMemoryModel,
+				memoryModel: minimumInput.initialMemoryModel
+			} satisfies DownstreamWorkerMessage<object>)
+			expect(port2PostMessage).not.toHaveBeenCalled()
+		})
 	})
 })
