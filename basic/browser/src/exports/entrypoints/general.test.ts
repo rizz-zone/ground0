@@ -99,12 +99,10 @@ describe('always', () => {
 	})
 })
 describe('shared worker', () => {
-	beforeEach(() => {
+	const clearonconnect = () => {
 		sharedCtx.onconnect = null
-	})
-	afterEach(() => {
-		sharedCtx.onconnect = null
-	})
+	}
+	beforeEach(clearonconnect)
 	afterAll(() => {
 		// @ts-expect-error We can't just set it to undefined because it will
 		// still exist in that case.
@@ -182,5 +180,25 @@ describe('shared worker', () => {
 			} satisfies DownstreamWorkerMessage<object>)
 			expect(port2PostMessage).not.toHaveBeenCalled()
 		})
+	})
+})
+describe('dedicated worker', () => {
+	const clearMessageListener = () => {
+		dedicatedCtx.onmessage = null
+		dedicatedCtx.onmessageerror = null
+	}
+	beforeEach(clearMessageListener)
+	afterAll(clearMessageListener)
+	test('on connect, onmessage and onmessageerror are set and message is posted', () => {
+		expect(dedicatedCtx.onmessage).not.toBeTypeOf('function')
+		expect(dedicatedCtx.onmessageerror).not.toBeTypeOf('function')
+		expect(postMessage).not.toHaveBeenCalled()
+		workerEntrypoint(minimumInput)
+		expect(dedicatedCtx.onmessage).toBeTypeOf('function')
+		expect(dedicatedCtx.onmessageerror).toBeTypeOf('function')
+		expect(postMessage).toHaveBeenCalledExactlyOnceWith({
+			type: DownstreamWorkerMessageType.InitMemoryModel,
+			memoryModel: minimumInput.initialMemoryModel
+		} satisfies DownstreamWorkerMessage<object>)
 	})
 })
