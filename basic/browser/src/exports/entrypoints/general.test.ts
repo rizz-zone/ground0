@@ -1,4 +1,10 @@
-// TODO: Put some tests in here
+const mockWorkerLocalFirst = vi.fn().mockImplementation(() => ({
+	memoryModel: {},
+	transition: transitionFn
+}))
+vi.doMock('@/helpers/worker_thread', () => ({
+	WorkerLocalFirst: mockWorkerLocalFirst
+}))
 
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { workerEntrypoint } from './general'
@@ -14,13 +20,6 @@ const postMessage = vi.fn()
 dedicatedCtx.postMessage = postMessage
 
 const transitionFn = vi.fn()
-
-vi.mock('@/helpers/worker_thread', () => ({
-	WorkerLocalFirst: vi.fn().mockImplementation(() => ({
-		memoryModel: {},
-		transition: transitionFn
-	}))
-}))
 
 afterEach(vi.clearAllMocks)
 
@@ -73,5 +72,6 @@ describe('always', () => {
 		expect(WorkerLocalFirst).not.toHaveBeenCalled()
 		workerEntrypoint(minimumInput)
 		expect(WorkerLocalFirst).toHaveBeenCalledOnce()
+		console.log(mockWorkerLocalFirst.mock.lastCall)
 	})
 })
