@@ -1,3 +1,4 @@
+const transitionFn = vi.fn()
 const mockWorkerLocalFirst = vi.fn().mockImplementation(() => ({
 	memoryModel: {},
 	transition: transitionFn
@@ -6,7 +7,7 @@ vi.doMock('@/helpers/worker_thread', () => ({
 	WorkerLocalFirst: mockWorkerLocalFirst
 }))
 
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { object, literal, type z } from 'zod'
 import { createTransitionSchema, TransitionImpact } from '@ground0/shared'
 import type { LocalEngineDefinition } from '@/types/LocalEngineDefinition'
@@ -18,8 +19,6 @@ const dedicatedCtx = self as DedicatedWorkerGlobalScope
 
 const postMessage = vi.fn()
 dedicatedCtx.postMessage = postMessage
-
-const transitionFn = vi.fn()
 
 afterEach(vi.clearAllMocks)
 
@@ -81,5 +80,24 @@ describe('always', () => {
 		expect(call.localHandlers).toBe(minimumInput.localHandlers)
 		expect(call.announceTransformation).toBeTypeOf('function')
 		expect(call.pullWasmBinary).toBe(minimumInput.pullWasmBinary)
+	})
+})
+describe('dedicated worker', () => {
+	beforeEach(() => {
+		// @ts-expect-error We're just tacking onconnect on
+		dedicatedCtx.onconnect = undefined
+	})
+	afterEach(() => {
+		// @ts-expect-error We're just tacking onconnect on
+		dedicatedCtx.onconnect = undefined
+	})
+	test('sets onconnect', () => {
+		// @ts-expect-error We're just tacking onconnect on
+		dedicatedCtx.onconnect = 'a'
+		// @ts-expect-error We're just tacking onconnect on
+		expect(dedicatedCtx.onconnect).not.toBeTypeOf('function')
+		workerEntrypoint(minimumInput)
+		// @ts-expect-error We're just tacking onconnect on
+		expect(dedicatedCtx.onconnect).toBeTypeOf('function')
 	})
 })
