@@ -10,6 +10,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 import { object, literal, type z } from 'zod'
 import { createTransitionSchema, TransitionImpact } from '@ground0/shared'
 import type { LocalEngineDefinition } from '@/types/LocalEngineDefinition'
+import type { WorkerLocalFirst } from '@/helpers/worker_thread'
 const { workerEntrypoint } = await import('./general')
 
 const _sharedCtx = self as unknown as SharedWorkerGlobalScope
@@ -67,10 +68,18 @@ const minimumInput: LocalEngineDefinition<
 }
 
 describe('always', () => {
-	test('creates a WorkerLocalFirst', () => {
+	test('creates a WorkerLocalFirst', ({ skip }) => {
 		expect(mockWorkerLocalFirst).not.toHaveBeenCalled()
 		workerEntrypoint(minimumInput)
 		expect(mockWorkerLocalFirst).toHaveBeenCalledOnce()
-		console.log(mockWorkerLocalFirst.mock.lastCall)
+		const call = mockWorkerLocalFirst.mock
+			.lastCall?.[0] as ConstructorParameters<typeof WorkerLocalFirst>[0]
+		if (!call) skip()
+		expect(call.wsUrl).toBe(minimumInput.wsUrl)
+		expect(call.dbName).toBe(minimumInput.dbName)
+		expect(call.engineDef).toBe(minimumInput.engineDef)
+		expect(call.localHandlers).toBe(minimumInput.localHandlers)
+		expect(call.announceTransformation).toBeTypeOf('function')
+		expect(call.pullWasmBinary).toBe(minimumInput.pullWasmBinary)
 	})
 })
