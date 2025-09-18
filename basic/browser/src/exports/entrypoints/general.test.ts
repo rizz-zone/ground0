@@ -82,7 +82,7 @@ describe('always', () => {
 		expect(call.pullWasmBinary).toBe(minimumInput.pullWasmBinary)
 	})
 })
-describe('dedicated worker', () => {
+describe('shared worker', () => {
 	beforeEach(() => {
 		// @ts-expect-error We're just tacking onconnect on
 		dedicatedCtx.onconnect = undefined
