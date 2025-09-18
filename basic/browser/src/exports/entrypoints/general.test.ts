@@ -20,7 +20,8 @@ import { object, literal, type z } from 'zod'
 import {
 	createTransitionSchema,
 	NoPortsError,
-	TransitionImpact
+	TransitionImpact,
+	type Transition
 } from '@ground0/shared'
 import type { LocalEngineDefinition } from '@/types/LocalEngineDefinition'
 import type { WorkerLocalFirst } from '@/helpers/worker_thread'
@@ -28,6 +29,10 @@ import {
 	DownstreamWorkerMessageType,
 	type DownstreamWorkerMessage
 } from '@/types/internal_messages/DownstreamWorkerMessage'
+import {
+	UpstreamWorkerMessageType,
+	type UpstreamWorkerMessage
+} from '@/types/internal_messages/UpstreamWorkerMessage'
 const { workerEntrypoint } = await import('./general')
 
 const sharedCtx = self as unknown as SharedWorkerGlobalScope
@@ -189,7 +194,7 @@ describe('dedicated worker', () => {
 	}
 	beforeEach(clearMessageListener)
 	afterAll(clearMessageListener)
-	test('on connect, onmessage and onmessageerror are set and message is posted', () => {
+	test('on init, onmessage and onmessageerror are set and message is posted', () => {
 		expect(dedicatedCtx.onmessage).not.toBeTypeOf('function')
 		expect(dedicatedCtx.onmessageerror).not.toBeTypeOf('function')
 		expect(postMessage).not.toHaveBeenCalled()
@@ -200,5 +205,41 @@ describe('dedicated worker', () => {
 			type: DownstreamWorkerMessageType.InitMemoryModel,
 			memoryModel: minimumInput.initialMemoryModel
 		} satisfies DownstreamWorkerMessage<object>)
+	})
+	test('handles messages', ({ skip }) => {
+		const consoleDebug = vi
+			.spyOn(console, 'debug')
+			.mockImplementationOnce(() => {})
+		workerEntrypoint(minimumInput)
+		expect(consoleDebug).not.toHaveBeenCalled()
+		if (!dedicatedCtx.onmessage) return skip()
+
+		const uuid = crypto.randomUUID()
+		dedicatedCtx.onmessage(
+			new MessageEvent<UpstreamWorkerMessage<Transition>>('message', {
+				data: { type: UpstreamWorkerMessageType.DebugLog, message: uuid }
+			})
+		)
+		expect(consoleDebug).toHaveBeenCalledOnce()
+		expect(consoleDebug.mock.lastCall).toContain(uuid)
+	})
+	test('handles messaging errors', ({ skip }) => {
+		const consoleError = vi
+			.spyOn(console, 'error')
+			.mockImplementationOnce(() => {})
+		workerEntrypoint(minimumInput)
+		expect(consoleError).not.toHaveBeenCalled()
+		if (!dedicatedCtx.onmessageerror) return skip()
+		dedicatedCtx.onmessageerror(
+			new MessageEvent<'messageerror'>('messageerror')
+		)
+		expect(consoleError).toHaveBeenCalledOnce()
+	})
+})
+describe('message handling', ({ skip: skipSuite }) => {
+	beforeEach(() => {
+		skipSuite(
+			"There is an issue with the SharedWorker implementation, so message handling can't be tested without unrelated issues showing up."
+		)
 	})
 })

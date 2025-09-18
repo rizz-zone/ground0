@@ -49,12 +49,24 @@ export function workerEntrypoint<
 		pullWasmBinary
 	})
 
-	function onmessage(event: MessageEvent<UpstreamWorkerMessage<T>>) {
+	function onmessage(
+		event: MessageEvent<UpstreamWorkerMessage<T>>,
+		port?: MessagePort
+	) {
 		const message = event.data
 		switch (message.type) {
 			case UpstreamWorkerMessageType.Transition:
 				workerLocalFirst.transition(message.data)
-				break
+				return
+			case UpstreamWorkerMessageType.Close: {
+				if (!port) return
+				const idx = ports.indexOf(port)
+				if (idx !== -1) ports.splice(idx, 1)
+				return
+			}
+			case UpstreamWorkerMessageType.DebugLog:
+				brandedLog(console.debug, message.message)
+				return
 		}
 	}
 	function onmessageerror() {
