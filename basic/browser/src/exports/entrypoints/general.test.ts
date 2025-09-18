@@ -7,11 +7,10 @@ vi.doMock('@/helpers/worker_thread', () => ({
 }))
 
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { workerEntrypoint } from './general'
 import { object, literal, type z } from 'zod'
 import { createTransitionSchema, TransitionImpact } from '@ground0/shared'
 import type { LocalEngineDefinition } from '@/types/LocalEngineDefinition'
-import { WorkerLocalFirst } from '@/helpers/worker_thread'
+const { workerEntrypoint } = await import('./general')
 
 const _sharedCtx = self as unknown as SharedWorkerGlobalScope
 const dedicatedCtx = self as DedicatedWorkerGlobalScope
@@ -69,9 +68,9 @@ const minimumInput: LocalEngineDefinition<
 
 describe('always', () => {
 	test('creates a WorkerLocalFirst', () => {
-		expect(WorkerLocalFirst).not.toHaveBeenCalled()
+		expect(mockWorkerLocalFirst).not.toHaveBeenCalled()
 		workerEntrypoint(minimumInput)
-		expect(WorkerLocalFirst).toHaveBeenCalledOnce()
+		expect(mockWorkerLocalFirst).toHaveBeenCalledOnce()
 		console.log(mockWorkerLocalFirst.mock.lastCall)
 	})
 })
