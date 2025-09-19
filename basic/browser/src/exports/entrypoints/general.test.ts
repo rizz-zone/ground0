@@ -399,8 +399,10 @@ describe('message handling', ({ skip: skipSuite }) => {
 		sharedCtx.onconnect = null
 		workerEntrypoint(minimumInput)
 
-		const channel = new MessageChannel()
 		if (!sharedCtx.onconnect) return skip()
+		if (!mockWorkerLocalFirst.mock.lastCall?.[0]) return skip()
+
+		const channel = new MessageChannel()
 		;(
 			sharedCtx.onconnect as (
 				this: SharedWorkerGlobalScope,
@@ -478,5 +480,32 @@ describe('message handling', ({ skip: skipSuite }) => {
 
 		expect(postMessage1).toHaveBeenCalledTimes(2)
 		expect(postMessage2).toHaveBeenCalledTimes(3)
+	})
+	test('transition', ({ skip }) => {
+		if (!sharedCtx.onconnect) return skip()
+		const call = mockWorkerLocalFirst.mock
+			.lastCall?.[0] as ConstructorParameters<typeof WorkerLocalFirst>[0]
+		if (!call) return skip()
+
+		const { port1: port } = new MessageChannel()
+		sharedCtx.onconnect(new MessageEvent('connect', { ports: [port] }))
+		if (!port.onmessage) return skip()
+
+		const transition: Transition = {
+			action: 'abc',
+			impact: TransitionImpact.LocalOnly,
+			data: {
+				foo: 'bar',
+				day: new Date(),
+				iLoveMyNumberHashtagMyNumber: 4
+			}
+		}
+		port.onmessage(
+			new MessageEvent<UpstreamWorkerMessage<Transition>>('message', {
+				data: { type: UpstreamWorkerMessageType.Transition, data: transition }
+			})
+		)
+
+		expect(transitionFn).toHaveBeenCalledExactlyOnceWith(transition)
 	})
 })

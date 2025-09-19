@@ -59,7 +59,7 @@ export function workerEntrypoint<
 				workerLocalFirst.transition(message.data)
 				return
 			case UpstreamWorkerMessageType.Close: {
-				if (!port) return
+				if (!port) /* v8 ignore next */ return
 				const idx = ports.indexOf(port)
 				if (idx !== -1) ports.splice(idx, 1)
 				return
