@@ -15,7 +15,8 @@ import {
 	describe,
 	expect,
 	test,
-	vi
+	vi,
+	type Mock
 } from 'vitest'
 import { object, literal, type z } from 'zod'
 import {
@@ -34,6 +35,8 @@ import {
 	UpstreamWorkerMessageType,
 	type UpstreamWorkerMessage
 } from '@/types/internal_messages/UpstreamWorkerMessage'
+import { TransformationAction } from '@/types/memory_model/TransformationAction'
+import type { Transformation } from '@/types/memory_model/Tranformation'
 const { workerEntrypoint } = await import('./general')
 
 const sharedCtx = self as unknown as SharedWorkerGlobalScope
@@ -86,6 +89,14 @@ const minimumInput: LocalEngineDefinition<
 	pullWasmBinary: async () => new ArrayBuffer(),
 	wsUrl: 'wss://jerry.io/ws',
 	dbName: 'dave'
+}
+
+// For announcement testing
+function randomPath() {
+	return Array.from(
+		{ length: Math.max(Math.floor(Math.random() * 10), 1) },
+		() => crypto.randomUUID()
+	)
 }
 
 describe('always', () => {
@@ -223,7 +234,94 @@ describe('shared worker', () => {
 
 		expect(consoleError).toHaveBeenCalledOnce()
 	})
-	// TODO: test message broadcasting
+	describe('announces transformations', () => {
+		test('to one port', ({ skip }) => {
+			workerEntrypoint(minimumInput)
+			if (!sharedCtx.onconnect) return skip()
+
+			const channel = new MessageChannel()
+			const postMessage = vi.fn()
+			const port = {
+				...channel.port1,
+				postMessage
+			}
+			sharedCtx.onconnect(new MessageEvent('connect', { ports: [port] }))
+
+			const call = mockWorkerLocalFirst.mock
+				.lastCall?.[0] as ConstructorParameters<typeof WorkerLocalFirst>[0]
+			if (!call) return skip()
+
+			{
+				const transformation: Transformation = {
+					action: TransformationAction.Set,
+					path: randomPath(),
+					newValue: crypto.randomUUID()
+				}
+				call.announceTransformation(transformation)
+				expect(postMessage).toHaveBeenLastCalledWith({
+					type: DownstreamWorkerMessageType.Transformation,
+					transformation
+				} satisfies DownstreamWorkerMessage<object>)
+			}
+			{
+				const transformation: Transformation = {
+					action: TransformationAction.Delete,
+					path: randomPath()
+				}
+				call.announceTransformation(transformation)
+				expect(postMessage).toHaveBeenLastCalledWith({
+					type: DownstreamWorkerMessageType.Transformation,
+					transformation
+				} satisfies DownstreamWorkerMessage<object>)
+			}
+		})
+		test('to all ports, when many are connected', ({ skip }) => {
+			workerEntrypoint(minimumInput)
+			if (!sharedCtx.onconnect) return skip()
+			const call = mockWorkerLocalFirst.mock
+				.lastCall?.[0] as ConstructorParameters<typeof WorkerLocalFirst>[0]
+			if (!call) return skip()
+
+			const postMessages: Mock[] = []
+			for (let i = 0; i <= 100; i++) {
+				{
+					const transformation: Transformation = {
+						action: TransformationAction.Set,
+						path: randomPath(),
+						newValue: crypto.randomUUID()
+					}
+					call.announceTransformation(transformation)
+					for (const postMessage of postMessages) {
+						expect(postMessage).toHaveBeenLastCalledWith({
+							type: DownstreamWorkerMessageType.Transformation,
+							transformation
+						} satisfies DownstreamWorkerMessage<object>)
+					}
+				}
+				{
+					const transformation: Transformation = {
+						action: TransformationAction.Delete,
+						path: randomPath()
+					}
+					call.announceTransformation(transformation)
+					for (const postMessage of postMessages) {
+						expect(postMessage).toHaveBeenLastCalledWith({
+							type: DownstreamWorkerMessageType.Transformation,
+							transformation
+						} satisfies DownstreamWorkerMessage<object>)
+					}
+				}
+
+				const channel = new MessageChannel()
+				const postMessage = vi.fn()
+				const port = {
+					...channel.port1,
+					postMessage
+				}
+				sharedCtx.onconnect(new MessageEvent('connect', { ports: [port] }))
+			}
+		})
+	})
 })
 describe('dedicated worker', () => {
 	const clearMessageListener = () => {
@@ -271,7 +369,23 @@ describe('dedicated worker', () => {
 		dedicatedCtx.onmessageerror(new MessageEvent('messageerror'))
 		expect(consoleError).toHaveBeenCalledOnce()
 	})
-	// TODO: test message broadcasting
+	test('announces transformations', ({ skip }) => {
+		workerEntrypoint(minimumInput)
+		const call = mockWorkerLocalFirst.mock
+			.lastCall?.[0] as ConstructorParameters<typeof WorkerLocalFirst>[0]
+		if (!call) return skip()
+
+		const transformation: Transformation = {
+			action: TransformationAction.Set,
+			path: randomPath(),
+			newValue: crypto.randomUUID()
+		}
+		call.announceTransformation(transformation)
+		expect(postMessage).toHaveBeenLastCalledWith({
+			type: DownstreamWorkerMessageType.Transformation,
+			transformation
+		} satisfies DownstreamWorkerMessage<object>)
+	})
 })
 describe('message handling', ({ skip: skipSuite }) => {
 	beforeAll(() => {
