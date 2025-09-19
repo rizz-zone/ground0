@@ -2,7 +2,7 @@
 
 import {
 	DownstreamWsMessageAction,
-	type TransitionImpact,
+	TransitionImpact,
 	type DownstreamWsMessage,
 	type LocalHandlers,
 	type SyncEngineDefinition,
@@ -19,6 +19,7 @@ import { runners } from '@/runners/all'
 import type { OptimisticPushTransitionRunner } from '@/runners/specialised/optimistic_push'
 import { connectDb } from '@/resource_managers/db'
 import { connectWs } from '@/resource_managers/ws'
+import { brandedLog } from '@/common/branded_log'
 
 export class WorkerLocalFirst<
 	MemoryModel extends object,
@@ -153,6 +154,19 @@ export class WorkerLocalFirst<
 			(typeof this.engineDef.transitions.schema)['types']
 		>['input']
 	) {
+		if (
+			!Object.values(TransitionImpact)
+				.filter((k) => typeof k === 'number')
+				.includes(transition.impact)
+		) {
+			// TODO: Use a better message
+			brandedLog(
+				console.warn,
+				'Invalid transition impact used:',
+				transition.impact
+			)
+			return
+		}
 		const id = this.nextTransitionId
 		this.transitionRunners.set(
 			id,
