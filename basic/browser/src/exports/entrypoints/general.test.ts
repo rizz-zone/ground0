@@ -122,7 +122,7 @@ describe('shared worker', () => {
 	afterAll(() => {
 		// @ts-expect-error We can't just set it to undefined because it will
 		// still exist in that case.
-		delete dedicatedCtx.onconnect
+		delete sharedCtx.onconnect
 	})
 	describe('onconnect', () => {
 		test('is set', () => {
@@ -389,9 +389,94 @@ describe('dedicated worker', () => {
 })
 describe('message handling', ({ skip: skipSuite }) => {
 	beforeAll(() => {
-		skipSuite(
-			"There is an issue with the SharedWorker implementation, so message handling can't be tested without unrelated issues showing up."
+		const skip = () =>
+			skipSuite(
+				"There is an issue with the SharedWorker implementation, so message handling can't be tested without unrelated issues showing up."
+			)
+		const consoleDebug = vi
+			.spyOn(console, 'debug')
+			.mockImplementationOnce(() => {})
+		sharedCtx.onconnect = null
+		workerEntrypoint(minimumInput)
+
+		const channel = new MessageChannel()
+		if (!sharedCtx.onconnect) return skip()
+		;(
+			sharedCtx.onconnect as (
+				this: SharedWorkerGlobalScope,
+				ev: MessageEvent
+			) => unknown
+		)(new MessageEvent('connect', { ports: [channel.port1] }))
+		if (!channel.port1.onmessage) return skip()
+
+		const uuid = crypto.randomUUID()
+		channel.port1.onmessage(
+			new MessageEvent<UpstreamWorkerMessage<Transition>>('message', {
+				data: { type: UpstreamWorkerMessageType.DebugLog, message: uuid }
+			})
 		)
+
+		if (
+			!consoleDebug.mock.lastCall ||
+			!consoleDebug.mock.lastCall.includes(uuid)
+		)
+			return skip()
 	})
-	test('', () => {})
+	beforeEach(() => {
+		workerEntrypoint(minimumInput)
+	})
+	afterAll(() => {
+		// @ts-expect-error We can't just set it to undefined because it will
+		// still exist in that case.
+		delete sharedCtx.onconnect
+	})
+	test('close', ({ skip }) => {
+		if (!sharedCtx.onconnect) return skip()
+		const call = mockWorkerLocalFirst.mock
+			.lastCall?.[0] as ConstructorParameters<typeof WorkerLocalFirst>[0]
+		if (!call) return skip()
+
+		// We have no way of actually looking inside of the closure and seeing
+		// that the port has been removed, but a side-effect of a port being
+		// removed is that messages won't be broadcast to it as there's no
+		// reference to it anymore, so this is what we look at instead. If the
+		// port we 'close' doesn't receive any transformations anymore, that
+		// means it has successfully been removed.
+
+		const channel = new MessageChannel()
+		const postMessage1 = vi.fn()
+		const port1 = {
+			...channel.port1,
+			postMessage: postMessage1
+		}
+		const postMessage2 = vi.fn()
+		const port2 = {
+			...channel.port1,
+			postMessage: postMessage2
+		}
+		sharedCtx.onconnect(new MessageEvent('connect', { ports: [port1] }))
+		sharedCtx.onconnect(new MessageEvent('connect', { ports: [port2] }))
+
+		const transformation: Transformation = {
+			action: TransformationAction.Set,
+			path: randomPath(),
+			newValue: crypto.randomUUID()
+		}
+		call.announceTransformation(transformation)
+
+		expect(postMessage1).toHaveBeenCalledTimes(2)
+		expect(postMessage2).toHaveBeenCalledTimes(2)
+
+		if (!port1.onmessage) return skip()
+		port1.onmessage(
+			new MessageEvent<UpstreamWorkerMessage<Transition>>('message', {
+				data: { type: UpstreamWorkerMessageType.Close }
+			})
+		)
+
+		call.announceTransformation(transformation)
+
+		expect(postMessage1).toHaveBeenCalledTimes(2)
+		expect(postMessage2).toHaveBeenCalledTimes(3)
+	})
 })
