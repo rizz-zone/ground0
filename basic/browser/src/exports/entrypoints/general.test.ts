@@ -10,6 +10,7 @@ vi.doMock('@/helpers/worker_thread', () => ({
 import {
 	afterAll,
 	afterEach,
+	beforeAll,
 	beforeEach,
 	describe,
 	expect,
@@ -104,10 +105,9 @@ describe('always', () => {
 	})
 })
 describe('shared worker', () => {
-	const clearonconnect = () => {
+	beforeEach(() => {
 		sharedCtx.onconnect = null
-	}
-	beforeEach(clearonconnect)
+	})
 	afterAll(() => {
 		// @ts-expect-error We can't just set it to undefined because it will
 		// still exist in that case.
@@ -123,7 +123,7 @@ describe('shared worker', () => {
 			workerEntrypoint(minimumInput)
 			expect(() => {
 				if (typeof sharedCtx.onconnect !== 'function') return skip()
-				sharedCtx.onconnect(new MessageEvent<'connect'>('connect'))
+				sharedCtx.onconnect(new MessageEvent('connect'))
 			}).toThrow(NoPortsError)
 		})
 		test('sets listeners and posts message to provided port', ({ skip }) => {
@@ -138,9 +138,7 @@ describe('shared worker', () => {
 			expect(mockPort1.onmessage).toBeUndefined()
 			expect(mockPort1.onmessageerror).toBeUndefined()
 			expect(portPostMessage).not.toHaveBeenCalled()
-			sharedCtx.onconnect(
-				new MessageEvent<'connect'>('connect', { ports: [mockPort1] })
-			)
+			sharedCtx.onconnect(new MessageEvent('connect', { ports: [mockPort1] }))
 			expect(mockPort1.onmessage).toBeTypeOf('function')
 			expect(mockPort1.onmessageerror).toBeTypeOf('function')
 			expect(portPostMessage).toHaveBeenCalledExactlyOnceWith({
@@ -171,7 +169,7 @@ describe('shared worker', () => {
 			expect(port1PostMessage).not.toHaveBeenCalled()
 			expect(port2PostMessage).not.toHaveBeenCalled()
 			sharedCtx.onconnect(
-				new MessageEvent<'connect'>('connect', {
+				new MessageEvent('connect', {
 					ports: [mockPort1, mockPort2]
 				})
 			)
@@ -186,6 +184,46 @@ describe('shared worker', () => {
 			expect(port2PostMessage).not.toHaveBeenCalled()
 		})
 	})
+	test('handles messages', ({ skip }) => {
+		const consoleDebug = vi
+			.spyOn(console, 'debug')
+			.mockImplementationOnce(() => {})
+		workerEntrypoint(minimumInput)
+		expect(consoleDebug).not.toHaveBeenCalled()
+		if (!sharedCtx.onconnect) return skip()
+
+		const channel = new MessageChannel()
+		sharedCtx.onconnect(new MessageEvent('connect', { ports: [channel.port1] }))
+		if (!channel.port1.onmessage) return skip()
+
+		const uuid = crypto.randomUUID()
+		channel.port1.onmessage(
+			new MessageEvent<UpstreamWorkerMessage<Transition>>('message', {
+				data: { type: UpstreamWorkerMessageType.DebugLog, message: uuid }
+			})
+		)
+
+		expect(consoleDebug).toHaveBeenCalledOnce()
+		expect(consoleDebug.mock.lastCall).toContain(uuid)
+	})
+	test('handles messaging errors', ({ skip }) => {
+		const consoleError = vi
+			.spyOn(console, 'error')
+			.mockImplementationOnce(() => {})
+		workerEntrypoint(minimumInput)
+		expect(consoleError).not.toHaveBeenCalled()
+		if (!sharedCtx.onconnect) return skip()
+
+		const channel = new MessageChannel()
+		sharedCtx.onconnect(new MessageEvent('connect', { ports: [channel.port1] }))
+		if (!channel.port1.onmessageerror) return skip()
+		expect(consoleError).not.toHaveBeenCalled()
+
+		channel.port1.onmessageerror(new MessageEvent('messageerror'))
+
+		expect(consoleError).toHaveBeenCalledOnce()
+	})
+	// TODO: test message broadcasting
 })
 describe('dedicated worker', () => {
 	const clearMessageListener = () => {
@@ -230,16 +268,16 @@ describe('dedicated worker', () => {
 		workerEntrypoint(minimumInput)
 		expect(consoleError).not.toHaveBeenCalled()
 		if (!dedicatedCtx.onmessageerror) return skip()
-		dedicatedCtx.onmessageerror(
-			new MessageEvent<'messageerror'>('messageerror')
-		)
+		dedicatedCtx.onmessageerror(new MessageEvent('messageerror'))
 		expect(consoleError).toHaveBeenCalledOnce()
 	})
+	// TODO: test message broadcasting
 })
 describe('message handling', ({ skip: skipSuite }) => {
-	beforeEach(() => {
+	beforeAll(() => {
 		skipSuite(
 			"There is an issue with the SharedWorker implementation, so message handling can't be tested without unrelated issues showing up."
 		)
 	})
+	test('', () => {})
 })

@@ -87,7 +87,7 @@ export function workerEntrypoint<
 				type: DownstreamWorkerMessageType.InitMemoryModel,
 				memoryModel: workerLocalFirst.memoryModel
 			} satisfies DownstreamWorkerMessage<MemoryModel>)
-			port.onmessage = onmessage
+			port.onmessage = (ev) => onmessage(ev, port)
 			port.onmessageerror = onmessageerror
 		}
 	else {
