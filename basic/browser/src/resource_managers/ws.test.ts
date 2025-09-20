@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	test,
+	vi,
+	type Mock
+} from 'vitest'
 import { connectWs } from './ws'
 import {
 	DownstreamWsMessageAction,
@@ -136,10 +144,18 @@ describe('regular init', () => {
 			)
 		})
 		test('starts a new connection after the timeout', async ({ skip }) => {
-			if (!latestFake || !latestFake.onopen || !latestFake.onerror)
+			if (
+				!latestFake ||
+				!latestFake.onopen ||
+				!latestFake.onerror ||
+				!latestFake.onclose
+			)
 				return skip()
 
 			expect(WebSocket).toHaveBeenCalledOnce()
+			;(latestFake.close as Mock).mockImplementation(() =>
+				latestFake?.onclose?.(new CloseEvent('close'))
+			)
 
 			latestFake.onopen(new Event('open'))
 			latestFake.onerror(new Event('error'))
