@@ -1,5 +1,10 @@
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { connectWs } from './ws'
+import {
+	UpstreamWsMessageAction,
+	type UpstreamWsMessage
+} from '@ground0/shared'
+import SuperJSON from 'superjson'
 
 const fakeWs = {
 	onopen: null,
@@ -49,15 +54,32 @@ function macrotask(callback: () => unknown): Promise<void> {
 }
 
 describe('regular init', () => {
+	beforeEach(() => connectWs(minimumInput))
 	test('requests websocket', () => {
-		connectWs(minimumInput)
 		expect(WebSocket).not.toHaveBeenCalled()
 		return macrotask(() => expect(WebSocket).toHaveBeenCalledOnce())
 	})
-	test('sends init message on open', ({ skip }) => {
-		connectWs(minimumInput)
-		return macrotask(() => {
-			if (!WebSocket.mock.lastCall) skip()
-		})
-	})
+	test('sets all handlers', ({ skip }) =>
+		macrotask(() => {
+			if (!latestFake) return skip()
+
+			expect(latestFake.onopen).toBeTypeOf('function')
+			expect(latestFake.onmessage).toBeTypeOf('function')
+			expect(latestFake.onerror).toBeTypeOf('function')
+			expect(latestFake.onclose).toBeTypeOf('function')
+		}))
+	test('sends init message on open', ({ skip }) =>
+		macrotask(() => {
+			if (!latestFake || !latestFake.onopen) return skip()
+			expect(latestFake.send).not.toHaveBeenCalled()
+
+			latestFake.onopen(new Event('open'))
+
+			expect(latestFake.send).toHaveBeenCalledExactlyOnceWith(
+				SuperJSON.stringify({
+					action: UpstreamWsMessageAction.Init,
+					version: minimumInput.currentVersion
+				} satisfies UpstreamWsMessage)
+			)
+		}))
 })
