@@ -20,75 +20,75 @@ export async function connectWs({
 }) {
 	let reconnectCooldown: Promise<void> = Promise.resolve()
 	let currentConnectionId = -1
-	async function connectAnew() {
+	function connectAnew() {
 		syncResources({ ws: { status: WsResourceStatus.Disconnected } })
 		currentConnectionId++
 		const ourConnectionId = currentConnectionId
-		await reconnectCooldown
-		// Worth checking because we're doing a lot of async/await
-		if (ourConnectionId !== currentConnectionId) return
-		reconnectCooldown = new Promise((resolve) => setTimeout(resolve, 500))
-
-		const ws = new WebSocket(wsUrl)
-		let dissatisfiedPings = 0
-
-		function reconnect(code?: WsCloseCode) {
+		return (async () => {
+			await reconnectCooldown
+			// Worth checking because we're doing a lot of async/await
 			if (ourConnectionId !== currentConnectionId) return
-			connectAnew()
-			ws.close(code)
-		}
+			reconnectCooldown = new Promise((resolve) => setTimeout(resolve, 500))
 
-		ws.onopen = () => {
-			if (ourConnectionId !== currentConnectionId) {
-				ws.close()
-				return
+			const ws = new WebSocket(wsUrl)
+			let dissatisfiedPings = 0
+
+			function reconnect(code?: WsCloseCode) {
+				if (ourConnectionId !== currentConnectionId) return
+				connectAnew()
+				ws.close(code)
 			}
-			ws.send(
-				SuperJSON.stringify({
-					action: UpstreamWsMessageAction.Init,
-					version: currentVersion
-				} satisfies UpstreamWsMessage)
-			)
-			syncResources({
-				ws: { status: WsResourceStatus.Connected, instance: ws }
-			})
 
-			// Ping interval
-			{
-				let interval: ReturnType<typeof setInterval> | undefined = setInterval(
-					() => {
-						if (ourConnectionId !== currentConnectionId) {
-							if (interval) {
-								clearInterval(interval)
-								interval = undefined
-							}
-							return
-						}
-						if (dissatisfiedPings <= 3) return reconnect(WsCloseCode.Timeout)
-						ws.send('?')
-						dissatisfiedPings++
-					},
-					5000 / 3
+			ws.onopen = () => {
+				if (ourConnectionId !== currentConnectionId) {
+					ws.close()
+					return
+				}
+				ws.send(
+					SuperJSON.stringify({
+						action: UpstreamWsMessageAction.Init,
+						version: currentVersion
+					} satisfies UpstreamWsMessage)
 				)
-			}
-		}
-		ws.onmessage = (message) => {
-			if (ourConnectionId !== currentConnectionId) return
+				syncResources({
+					ws: { status: WsResourceStatus.Connected, instance: ws }
+				})
 
-			// Handle pong messages first
-			if (message.data === '!') {
-				dissatisfiedPings--
-				return
+				// Ping interval
+				{
+					let interval: ReturnType<typeof setInterval> | undefined =
+						setInterval(() => {
+							if (ourConnectionId !== currentConnectionId) {
+								if (interval) {
+									clearInterval(interval)
+									interval = undefined
+								}
+								return
+							}
+							if (dissatisfiedPings <= 3) return reconnect(WsCloseCode.Timeout)
+							ws.send('?')
+							dissatisfiedPings++
+						}, 5000 / 3)
+				}
 			}
+			ws.onmessage = (message) => {
+				if (ourConnectionId !== currentConnectionId) return
 
-			// Let WorkerLocalFirst handle literally anything else
-			handleMessage(message)
-		}
-		ws.onerror = () => reconnect(WsCloseCode.Error)
-		ws.onclose = () => {
-			if (ourConnectionId !== currentConnectionId) return
-			connectAnew()
-		}
+				// Handle pong messages first
+				if (message.data === '!') {
+					dissatisfiedPings--
+					return
+				}
+
+				// Let WorkerLocalFirst handle literally anything else
+				handleMessage(message)
+			}
+			ws.onerror = () => reconnect(WsCloseCode.Error)
+			ws.onclose = () => {
+				if (ourConnectionId !== currentConnectionId) return
+				connectAnew()
+			}
+		})()
 	}
 
 	connectAnew()
