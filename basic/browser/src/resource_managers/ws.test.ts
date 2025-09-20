@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { connectWs } from './ws'
 import {
+	DownstreamWsMessageAction,
 	UpstreamWsMessageAction,
+	type DownstreamWsMessage,
 	type UpstreamWsMessage
 } from '@ground0/shared'
 import SuperJSON from 'superjson'
@@ -28,13 +30,19 @@ const minimumInput: Parameters<typeof connectWs>[0] = {
 	handleMessage: vi.fn()
 }
 
+const setInterval = vi
+	.spyOn(globalThis, 'setInterval')
+	.mockImplementation(
+		() => 1 as unknown as ReturnType<typeof globalThis.setInterval>
+	)
+
+beforeEach(() => connectWs(minimumInput))
 afterEach(() => {
 	vi.clearAllMocks()
 	latestFake = undefined
 })
 
 describe('regular init', () => {
-	beforeEach(() => connectWs(minimumInput))
 	test('requests websocket', () => {
 		expect(WebSocket).toHaveBeenCalledOnce()
 	})
@@ -75,6 +83,43 @@ describe('regular init', () => {
 					instance: latestFake
 				}
 			} satisfies Partial<ResourceBundle>)
+		})
+		test('defines a ping interval', ({ skip }) => {
+			if (!latestFake || !latestFake.onopen) return skip()
+			expect(setInterval).not.toHaveBeenCalled()
+
+			latestFake.onopen(new Event('open'))
+
+			expect(setInterval).toHaveBeenCalledOnce()
+		})
+	})
+	describe('onmessage', () => {
+		test('handles "!" ping responses without calling handleMessage', ({
+			skip
+		}) => {
+			if (!latestFake || !latestFake.onopen || !latestFake.onmessage)
+				return skip()
+			latestFake.onopen(new Event('open'))
+			latestFake.onmessage(new MessageEvent('message', { data: '!' }))
+			expect(minimumInput.handleMessage).not.toHaveBeenCalled()
+		})
+		test('passes regular messages to handleMessage', ({ skip }) => {
+			if (!latestFake || !latestFake.onopen || !latestFake.onmessage)
+				return skip()
+
+			const message = new MessageEvent('message', {
+				data: SuperJSON.stringify({
+					action: DownstreamWsMessageAction.OptimisticResolve,
+					id: 1
+				} satisfies DownstreamWsMessage)
+			})
+
+			latestFake.onopen(new Event('open'))
+			latestFake.onmessage(message)
+
+			expect(minimumInput.handleMessage).toHaveBeenCalledExactlyOnceWith(
+				message
+			)
 		})
 	})
 })
