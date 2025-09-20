@@ -2,16 +2,18 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 import { connectWs } from './ws'
 
 const fakeWs = {
-	onopen: vi.fn(),
-	onclose: vi.fn(),
-	onmessage: vi.fn(),
-	onerror: vi.fn(),
+	onopen: null,
+	onclose: null,
+	onmessage: null,
+	onerror: null,
 	send: vi.fn(),
 	close: vi.fn()
 } as unknown as WebSocket
-const WebSocket = vi
-	.spyOn(globalThis, 'WebSocket')
-	.mockImplementation(() => fakeWs)
+let latestFake: WebSocket | undefined = undefined
+const WebSocket = vi.spyOn(globalThis, 'WebSocket').mockImplementation(() => {
+	latestFake = { ...fakeWs }
+	return latestFake
+})
 const minimumInput: Parameters<typeof connectWs>[0] = {
 	wsUrl: 'wss://something.different.ac.uk/',
 	currentVersion: '0.1.2',
@@ -19,7 +21,10 @@ const minimumInput: Parameters<typeof connectWs>[0] = {
 	handleMessage: vi.fn()
 }
 
-afterEach(vi.clearAllMocks)
+afterEach(() => {
+	vi.clearAllMocks()
+	latestFake = undefined
+})
 
 function macrotask(callback: () => unknown): Promise<void> {
 	return new Promise<void>((resolve, reject) =>
@@ -53,7 +58,6 @@ describe('regular init', () => {
 		connectWs(minimumInput)
 		return macrotask(() => {
 			if (!WebSocket.mock.lastCall) skip()
-			// TODO: actually do the test
 		})
 	})
 })
