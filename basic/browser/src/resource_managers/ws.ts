@@ -33,12 +33,6 @@ export async function connectWs({
 			const ws = new WebSocket(wsUrl)
 			let dissatisfiedPings = 0
 
-			function reconnect(code?: WsCloseCode) {
-				if (ourConnectionId !== currentConnectionId) return
-				connectAnew()
-				ws.close(code)
-			}
-
 			ws.onopen = () => {
 				if (ourConnectionId !== currentConnectionId) {
 					ws.close()
@@ -65,7 +59,10 @@ export async function connectWs({
 								}
 								return
 							}
-							if (dissatisfiedPings <= 3) return reconnect(WsCloseCode.Timeout)
+							if (dissatisfiedPings > 3) {
+								ws.close(WsCloseCode.Timeout)
+								return
+							}
 							ws.send('?')
 							dissatisfiedPings++
 						}, 5000 / 3)
@@ -83,7 +80,10 @@ export async function connectWs({
 				// Let WorkerLocalFirst handle literally anything else
 				handleMessage(message)
 			}
-			ws.onerror = () => reconnect(WsCloseCode.Error)
+			ws.onerror = () => {
+				if (ourConnectionId !== currentConnectionId) return
+				ws.close(WsCloseCode.Error)
+			}
 			ws.onclose = () => {
 				if (ourConnectionId !== currentConnectionId) return
 				connectAnew()
