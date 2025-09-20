@@ -3,6 +3,7 @@ import { connectWs } from './ws'
 import {
 	DownstreamWsMessageAction,
 	UpstreamWsMessageAction,
+	WsCloseCode,
 	type DownstreamWsMessage,
 	type UpstreamWsMessage
 } from '@ground0/shared'
@@ -122,4 +123,31 @@ describe('regular init', () => {
 			)
 		})
 	})
+	describe('onerror', () => {
+		test('closes the current connection', ({ skip }) => {
+			if (!latestFake || !latestFake.onopen || !latestFake.onerror)
+				return skip()
+
+			latestFake.onopen(new Event('open'))
+			latestFake.onerror(new Event('error'))
+
+			expect(latestFake.close).toHaveBeenCalledExactlyOnceWith(
+				WsCloseCode.Error
+			)
+		})
+		test('starts a new connection after the timeout', async ({ skip }) => {
+			if (!latestFake || !latestFake.onopen || !latestFake.onerror)
+				return skip()
+
+			expect(WebSocket).toHaveBeenCalledOnce()
+
+			latestFake.onopen(new Event('open'))
+			latestFake.onerror(new Event('error'))
+
+			await vi.waitFor(() => {
+				expect(WebSocket).toHaveBeenCalledTimes(2)
+			})
+		})
+	})
+	// describe('onclose', () => {})
 })

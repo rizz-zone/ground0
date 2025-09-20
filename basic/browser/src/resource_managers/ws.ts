@@ -34,8 +34,8 @@ export async function connectWs({
 
 		function reconnect(code?: WsCloseCode) {
 			if (ourConnectionId !== currentConnectionId) return
-			ws.close(code)
 			connectAnew()
+			ws.close(code)
 		}
 
 		ws.onopen = () => {
