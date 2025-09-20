@@ -27,10 +27,11 @@ export function workerEntrypoint<
 	wsUrl,
 	dbName
 }: LocalEngineDefinition<MemoryModel, T>) {
+	const shared = 'onconnect' in ctx
 	const ports: MessagePort[] = []
 
 	function broadcastMessage(message: DownstreamWorkerMessage<MemoryModel>) {
-		if ('onconnect' in ctx) for (const port of ports) port.postMessage(message)
+		if (shared) for (const port of ports) port.postMessage(message)
 		else ctx.postMessage(message)
 	}
 
@@ -77,7 +78,7 @@ export function workerEntrypoint<
 	}
 
 	// Set listeners
-	if ('onconnect' in ctx)
+	if (shared)
 		ctx.onconnect = (event) => {
 			const port = event.ports[0]
 			if (!port) throw new NoPortsError(SHAREDWORKER_NO_PORTS)
