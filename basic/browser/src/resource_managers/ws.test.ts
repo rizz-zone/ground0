@@ -5,6 +5,8 @@ import {
 	type UpstreamWsMessage
 } from '@ground0/shared'
 import SuperJSON from 'superjson'
+import type { ResourceBundle } from '@/types/status/ResourceBundle'
+import { WsResourceStatus } from '@/types/status/WsResourceStatus'
 
 const fakeWs = {
 	onopen: null,
@@ -31,45 +33,21 @@ afterEach(() => {
 	latestFake = undefined
 })
 
-function macrotask(callback: () => unknown): Promise<void> {
-	return new Promise<void>((resolve, reject) =>
-		setImmediate(() => {
-			try {
-				const c = callback()
-				if (
-					c &&
-					typeof c === 'object' &&
-					'then' in c &&
-					typeof c.then === 'function'
-				) {
-					c.then(resolve, reject)
-					return
-				}
-				resolve()
-			} catch (e) {
-				reject(e)
-			}
-		})
-	)
-}
-
 describe('regular init', () => {
 	beforeEach(() => connectWs(minimumInput))
 	test('requests websocket', () => {
-		expect(WebSocket).not.toHaveBeenCalled()
-		return macrotask(() => expect(WebSocket).toHaveBeenCalledOnce())
+		expect(WebSocket).toHaveBeenCalledOnce()
 	})
-	test('sets all handlers', ({ skip }) =>
-		macrotask(() => {
-			if (!latestFake) return skip()
+	test('sets all handlers', ({ skip }) => {
+		if (!latestFake) return skip()
 
-			expect(latestFake.onopen).toBeTypeOf('function')
-			expect(latestFake.onmessage).toBeTypeOf('function')
-			expect(latestFake.onerror).toBeTypeOf('function')
-			expect(latestFake.onclose).toBeTypeOf('function')
-		}))
-	test('sends init message on open', ({ skip }) =>
-		macrotask(() => {
+		expect(latestFake.onopen).toBeTypeOf('function')
+		expect(latestFake.onmessage).toBeTypeOf('function')
+		expect(latestFake.onerror).toBeTypeOf('function')
+		expect(latestFake.onclose).toBeTypeOf('function')
+	})
+	describe('onopen', () => {
+		test('sends init message', ({ skip }) => {
 			if (!latestFake || !latestFake.onopen) return skip()
 			expect(latestFake.send).not.toHaveBeenCalled()
 
@@ -81,5 +59,22 @@ describe('regular init', () => {
 					version: minimumInput.currentVersion
 				} satisfies UpstreamWsMessage)
 			)
-		}))
+		})
+		test('syncs resources', ({ skip }) => {
+			if (!latestFake || !latestFake.onopen) return skip()
+			expect(minimumInput.syncResources).toHaveBeenCalledExactlyOnceWith({
+				ws: { status: WsResourceStatus.Disconnected }
+			} satisfies Partial<ResourceBundle>)
+
+			latestFake.onopen(new Event('open'))
+
+			expect(minimumInput.syncResources).toHaveBeenCalledTimes(2)
+			expect(minimumInput.syncResources).toHaveBeenLastCalledWith({
+				ws: {
+					status: WsResourceStatus.Connected,
+					instance: latestFake
+				}
+			} satisfies Partial<ResourceBundle>)
+		})
+	})
 })
