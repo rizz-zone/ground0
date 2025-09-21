@@ -165,5 +165,19 @@ describe('regular init', () => {
 			})
 		})
 	})
-	// describe('onclose', () => {})
+	describe('onclose', () => {
+		test('starts a new connection after the timeout', async ({ skip }) => {
+			if (!latestFake || !latestFake.onopen || !latestFake.onclose)
+				return skip()
+
+			expect(WebSocket).toHaveBeenCalledOnce()
+
+			latestFake.onopen(new Event('open'))
+			latestFake.onclose(new CloseEvent('close'))
+
+			await vi.waitFor(() => {
+				expect(WebSocket).toHaveBeenCalledTimes(2)
+			})
+		})
+	})
 })
