@@ -65,7 +65,6 @@ describe('usual process', () => {
 			expect(latestFake.onclose).toBeTypeOf('function')
 		})
 	})
-
 	describe('onopen', () => {
 		test('sends init message', ({ skip }) => {
 			if (!latestFake || !latestFake.onopen) return skip()
