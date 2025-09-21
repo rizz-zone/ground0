@@ -183,3 +183,17 @@ describe('usual process', () => {
 		})
 	})
 })
+describe('edge-cases', () => {
+	test('ws closes if opened after a reconnect already happened', ({ skip }) => {
+		if (!latestFake || !latestFake.onopen || !latestFake.onclose) return skip()
+
+		expect(WebSocket).toHaveBeenCalledOnce()
+		latestFake.onclose(new CloseEvent('close'))
+		expect(latestFake.close).not.toHaveBeenCalled()
+
+		latestFake.onopen(new Event('open'))
+		expect(latestFake.close).toHaveBeenCalledExactlyOnceWith(
+			WsCloseCode.SocketAppearsObsolete
+		)
+	})
+})

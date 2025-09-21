@@ -5,5 +5,6 @@ export enum WsCloseCode {
 	Incompatible = 3101,
 	NoTagsApplied = 3102,
 	Error = 3103,
-	Timeout = 3104
+	Timeout = 3104,
+	SocketAppearsObsolete = 3105
 }

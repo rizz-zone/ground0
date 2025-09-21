@@ -35,7 +35,7 @@ export async function connectWs({
 
 			ws.onopen = () => {
 				if (ourConnectionId !== currentConnectionId) {
-					ws.close()
+					ws.close(WsCloseCode.SocketAppearsObsolete)
 					return
 				}
 				ws.send(
@@ -86,6 +86,8 @@ export async function connectWs({
 			}
 			ws.onclose = () => {
 				if (ourConnectionId !== currentConnectionId) return
+				// TODO: Handle NoTagsApplied, Incompatible, and InvalidMessage
+				// in a more helpful way
 				connectAnew()
 			}
 		})()
