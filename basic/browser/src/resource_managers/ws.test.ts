@@ -51,18 +51,21 @@ afterEach(() => {
 	latestFake = undefined
 })
 
-describe('regular init', () => {
-	test('requests websocket', () => {
-		expect(WebSocket).toHaveBeenCalledOnce()
-	})
-	test('sets all handlers', ({ skip }) => {
-		if (!latestFake) return skip()
+describe('usual process', () => {
+	describe('init', () => {
+		test('requests websocket', () => {
+			expect(WebSocket).toHaveBeenCalledOnce()
+		})
+		test('sets all handlers', ({ skip }) => {
+			if (!latestFake) return skip()
 
-		expect(latestFake.onopen).toBeTypeOf('function')
-		expect(latestFake.onmessage).toBeTypeOf('function')
-		expect(latestFake.onerror).toBeTypeOf('function')
-		expect(latestFake.onclose).toBeTypeOf('function')
+			expect(latestFake.onopen).toBeTypeOf('function')
+			expect(latestFake.onmessage).toBeTypeOf('function')
+			expect(latestFake.onerror).toBeTypeOf('function')
+			expect(latestFake.onclose).toBeTypeOf('function')
+		})
 	})
+
 	describe('onopen', () => {
 		test('sends init message', ({ skip }) => {
 			if (!latestFake || !latestFake.onopen) return skip()
