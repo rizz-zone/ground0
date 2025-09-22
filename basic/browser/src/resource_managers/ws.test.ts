@@ -19,6 +19,8 @@ import SuperJSON from 'superjson'
 import type { ResourceBundle } from '@/types/status/ResourceBundle'
 import { WsResourceStatus } from '@/types/status/WsResourceStatus'
 
+vi.useFakeTimers()
+
 const fakeWs = {
 	onopen: null,
 	onclose: null,
@@ -39,18 +41,13 @@ const minimumInput: Parameters<typeof connectWs>[0] = {
 	handleMessage: vi.fn()
 }
 
-const setInterval = vi
-	.spyOn(globalThis, 'setInterval')
-	.mockImplementation(
-		() => 1 as unknown as ReturnType<typeof globalThis.setInterval>
-	)
-const clearInterval = vi
-	.spyOn(globalThis, 'clearInterval')
-	.mockImplementation(() => {})
+const setInterval = vi.spyOn(globalThis, 'setInterval')
+const clearInterval = vi.spyOn(globalThis, 'clearInterval')
 
 beforeEach(() => connectWs(minimumInput))
 afterEach(() => {
 	vi.clearAllMocks()
+	vi.clearAllTimers()
 	latestFake = undefined
 })
 
@@ -188,6 +185,7 @@ describe('usual process', () => {
 
 			latestFake.onopen(new Event('open'))
 			latestFake.onerror(new Event('error'))
+			vi.advanceTimersByTime(500)
 
 			await vi.waitFor(() => {
 				expect(WebSocket).toHaveBeenCalledTimes(2)
@@ -220,6 +218,7 @@ describe('usual process', () => {
 
 			latestFake.onopen(new Event('open'))
 			latestFake.onclose(new CloseEvent('close'))
+			vi.advanceTimersByTime(500)
 
 			await vi.waitFor(() => {
 				expect(WebSocket).toHaveBeenCalledTimes(2)
@@ -272,12 +271,13 @@ describe('ping interval', () => {
 		if (!setInterval.mock.lastCall) return skip()
 
 		const func = setInterval.mock.lastCall[0] as unknown as () => unknown
+		const intervalId = setInterval.mock.results.at(-1)?.value as unknown
 		func()
 		expect(clearInterval).not.toHaveBeenCalled()
 		latestFake.onclose(new CloseEvent('close'))
 		expect(clearInterval).not.toHaveBeenCalled()
 
 		func()
-		expect(clearInterval).toHaveBeenCalledExactlyOnceWith(1)
+		expect(clearInterval).toHaveBeenCalledExactlyOnceWith(intervalId)
 	})
 })
