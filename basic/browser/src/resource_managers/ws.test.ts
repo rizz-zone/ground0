@@ -206,4 +206,16 @@ describe('ping interval', () => {
 		expect(setInterval.mock.lastCall[0]).toBeTypeOf('function')
 		expect(setInterval.mock.lastCall[1]).toBeTypeOf('number')
 	})
+	test('closes socket after three missed pings', ({ skip }) => {
+		if (!latestFake || !latestFake.onopen) return skip()
+		if (setInterval.mock.lastCall) return skip()
+		latestFake.onopen(new Event('open'))
+		if (!setInterval.mock.lastCall) return skip()
+
+		for (let i = 0; i++; i < 3) {
+			;(setInterval.mock.lastCall[0] as unknown as () => unknown)()
+			if (i !== 3) expect(latestFake.close).not.toHaveBeenCalled()
+			else expect(latestFake.close).toHaveBeenCalledOnce()
+		}
+	})
 })
