@@ -135,6 +135,30 @@ describe('usual process', () => {
 				message
 			)
 		})
+		test('does not handle a message if we have moved onto a different socket', ({
+			skip
+		}) => {
+			if (
+				!latestFake ||
+				!latestFake.onopen ||
+				!latestFake.onmessage ||
+				!latestFake.onclose
+			)
+				return skip()
+
+			const messageEvent = new MessageEvent('message', {
+				data: SuperJSON.stringify({
+					action: DownstreamWsMessageAction.OptimisticResolve,
+					id: 1
+				} satisfies DownstreamWsMessage)
+			})
+
+			latestFake.onopen(new Event('open'))
+			latestFake.onclose(new CloseEvent('close'))
+			latestFake.onmessage(messageEvent)
+
+			expect(minimumInput.handleMessage).not.toHaveBeenCalled()
+		})
 	})
 	describe('onerror', () => {
 		test('closes the current connection', ({ skip }) => {
@@ -168,6 +192,23 @@ describe('usual process', () => {
 			await vi.waitFor(() => {
 				expect(WebSocket).toHaveBeenCalledTimes(2)
 			})
+		})
+		test('does not close the socket if we have alreayd moved onto a different one', ({
+			skip
+		}) => {
+			if (
+				!latestFake ||
+				!latestFake.onopen ||
+				!latestFake.onerror ||
+				!latestFake.onclose
+			)
+				return skip()
+
+			latestFake.onopen(new Event('open'))
+			latestFake.onclose(new CloseEvent('close'))
+			latestFake.onerror(new Event('error'))
+
+			expect(latestFake.close).not.toHaveBeenCalled()
 		})
 	})
 	describe('onclose', () => {
