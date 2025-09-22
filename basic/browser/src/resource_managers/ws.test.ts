@@ -197,3 +197,13 @@ describe('edge-cases', () => {
 		)
 	})
 })
+describe('ping interval', () => {
+	test('consists of a function and a number', ({ skip }) => {
+		if (!latestFake || !latestFake.onopen) return skip()
+		if (setInterval.mock.lastCall) return skip()
+		latestFake.onopen(new Event('open'))
+		if (!setInterval.mock.lastCall) return skip()
+		expect(setInterval.mock.lastCall[0]).toBeTypeOf('function')
+		expect(setInterval.mock.lastCall[1]).toBeTypeOf('number')
+	})
+})
