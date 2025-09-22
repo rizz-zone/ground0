@@ -44,6 +44,9 @@ const setInterval = vi
 	.mockImplementation(
 		() => 1 as unknown as ReturnType<typeof globalThis.setInterval>
 	)
+const clearInterval = vi
+	.spyOn(globalThis, 'clearInterval')
+	.mockImplementation(() => {})
 
 beforeEach(() => connectWs(minimumInput))
 afterEach(() => {
@@ -211,11 +214,29 @@ describe('ping interval', () => {
 		if (setInterval.mock.lastCall) return skip()
 		latestFake.onopen(new Event('open'))
 		if (!setInterval.mock.lastCall) return skip()
+		const func = setInterval.mock.lastCall[0] as unknown as () => unknown
 
-		for (let i = 0; i++; i < 3) {
-			;(setInterval.mock.lastCall[0] as unknown as () => unknown)()
-			if (i !== 3) expect(latestFake.close).not.toHaveBeenCalled()
+		for (let i = 0; i <= 4; i++) {
+			func()
+			if (i < 4) expect(latestFake.close).not.toHaveBeenCalled()
 			else expect(latestFake.close).toHaveBeenCalledOnce()
 		}
+	})
+	test('deletes interval if there is another socket in charge now', ({
+		skip
+	}) => {
+		if (!latestFake || !latestFake.onopen || !latestFake.onclose) return skip()
+		if (setInterval.mock.lastCall) return skip()
+		latestFake.onopen(new Event('open'))
+		if (!setInterval.mock.lastCall) return skip()
+
+		const func = setInterval.mock.lastCall[0] as unknown as () => unknown
+		func()
+		expect(clearInterval).not.toHaveBeenCalled()
+		latestFake.onclose(new CloseEvent('close'))
+		expect(clearInterval).not.toHaveBeenCalled()
+
+		func()
+		expect(clearInterval).toHaveBeenCalledExactlyOnceWith(1)
 	})
 })
