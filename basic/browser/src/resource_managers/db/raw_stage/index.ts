@@ -1,4 +1,3 @@
-// @ts-expect-error wa-sqlite has limited type definitions
 import { OPFSCoopSyncVFS } from './vfs'
 import { Factory } from 'wa-sqlite'
 import { createModule } from './create_module'
@@ -20,7 +19,7 @@ export async function getRawSqliteDb({
 
 	// Register our virtual filesystem and set it as the default immediately.
 	const vfs = await OPFSCoopSyncVFS.create('opfs', module)
-	sqlite3.vfs_register(vfs, true)
+	sqlite3.vfs_register(vfs as unknown as SQLiteVFS, true)
 
 	// Open the database. db is a pointer to this specific opened db, and must
 	// be passed in to methods under sqlite3 so it knows where to apply things.
