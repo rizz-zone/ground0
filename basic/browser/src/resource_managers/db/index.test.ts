@@ -1,5 +1,6 @@
+import { ResourceInitError } from '@/errors'
 import { defs } from '@ground0/shared'
-import { beforeEach, expect, test, vi } from 'vitest'
+import { beforeEach, describe, expect, test, vi } from 'vitest'
 
 const getRawSqliteDb = vi.fn()
 vi.doMock('./raw_stage', () => ({
@@ -20,13 +21,21 @@ beforeEach(() => {
 	vi.clearAllMocks()
 })
 
-test('requests download and decode using provided dbName and pullWasmBinary', () => {
-	getRawSqliteDb.mockImplementation(() => new Promise(() => {}))
-	connectDb(minimumInput)
-	expect(getRawSqliteDb).toHaveBeenCalledExactlyOnceWith({
-		dbName: minimumInput.dbName,
-		pullWasmBinary: minimumInput.pullWasmBinary
+describe('getRawSqliteDb step', () => {
+	test('requests download and decode using provided dbName and pullWasmBinary', () => {
+		getRawSqliteDb.mockImplementation(() => new Promise(() => {}))
+		connectDb(minimumInput)
+		expect(getRawSqliteDb).toHaveBeenCalledExactlyOnceWith({
+			dbName: minimumInput.dbName,
+			pullWasmBinary: minimumInput.pullWasmBinary
+		})
+		// It's the job of getRawSqliteDb to call
+		expect(minimumInput.pullWasmBinary).not.toHaveBeenCalled()
 	})
-	// It's the job of `getRawSqliteDb` to call
-	expect(minimumInput.pullWasmBinary).not.toHaveBeenCalled()
+	test('throws a ResourceInitError on fail', async () => {
+		getRawSqliteDb.mockImplementation(async () => {
+			throw new Error()
+		})
+		await expect(connectDb(minimumInput)).rejects.toThrow(ResourceInitError)
+	})
 })
