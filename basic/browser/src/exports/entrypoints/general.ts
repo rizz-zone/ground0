@@ -1,5 +1,5 @@
 import { brandedLog } from '@/common/branded_log'
-import { SHAREDWORKER_NO_PORTS } from '@/common/error_messages'
+import { SHAREDWORKER_NO_PORTS } from '@/errors/messages'
 import { WorkerLocalFirst } from '@/helpers/worker_thread'
 import type { LocalEngineDefinition } from '@/types/LocalEngineDefinition'
 import {

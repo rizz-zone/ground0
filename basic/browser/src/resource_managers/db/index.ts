@@ -7,6 +7,8 @@ import { drizzlify } from './drizzle_stage/drizzlify'
 import { migrate } from './drizzle_stage/migrate'
 import type { GeneratedMigrationSchema } from '@ground0/shared'
 import { getRawSqliteDb } from './raw_stage'
+import { ResourceInitError } from '@/errors'
+import { DB_DOWNLOAD_ERROR, DB_INIT_ERROR } from '@/errors/messages'
 
 export async function connectDb({
 	syncResources,
@@ -19,9 +21,18 @@ export async function connectDb({
 	dbName: string
 	migrations: GeneratedMigrationSchema
 }) {
-	try {
-		const { sqlite3, db } = await getRawSqliteDb({ dbName, pullWasmBinary })
+	const signalNeverConnecting = () =>
+		syncResources({ db: { status: DbResourceStatus.NeverConnecting } })
 
+	let sqlite3: SQLiteAPI, db: number
+	try {
+		;({ sqlite3, db } = await getRawSqliteDb({ dbName, pullWasmBinary }))
+	} catch (e) {
+		signalNeverConnecting()
+		throw new ResourceInitError(DB_DOWNLOAD_ERROR, { cause: e })
+	}
+
+	try {
 		const { pageSizeBytes, dbSizeBytes, quotaBytes } = await sizeInfo(
 			sqlite3,
 			db
@@ -54,11 +65,7 @@ export async function connectDb({
 			db: { status: DbResourceStatus.ConnectedAndMigrated, instance: drizzleDb }
 		})
 	} catch (e) {
-		syncResources({ db: { status: DbResourceStatus.NeverConnecting } })
-		brandedLog(
-			console.error,
-			'An error occurred while trying to set the local db up:',
-			e
-		)
+		signalNeverConnecting()
+		throw new ResourceInitError(DB_INIT_ERROR, { cause: e })
 	}
 }
