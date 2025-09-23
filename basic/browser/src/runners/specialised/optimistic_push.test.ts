@@ -33,6 +33,8 @@ afterEach(vi.clearAllMocks)
 
 const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
 beforeEach(() => consoleWarn.mockImplementation(() => {}))
+beforeEach(() => vi.useFakeTimers())
+afterEach(() => vi.useRealTimers())
 
 test('constructor creates one instance of the machine, starts it, and inits it', () => {
 	const ingredients: Ingredients<
@@ -394,44 +396,39 @@ async function runExecutionTest({
 			})
 		}, someTimeout(false))
 
-	// Do the main chunk of the test
-	await vi.waitUntil(
-		() => {
-			// @ts-expect-error We need to see the private stuff
-			const snapshot = runner.machineActorRef.getSnapshot()
-			return snapshot.matches({
-				ws: revertRequired ? 'rejected' : 'confirmed',
-				'memory model': [
-					IncludedHandlerFunctions.Both,
-					IncludedHandlerFunctions.MemoryModelOnly
-				].includes(testing)
-					? handlersSucceed
+	// Do the main chunk of the test without real waiting
+	await vi.runAllTimersAsync()
+	// @ts-expect-error We need to see the private stuff
+	const snapshot = runner.machineActorRef.getSnapshot()
+	expect(
+		snapshot.matches({
+			ws: revertRequired ? 'rejected' : 'confirmed',
+			'memory model': [
+				IncludedHandlerFunctions.Both,
+				IncludedHandlerFunctions.MemoryModelOnly
+			].includes(testing)
+				? handlersSucceed
+					? revertRequired
+						? 'reverted'
+						: 'completed'
+					: 'failed'
+				: 'not required',
+			db: [
+				IncludedHandlerFunctions.Both,
+				IncludedHandlerFunctions.DbOnly
+			].includes(testing)
+				? status.db.initial === DbResourceStatus.NeverConnecting ||
+					(status.db.initial === DbResourceStatus.Disconnected &&
+						status.db.convertTo === DbResourceStatus.NeverConnecting)
+					? 'not possible'
+					: handlersSucceed
 						? revertRequired
 							? 'reverted'
 							: 'completed'
 						: 'failed'
-					: 'not required',
-				db: [
-					IncludedHandlerFunctions.Both,
-					IncludedHandlerFunctions.DbOnly
-				].includes(testing)
-					? status.db.initial === DbResourceStatus.NeverConnecting ||
-						(status.db.initial === DbResourceStatus.Disconnected &&
-							status.db.convertTo === DbResourceStatus.NeverConnecting)
-						? 'not possible'
-						: handlersSucceed
-							? revertRequired
-								? 'reverted'
-								: 'completed'
-							: 'failed'
-					: 'not required'
-			})
-		},
-		{
-			timeout: 1600,
-			interval: 10
-		}
-	)
+				: 'not required'
+		})
+	).toBeTruthy()
 	return await new Promise<void>((resolve, reject) =>
 		queueMicrotask(() => {
 			try {
