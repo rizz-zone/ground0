@@ -21,6 +21,7 @@ import {
 import { object, literal, type z } from 'zod'
 import {
 	createTransitionSchema,
+	defs,
 	NoPortsError,
 	TransitionImpact,
 	type Transition
@@ -65,19 +66,7 @@ const minimumInput: LocalEngineDefinition<
 			current: '1.2.3'
 		},
 		db: {
-			migrations: {
-				journal: {
-					entries: [
-						{
-							idx: 0,
-							when: 0,
-							tag: 'something',
-							breakpoints: true
-						}
-					]
-				},
-				migrations: { a: 'b' }
-			}
+			migrations: defs.db.migrations
 		}
 	},
 	localHandlers: {
