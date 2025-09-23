@@ -5,7 +5,7 @@ import { sizeInfo } from './raw_stage/size_info'
 import { setDbHardSizeLimit } from './raw_stage/set_size_limit'
 import { drizzlify } from './drizzle_stage/drizzlify'
 import { migrate } from './drizzle_stage/migrate'
-import type { Migrations } from '@/types/Migrations'
+import type { GeneratedMigrationSchema } from '@ground0/shared'
 import { getRawSqliteDb } from './raw_stage'
 
 export async function connectDb({
@@ -17,7 +17,7 @@ export async function connectDb({
 	syncResources: (modifications: Partial<ResourceBundle>) => void
 	pullWasmBinary: () => Promise<ArrayBuffer>
 	dbName: string
-	migrations: Migrations
+	migrations: GeneratedMigrationSchema
 }) {
 	try {
 		const { sqlite3, db } = await getRawSqliteDb({ dbName, pullWasmBinary })
@@ -55,6 +55,10 @@ export async function connectDb({
 		})
 	} catch (e) {
 		syncResources({ db: { status: DbResourceStatus.NeverConnecting } })
-		throw e
+		brandedLog(
+			console.error,
+			'An error occurred while trying to set the local db up:',
+			e
+		)
 	}
 }
