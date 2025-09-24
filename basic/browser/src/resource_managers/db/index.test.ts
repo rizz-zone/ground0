@@ -16,6 +16,8 @@ const setDbHardSizeLimit = vi
 	.mockImplementation(() => setDbHardSizeLimitImpl())
 vi.doMock('./raw_stage/set_size_limit.ts', () => ({ setDbHardSizeLimit }))
 
+const consoleDebug = vi.spyOn(console, 'debug').mockImplementation(() => {})
+
 const { connectDb } = await import('./index')
 
 const minimumInput: Parameters<typeof connectDb>[0] = {
@@ -30,7 +32,7 @@ const db = {}
 
 beforeEach(() => {
 	vi.clearAllMocks()
-	getRawSqliteDbImpl = async () => () => ({
+	getRawSqliteDbImpl = async () => ({
 		sqlite3,
 		db
 	})
@@ -44,7 +46,7 @@ beforeEach(() => {
 describe('getRawSqliteDb step', () => {
 	test('requests download and decode using provided dbName and pullWasmBinary', () => {
 		getRawSqliteDbImpl = async () => () => {}
-		connectDb(minimumInput)
+		connectDb(minimumInput).catch(() => {})
 		expect(getRawSqliteDb).toHaveBeenCalledExactlyOnceWith({
 			dbName: minimumInput.dbName,
 			pullWasmBinary: minimumInput.pullWasmBinary
@@ -70,8 +72,10 @@ describe('sizeInfo step', () => {
 		connectDb(minimumInput)
 		await vi.waitFor(() => sizeInfo.mock.lastCall, {
 			timeout: 500,
-			interval: 5
+			interval: 2
 		})
 		expect(sizeInfo).toHaveBeenCalled()
+		console.log(sizeInfo.mock.lastCall)
+		expect(sizeInfo).toHaveBeenCalledExactlyOnceWith(sqlite3, db)
 	})
 })
