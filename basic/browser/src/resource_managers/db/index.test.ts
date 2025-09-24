@@ -18,17 +18,22 @@ const minimumInput: Parameters<typeof connectDb>[0] = {
 	migrations: defs.db.migrations
 }
 
-beforeEach(() => {
-	getRawSqliteDb.mockImplementation(async () => {})
-	vi.clearAllMocks()
-})
-
 const sqlite3 = {}
 const db = {}
 
+beforeEach(() => {
+	getRawSqliteDb.mockImplementation(async () => () => ({ sqlite3, db }))
+	sizeInfo.mockImplementation(async () => ({
+		pageSizeBytes: 1,
+		dbSizeBytes: 2,
+		quotaBytes: 3
+	}))
+	vi.clearAllMocks()
+})
+
 describe('getRawSqliteDb step', () => {
 	test('requests download and decode using provided dbName and pullWasmBinary', () => {
-		getRawSqliteDb.mockImplementation(() => new Promise(() => {}))
+		getRawSqliteDb.mockImplementation(async () => () => {})
 		connectDb(minimumInput)
 		expect(getRawSqliteDb).toHaveBeenCalledExactlyOnceWith({
 			dbName: minimumInput.dbName,
@@ -50,15 +55,19 @@ describe('getRawSqliteDb step', () => {
 	})
 })
 describe('sizeInfo step', () => {
-	test('requests size using sqlite3 and db', () => {
-		// TODO: return sqlite3 and db, do the test properly
-		getRawSqliteDb.mockImplementation(() => new Promise(() => {}))
+	test('requests size using sqlite3 and db', async () => {
+		sizeInfo.mockImplementation(() => new Promise(() => {}))
 		connectDb(minimumInput)
-		expect(getRawSqliteDb).toHaveBeenCalledExactlyOnceWith({
-			dbName: minimumInput.dbName,
-			pullWasmBinary: minimumInput.pullWasmBinary
-		})
-		// It's the job of getRawSqliteDb to call
-		expect(minimumInput.pullWasmBinary).not.toHaveBeenCalled()
+		await vi.waitUntil(
+			() => {
+				try {
+					expect(sizeInfo).toHaveBeenCalledWith({ sqlite3, db })
+					return true
+				} catch {
+					return false
+				}
+			},
+			{ timeout: 300, interval: 5 }
+		)
 	})
 })
