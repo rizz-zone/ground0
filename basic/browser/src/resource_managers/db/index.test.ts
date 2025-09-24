@@ -1,4 +1,6 @@
 import { ResourceInitError } from '@/errors'
+import { DbResourceStatus } from '@/types/status/DbResourceStatus'
+import type { ResourceBundle } from '@/types/status/ResourceBundle'
 import { defs } from '@ground0/shared'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
@@ -32,10 +34,15 @@ describe('getRawSqliteDb step', () => {
 		// It's the job of getRawSqliteDb to call
 		expect(minimumInput.pullWasmBinary).not.toHaveBeenCalled()
 	})
-	test('throws a ResourceInitError on fail', async () => {
+	test('throws a ResourceInitError and marks as never connecting on fail', async () => {
 		getRawSqliteDb.mockImplementation(async () => {
 			throw new Error()
 		})
 		await expect(connectDb(minimumInput)).rejects.toThrow(ResourceInitError)
+		expect(minimumInput.syncResources).toHaveBeenCalledExactlyOnceWith({
+			db: {
+				status: DbResourceStatus.NeverConnecting
+			}
+		} as Partial<ResourceBundle>)
 	})
 })
