@@ -5,9 +5,9 @@ import { defs } from '@ground0/shared'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
 const getRawSqliteDb = vi.fn()
-vi.doMock('./raw_stage', () => ({
-	getRawSqliteDb
-}))
+vi.doMock('./raw_stage', () => ({ getRawSqliteDb }))
+const sizeInfo = vi.fn()
+vi.doMock('./raw_stage/size_info', () => ({ sizeInfo }))
 
 const { connectDb } = await import('./index')
 
@@ -22,6 +22,9 @@ beforeEach(() => {
 	getRawSqliteDb.mockImplementation(async () => {})
 	vi.clearAllMocks()
 })
+
+const sqlite3 = {}
+const db = {}
 
 describe('getRawSqliteDb step', () => {
 	test('requests download and decode using provided dbName and pullWasmBinary', () => {
@@ -44,5 +47,18 @@ describe('getRawSqliteDb step', () => {
 				status: DbResourceStatus.NeverConnecting
 			}
 		} as Partial<ResourceBundle>)
+	})
+})
+describe('sizeInfo step', () => {
+	test('requests size using sqlite3 and db', () => {
+		// TODO: return sqlite3 and db, do the test properly
+		getRawSqliteDb.mockImplementation(() => new Promise(() => {}))
+		connectDb(minimumInput)
+		expect(getRawSqliteDb).toHaveBeenCalledExactlyOnceWith({
+			dbName: minimumInput.dbName,
+			pullWasmBinary: minimumInput.pullWasmBinary
+		})
+		// It's the job of getRawSqliteDb to call
+		expect(minimumInput.pullWasmBinary).not.toHaveBeenCalled()
 	})
 })
