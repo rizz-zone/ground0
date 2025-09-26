@@ -78,4 +78,15 @@ describe('sizeInfo step', () => {
 		console.log(sizeInfo.mock.lastCall)
 		expect(sizeInfo).toHaveBeenCalledExactlyOnceWith(sqlite3, db)
 	})
+	test('throws a ResourceInitError and marks as never connecting on fail', async () => {
+		sizeInfoImpl = async () => {
+			throw new Error()
+		}
+		await expect(connectDb(minimumInput)).rejects.toThrow(ResourceInitError)
+		expect(minimumInput.syncResources).toHaveBeenCalledExactlyOnceWith({
+			db: {
+				status: DbResourceStatus.NeverConnecting
+			}
+		} as Partial<ResourceBundle>)
+	})
 })
