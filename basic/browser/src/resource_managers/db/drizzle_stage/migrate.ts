@@ -1,11 +1,11 @@
-import type { Migrations } from '@/types/Migrations'
+import type { GeneratedMigrationSchema } from '@ground0/shared'
 import { sql } from 'drizzle-orm'
 import type { BatchItem } from 'drizzle-orm/batch'
 import type { SqliteRemoteDatabase } from 'drizzle-orm/sqlite-proxy'
 
 export async function migrate(
 	db: SqliteRemoteDatabase<Record<string, unknown>>,
-	localMigrations: Migrations
+	localMigrations: GeneratedMigrationSchema
 ) {
 	// TODO: More specific errors
 
