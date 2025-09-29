@@ -2,6 +2,7 @@ import { ResourceInitError } from '@/errors'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import type { ResourceBundle } from '@/types/status/ResourceBundle'
 import { defs } from '@ground0/shared'
+import type { SqliteRemoteDatabase } from 'drizzle-orm/sqlite-proxy'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
 let getRawSqliteDbImpl: () => unknown
@@ -23,7 +24,7 @@ let migrateImpl: () => unknown
 const migrate = vi.fn().mockImplementation(() => migrateImpl())
 vi.doMock('./drizzle_stage/migrate.ts', () => ({ migrate }))
 
-const drizzle = {}
+const drizzle = {} as SqliteRemoteDatabase<Record<string, unknown>>
 
 // This silences debug messages. They're not an essential part of the
 // implementation, so we won't use this for testing.
@@ -145,7 +146,7 @@ describe('drizzle stage', () => {
 			}
 		})
 		test('gets a drizzle db using sqlite3 and db', async () => {
-			await expect(connectDb(minimumInput)).rejects.toThrow()
+			await connectDb(minimumInput).catch(() => {})
 			expect(drizzlify).toHaveBeenCalledExactlyOnceWith(sqlite3, db)
 		})
 		test('throws a ResourceInitError and marks as never connecting on fail', async () => {
@@ -166,5 +167,24 @@ describe('drizzle stage', () => {
 				minimumInput.migrations
 			)
 		})
+		test('throws a ResourceInitError and marks as never connecting on fail', async () => {
+			migrateImpl = async () => {
+				throw new Error()
+			}
+			await expect(connectDb(minimumInput)).rejects.toThrow(ResourceInitError)
+		})
 	})
+})
+test('syncs resources on full success', async () => {
+	connectDb(minimumInput)
+	await vi.waitUntil(() => migrate.mock.lastCall, {
+		timeout: 500,
+		interval: 1
+	})
+	expect(minimumInput.syncResources).toHaveBeenCalledExactlyOnceWith({
+		db: {
+			status: DbResourceStatus.ConnectedAndMigrated,
+			instance: drizzle
+		}
+	} satisfies Partial<ResourceBundle>)
 })
