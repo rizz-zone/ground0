@@ -135,12 +135,17 @@ describe('raw stage', () => {
 })
 describe('drizzle stage', () => {
 	describe('drizzlify step', () => {
-		test('gets a drizzle db using sqlite3 and db', async () => {
+		beforeEach(() => {
 			drizzlifyImpl = () => {
 				throw new Error()
 			}
+		})
+		test('gets a drizzle db using sqlite3 and db', async () => {
 			await expect(connectDb(minimumInput)).rejects.toThrow()
 			expect(drizzlify).toHaveBeenCalledExactlyOnceWith(sqlite3, db)
+		})
+		test('throws a ResourceInitError and marks as never connecting on fail', async () => {
+			await expect(connectDb(minimumInput)).rejects.toThrow(ResourceInitError)
 		})
 	})
 })
