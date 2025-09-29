@@ -16,6 +16,12 @@ const setDbHardSizeLimit = vi
 	.mockImplementation(() => setDbHardSizeLimitImpl())
 vi.doMock('./raw_stage/set_size_limit.ts', () => ({ setDbHardSizeLimit }))
 
+let drizzlifyImpl: () => unknown
+const drizzlify = vi.fn().mockImplementation(() => drizzlifyImpl())
+vi.doMock('./drizzle_stage/drizzlify.ts', () => ({ drizzlify }))
+
+const drizzle = {}
+
 // This silences debug messages. They're not an essential part of the
 // implementation, so we won't use this for testing.
 vi.spyOn(console, 'debug').mockImplementation(() => {})
@@ -47,6 +53,8 @@ beforeEach(() => {
 		maxBytes: 3,
 		maxPages: 3
 	})
+
+	drizzlifyImpl = () => drizzle
 })
 
 describe('raw stage', () => {
@@ -122,6 +130,17 @@ describe('raw stage', () => {
 					status: DbResourceStatus.NeverConnecting
 				}
 			} as Partial<ResourceBundle>)
+		})
+	})
+})
+describe('drizzle stage', () => {
+	describe('drizzlify step', () => {
+		test('gets a drizzle db using sqlite3 and db', async () => {
+			drizzlifyImpl = () => {
+				throw new Error()
+			}
+			await expect(connectDb(minimumInput)).rejects.toThrow()
+			expect(drizzlify).toHaveBeenCalledExactlyOnceWith(sqlite3, db)
 		})
 	})
 })
