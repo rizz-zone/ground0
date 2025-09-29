@@ -19,6 +19,9 @@ vi.doMock('./raw_stage/set_size_limit.ts', () => ({ setDbHardSizeLimit }))
 let drizzlifyImpl: () => unknown
 const drizzlify = vi.fn().mockImplementation(() => drizzlifyImpl())
 vi.doMock('./drizzle_stage/drizzlify.ts', () => ({ drizzlify }))
+let migrateImpl: () => unknown
+const migrate = vi.fn().mockImplementation(() => migrateImpl())
+vi.doMock('./drizzle_stage/migrate.ts', () => ({ migrate }))
 
 const drizzle = {}
 
@@ -55,6 +58,7 @@ beforeEach(() => {
 	})
 
 	drizzlifyImpl = () => drizzle
+	migrateImpl = async () => {}
 })
 
 describe('raw stage', () => {
@@ -146,6 +150,21 @@ describe('drizzle stage', () => {
 		})
 		test('throws a ResourceInitError and marks as never connecting on fail', async () => {
 			await expect(connectDb(minimumInput)).rejects.toThrow(ResourceInitError)
+		})
+	})
+	describe('migrate step', () => {
+		test('migrates the drizzle db', async () => {
+			migrateImpl = () => new Promise(() => {})
+			connectDb(minimumInput)
+			await vi.waitUntil(() => migrate.mock.lastCall, {
+				timeout: 500,
+				interval: 1
+			})
+			expect(migrate).toHaveBeenCalled()
+			expect(migrate).toHaveBeenCalledExactlyOnceWith(
+				drizzle,
+				minimumInput.migrations
+			)
 		})
 	})
 })
