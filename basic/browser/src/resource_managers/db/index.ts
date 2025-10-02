@@ -8,7 +8,7 @@ import { migrate } from './drizzle_stage/migrate'
 import type { GeneratedMigrationSchema } from '@ground0/shared'
 import { getRawSqliteDb } from './raw_stage'
 import { ResourceInitError } from '@/errors'
-import { DB_DOWNLOAD_ERROR, DB_INIT_ERROR } from '@/errors/messages'
+import { DB_DOWNLOAD, DB_INIT } from '@/errors/messages'
 
 export async function connectDb({
 	syncResources,
@@ -29,7 +29,7 @@ export async function connectDb({
 		;({ sqlite3, db } = await getRawSqliteDb({ dbName, pullWasmBinary }))
 	} catch (e) {
 		signalNeverConnecting()
-		throw new ResourceInitError(DB_DOWNLOAD_ERROR, { cause: e })
+		throw new ResourceInitError(DB_DOWNLOAD, { cause: e })
 	}
 
 	try {
@@ -66,6 +66,6 @@ export async function connectDb({
 		})
 	} catch (e) {
 		signalNeverConnecting()
-		throw new ResourceInitError(DB_INIT_ERROR, { cause: e })
+		throw new ResourceInitError(DB_INIT, { cause: e })
 	}
 }
