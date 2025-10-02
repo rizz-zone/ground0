@@ -31,9 +31,13 @@ const sqlite3 = {
 } as unknown as SQLiteAPI
 const db = 34938098982
 const quotaBytes = 6769876
+const universalSizeOfEverything = 19
 
 beforeEach(() => {
-	execImpl = async () => DbConstants.SQLITE_OK
+	execImpl = (_db, _command, cb) => {
+		if (cb) cb([universalSizeOfEverything], [''])
+		return Promise.resolve(DbConstants.SQLITE_OK)
+	}
 	storageEstimateImpl = async () => ({ quota: quotaBytes })
 	vi.clearAllMocks()
 })
@@ -56,16 +60,23 @@ describe('page size check', () => {
 		expect(callParams[1]).toContain('page_size')
 		expect(callParams[2]).toBeTypeOf('function')
 	})
-	test('throws if unsuccessful', () => {
+	test('throws if unsuccessful', async () => {
 		execImpl = async () => DbConstants.SQLITE_ERROR
-		expect(() => sizeInfo(sqlite3, db)).rejects.toThrow(SizeProbeError)
+		await expect(() => sizeInfo(sqlite3, db)).rejects.toThrow(SizeProbeError)
+	})
+	test('throws if rows[0] is not provided', async () => {
+		execImpl = (_db, command, cb) => {
+			if (!cb) throw new Error()
+			if (command.includes('size')) cb([], [])
+			else cb([3], [''])
+			return Promise.resolve(DbConstants.SQLITE_OK)
+		}
+		await expect(() => sizeInfo(sqlite3, db)).rejects.toThrow(SizeProbeError)
 	})
 })
 describe('page count check', () => {
 	test('does not throw if successful', async () => {
-		// @ts-expect-error We need to be able to pause execution at the page
-		// count step
-		execImpl = (_db, command, cb) => {
+		execImpl = (_db, _command, cb) => {
 			if (!cb) throw new Error()
 			cb([3], [''])
 			return Promise.resolve(DbConstants.SQLITE_OK)
@@ -81,7 +92,7 @@ describe('page count check', () => {
 		expect(callParams[1]).toContain('page_count')
 		expect(callParams[2]).toBeTypeOf('function')
 	})
-	test('throws if unsuccessful', () => {
+	test('throws if unsuccessful', async () => {
 		execImpl = (_db, command, cb) => {
 			if (command.includes('count'))
 				return Promise.resolve(DbConstants.SQLITE_ERROR)
@@ -89,6 +100,33 @@ describe('page count check', () => {
 			cb([3], [''])
 			return Promise.resolve(DbConstants.SQLITE_OK)
 		}
-		expect(() => sizeInfo(sqlite3, db)).rejects.toThrow(SizeProbeError)
+		await expect(() => sizeInfo(sqlite3, db)).rejects.toThrow(SizeProbeError)
 	})
+	test('throws if rows[0] is not provided', async () => {
+		execImpl = (_db, command, cb) => {
+			if (!cb) throw new Error()
+			if (command.includes('count')) cb([], [])
+			else cb([3], [''])
+			return Promise.resolve(DbConstants.SQLITE_OK)
+		}
+		await expect(() => sizeInfo(sqlite3, db)).rejects.toThrow(SizeProbeError)
+	})
+})
+describe('quota check', () => {
+	test('does not throw if successful', async () => {
+		storageEstimateImpl = () => Promise.resolve({ quota: 2949 })
+		await expect(sizeInfo(sqlite3, db)).resolves.toBeTypeOf('object')
+	})
+	test('throws if unsuccessful', async () => {
+		storageEstimateImpl = () => Promise.resolve({})
+		await expect(() => sizeInfo(sqlite3, db)).rejects.toThrow(SizeProbeError)
+	})
+})
+test('returns correct object if 100% successful', async () => {
+	await expect(sizeInfo(sqlite3, db)).resolves.toStrictEqual({
+		pageSizeBytes: universalSizeOfEverything,
+		pageCount: universalSizeOfEverything,
+		dbSizeBytes: universalSizeOfEverything ** 2, // pageSizeBytes * pageCount
+		quotaBytes
+	} satisfies Awaited<ReturnType<typeof sizeInfo>>)
 })
