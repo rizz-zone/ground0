@@ -1,5 +1,17 @@
 // TODO: The whole file
 
-import { test } from 'vitest'
+import { beforeEach, describe, test, vi } from 'vitest'
+import { SQLITE_OK } from 'wa-sqlite'
 
-test('todo', () => {})
+let execImpl: () => unknown
+const sqlite3 = { exec: vi.fn() } as unknown as SQLiteAPI
+
+beforeEach(() => {
+	execImpl = () => SQLITE_OK
+})
+
+describe('page size check', () => {
+	test('does not throw if successful', () => {
+		execImpl = (_db, command, cb) => {}
+	})
+})
