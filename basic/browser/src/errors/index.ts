@@ -22,3 +22,11 @@ export class DbQueryBatchingError extends Error {
 		Object.setPrototypeOf(this, DbQueryBatchingError.prototype)
 	}
 }
+export class DbQueryError extends Error {
+	constructor(...input: ConstructorParameters<typeof Error>) {
+		super(...input)
+		this.name = 'DbQueryError'
+
+		Object.setPrototypeOf(this, DbQueryError.prototype)
+	}
+}
