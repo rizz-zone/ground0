@@ -14,3 +14,11 @@ export class SizeProbeError extends Error {
 		Object.setPrototypeOf(this, SizeProbeError.prototype)
 	}
 }
+export class DbQueryBatchingError extends Error {
+	constructor(...input: ConstructorParameters<typeof Error>) {
+		super(...input)
+		this.name = 'DbQueryBatchingError'
+
+		Object.setPrototypeOf(this, DbQueryBatchingError.prototype)
+	}
+}
