@@ -11,9 +11,11 @@ const SQLiteESMFactory = vi
 	)
 vi.doMock('wa-sqlite/dist/wa-sqlite.mjs', () => ({ default: SQLiteESMFactory }))
 let instantiateImpl: typeof WebAssembly.instantiate
-vi.spyOn(WebAssembly, 'instantiate').mockImplementation(
-	(...params: Parameters<typeof instantiateImpl>) => instantiateImpl(...params)
-)
+const instantiate = vi
+	.spyOn(WebAssembly, 'instantiate')
+	.mockImplementation((...params: Parameters<typeof instantiateImpl>) =>
+		instantiateImpl(...params)
+	)
 
 let pullWasmBinaryImpl: Parameters<typeof createModule>[0]
 const pullWasmBinary = vi
@@ -25,9 +27,13 @@ const pullWasmBinary = vi
 const { createModule } = await import('./create_module')
 
 const instance = 3495
+let wasm: ArrayBuffer
 
 beforeEach(() => {
-	SQLiteESMFactoryImpl = pullWasmBinaryImpl = async () => new ArrayBuffer()
+	SQLiteESMFactoryImpl = pullWasmBinaryImpl = async () => {
+		wasm = new ArrayBuffer()
+		return wasm
+	}
 	instantiateImpl = async () =>
 		({ instance }) as unknown as WebAssembly.Instance &
 			WebAssembly.WebAssemblyInstantiatedSource
@@ -84,14 +90,51 @@ describe('pullWasmBinary promise callback', ({ skip }) => {
 			;({ instantiateWasm } = call[0])
 		})
 		test('returns empty object', () => {
-			// @ts-expect-error we don't use this anyway and it can hang
-			instantiateImpl = () => new Promise(() => {})
+			instantiateImpl = () =>
+				new Promise(() => {}) as unknown as Promise<WebAssembly.Instance> &
+					Promise<WebAssembly.WebAssemblyInstantiatedSource>
 			expect(
 				instantiateWasm(
 					{ a: 'b' } as unknown as WebAssembly.Imports,
 					successCallback
 				)
 			).toStrictEqual({})
+		})
+		test('calls WebAssembly.instantiate to create an instance correctly', () => {
+			const then = vi.fn()
+			instantiateImpl = () =>
+				({ then }) as unknown as Promise<WebAssembly.Instance> &
+					Promise<WebAssembly.WebAssemblyInstantiatedSource>
+			instantiateWasm(
+				{ a: 'b' } as unknown as WebAssembly.Imports,
+				successCallback
+			)
+			expect(instantiate).toHaveBeenCalledOnce()
+			const instantiateCall = instantiate.mock.lastCall
+			if (!instantiateCall) throw new Error()
+			expect(instantiateCall[0]).toStrictEqual(wasm)
+			expect(instantiateCall[1]).toStrictEqual({ a: 'b' })
+			expect(then).toHaveBeenCalledOnce()
+			const thenCall = then.mock.lastCall
+			if (!thenCall) throw new Error()
+			expect(thenCall[0]).toBeTypeOf('function')
+		})
+		test('.then callback calls successCallback', ({ skip }) => {
+			const then = vi.fn()
+			instantiateImpl = () =>
+				({ then }) as unknown as Promise<WebAssembly.Instance> &
+					Promise<WebAssembly.WebAssemblyInstantiatedSource>
+			instantiateWasm(
+				{ a: 'b' } as unknown as WebAssembly.Imports,
+				successCallback
+			)
+
+			const thenCall = then.mock.lastCall
+			if (!thenCall) return skip()
+			expect(successCallback).not.toHaveBeenCalled()
+			const instance = {} as WebAssembly.Instance
+			thenCall[0]({ instance })
+			expect(successCallback).toHaveBeenCalledExactlyOnceWith(instance)
 		})
 	})
 })
