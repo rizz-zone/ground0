@@ -1,5 +1,5 @@
 /**
- * Log with a **`[ground0] `** prefix to ensure the source is clear.
+ * Log with a **`[ground0]`** prefix to ensure the source is clear.
  * @param functionToUse The logging function to use, like `console.debug` or `console.warn`.
  * @param args The arguments you would pass to that function.
  */
