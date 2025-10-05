@@ -8,8 +8,11 @@ export function drizzlify(sqlite3: SQLiteAPI, db: number) {
 	// (since we can't use WAL mode, and all this is async after all)
 
 	return drizzle(
-		(sql, params, method) =>
-			baseDrizzleQuery({ sqlite3, db, sql, params, method }),
+		async (sql, params, method) => {
+			return await navigator.locks.request(`dbop_${db}`, () =>
+				baseDrizzleQuery({ sqlite3, db, sql, params, method })
+			)
+		},
 		async (queries) => {
 			if (
 				(await sqlite3.exec(db, `BEGIN TRANSACTION;`, () => {})) !==
