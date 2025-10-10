@@ -1,4 +1,6 @@
 import { brandedLog } from '@/common/branded_log'
+import { LocalQueryExecutionError } from '@/errors'
+import { badRowResult, overallQueryFailure } from '@/errors/messages'
 import * as DbConstants from 'wa-sqlite/src/sqlite-constants.js'
 
 export async function baseDrizzleQuery({
@@ -14,11 +16,10 @@ export async function baseDrizzleQuery({
 	params: unknown[]
 	method: 'all' | 'run' | 'get' | 'values'
 }): Promise<{ rows: unknown[] | unknown[][] }> {
-	// TODO: More specific errors
 	brandedLog(console.debug, 'Executing with params:', sql, params, method)
 
 	const rows: unknown[][] = []
-	let error: Error | null = null
+	const errors: unknown[] = []
 
 	try {
 		for await (const stmt of sqlite3.statements(db, sql)) {
@@ -32,8 +33,10 @@ export async function baseDrizzleQuery({
 				rowResult = await sqlite3.step(stmt)
 			) {
 				if (rowResult !== DbConstants.SQLITE_ROW) {
-					error = new Error(
-						`Expected ${DbConstants.SQLITE_ROW} response (at step), got ${rowResult}`
+					errors.push(
+						new LocalQueryExecutionError(
+							badRowResult(DbConstants.SQLITE_ROW, rowResult)
+						)
 					)
 					break // Don't throw, just break
 				}
@@ -43,24 +46,17 @@ export async function baseDrizzleQuery({
 				if (method === 'get') break
 			}
 
-			if (error) break // Exit after cleanup
+			if (errors.length > 0) break // Exit after cleanup
 		}
 	} catch (e) {
-		error = e as Error
+		errors.push(e)
 	}
 
 	// Now throw after SQLite is done
-	if (error) {
-		brandedLog(
-			console.error,
-			'query failed:',
-			error,
-			'sql:',
-			sql,
-			'params:',
-			params
-		)
-		throw error
+	if (errors.length > 0) {
+		throw new LocalQueryExecutionError(overallQueryFailure(sql, params), {
+			cause: errors.length === 1 ? errors[0] : errors
+		})
 	}
 
 	const result =

@@ -30,3 +30,11 @@ export class DbQueryError extends Error {
 		Object.setPrototypeOf(this, DbQueryError.prototype)
 	}
 }
+export class LocalQueryExecutionError extends Error {
+	constructor(...input: ConstructorParameters<typeof Error>) {
+		super(...input)
+		this.name = 'LocalQueryExecutionError'
+
+		Object.setPrototypeOf(this, LocalQueryExecutionError.prototype)
+	}
+}
