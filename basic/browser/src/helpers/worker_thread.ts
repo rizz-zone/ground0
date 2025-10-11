@@ -159,7 +159,6 @@ export class WorkerLocalFirst<
 				.filter((k) => typeof k === 'number')
 				.includes(transition.impact)
 		) {
-			// TODO: Use a better message
 			brandedLog(
 				console.warn,
 				'Invalid transition impact used:',
