@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { defs, type TestingTransition } from '@ground0/shared'
+import { WsResourceStatus } from '@/types/status/WsResourceStatus'
 
 type OriginalConnectDb = (typeof import('@/resource_managers/db'))['connectDb']
 let connectDbImpl = (() => new Promise(() => {})) as OriginalConnectDb
@@ -66,24 +67,69 @@ const baseInput: ConstructorParameters<
 }
 
 describe('always', () => {
-	it('sets engineDef', () => {
-		const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
-		// @ts-expect-error We need to access private members
-		expect(workerLocalFirst.engineDef).toBe(baseInput.engineDef)
+	describe('constructor', () => {
+		it('sets engineDef', () => {
+			const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+			// @ts-expect-error We need to access private members
+			expect(workerLocalFirst.engineDef).toBe(baseInput.engineDef)
+		})
+		it('sets localHandlers', () => {
+			const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+			// @ts-expect-error We need to access private members
+			expect(workerLocalFirst.localHandlers).toBe(baseInput.localHandlers)
+		})
+		it('sets memoryModel using output of createMemoryModel', () => {
+			const output = {}
+			createMemoryModelImpl = () =>
+				output as ReturnType<typeof createMemoryModel>
+			const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+			expect(createMemoryModel).toHaveBeenCalledExactlyOnceWith(
+				baseInput.initialMemoryModel,
+				baseInput.announceTransformation
+			)
+			expect(workerLocalFirst.memoryModel).toBe(output)
+		})
+		it('sets resourceBundle.ws.status to Disconnected', () => {
+			const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+			// @ts-expect-error We need to access private members
+			expect(workerLocalFirst.resourceBundle.ws.status).toBe(
+				WsResourceStatus.Disconnected
+			)
+		})
+		it('calls connectWs', () => {
+			new WorkerLocalFirst({ ...baseInput })
+			expect(connectWs).toHaveBeenCalledOnce()
+
+			if (!connectWs.mock.lastCall || connectWs.mock.lastCall.length === 0)
+				throw new Error()
+			const call = connectWs.mock
+				.lastCall[0] as Parameters<OriginalConnectWs>[0]
+
+			expect(call.wsUrl).toBe(baseInput.wsUrl)
+			expect(call.currentVersion).toBe(baseInput.engineDef.version.current)
+			expect(call.handleMessage).toBeTypeOf('function')
+			expect(call.syncResources).toBeTypeOf('function')
+		})
 	})
-	it('sets localHandlers', () => {
-		const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
-		// @ts-expect-error We need to access private members
-		expect(workerLocalFirst.localHandlers).toBe(baseInput.localHandlers)
-	})
-	it('sets memoryModel using output of createMemoryModel', () => {
-		const output = {}
-		createMemoryModelImpl = () => output as ReturnType<typeof createMemoryModel>
-		const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
-		expect(createMemoryModel).toHaveBeenCalledExactlyOnceWith(
-			baseInput.initialMemoryModel,
-			baseInput.announceTransformation
-		)
-		expect(workerLocalFirst.memoryModel).toBe(output)
+	describe('syncResources', () => {
+		it('does nothing no resource changes have been provided', () => {
+			const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+			// @ts-expect-error We need to access private members
+			const originalDbResource = workerLocalFirst.resourceBundle.db
+			// @ts-expect-error We need to access private members
+			const originalWsResource = workerLocalFirst.resourceBundle.ws
+			const values = vi.fn().mockImplementation(() => [])
+			// @ts-expect-error We need to access private members
+			workerLocalFirst.transitionRunners.values = values
+
+			// @ts-expect-error We need to access private members
+			workerLocalFirst.syncResources({})
+
+			// @ts-expect-error We need to access private members
+			expect(workerLocalFirst.resourceBundle.db).toBe(originalDbResource)
+			// @ts-expect-error We need to access private members
+			expect(workerLocalFirst.resourceBundle.ws).toBe(originalWsResource)
+			expect(values).not.toHaveBeenCalled()
+		})
 	})
 })
