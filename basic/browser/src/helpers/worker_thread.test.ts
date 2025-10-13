@@ -56,4 +56,9 @@ describe('always', () => {
 		// @ts-expect-error We need to access private members
 		expect(workerLocalFirst.engineDef).toBe(baseInput.engineDef)
 	})
+	it('sets localHandlers', () => {
+		const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+		// @ts-expect-error We need to access private members
+		expect(workerLocalFirst.localHandlers).toBe(baseInput.localHandlers)
+	})
 })
