@@ -19,6 +19,19 @@ const connectWs = vi
 	)
 vi.doMock('@/resource_managers/ws', () => ({ connectWs }))
 
+type OriginalCreateMemoryModel =
+	(typeof import('./memory_model'))['createMemoryModel']
+let createMemoryModelImpl = (() =>
+	({}) as unknown as ReturnType<
+		typeof createMemoryModel
+	>) as OriginalCreateMemoryModel
+const createMemoryModel = vi
+	.fn()
+	.mockImplementation((...params: Parameters<OriginalCreateMemoryModel>) =>
+		createMemoryModelImpl(...params)
+	)
+vi.doMock('@/helpers/memory_model', () => ({ createMemoryModel }))
+
 const announceTransformation = vi.fn()
 const pullWasmBinary = vi.fn()
 
@@ -26,6 +39,8 @@ beforeEach(vi.clearAllMocks)
 afterEach(() => {
 	connectDbImpl = () => new Promise(() => {})
 	connectWsImpl = () => new Promise(() => {})
+	createMemoryModelImpl = () =>
+		({}) as unknown as ReturnType<typeof createMemoryModel>
 })
 
 const WorkerLocalFirst = (await import('./worker_thread')).WorkerLocalFirst
@@ -60,5 +75,15 @@ describe('always', () => {
 		const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
 		// @ts-expect-error We need to access private members
 		expect(workerLocalFirst.localHandlers).toBe(baseInput.localHandlers)
+	})
+	it('sets memoryModel using output of createMemoryModel', () => {
+		const output = {}
+		createMemoryModelImpl = () => output as ReturnType<typeof createMemoryModel>
+		const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+		expect(createMemoryModel).toHaveBeenCalledExactlyOnceWith(
+			baseInput.initialMemoryModel,
+			baseInput.announceTransformation
+		)
+		expect(workerLocalFirst.memoryModel).toBe(output)
 	})
 })
