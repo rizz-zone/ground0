@@ -97,6 +97,9 @@ export class WorkerLocalFirst<
 	private async handleMessage(
 		message: MessageEvent<string | Blob | ArrayBuffer>
 	) {
+		// The ws resource manager handles pings. We only need to respond to
+		// messages that need an action.
+
 		let decoded: DownstreamWsMessage | undefined
 
 		// Assign decoded, use wildcard if we didn't get a SuperJSON objet with
