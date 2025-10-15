@@ -1,11 +1,11 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, test } from 'vitest'
 import { defs, type TestingTransition } from '@ground0/shared'
 import { WsResourceStatus } from '@/types/status/WsResourceStatus'
 import type { ResourceBundle } from '@/types/status/ResourceBundle'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 
 type OriginalConnectDb = (typeof import('@/resource_managers/db'))['connectDb']
-let connectDbImpl = (() => new Promise(() => {})) as OriginalConnectDb
+let connectDbImpl: OriginalConnectDb
 const connectDb = vi
 	.fn()
 	.mockImplementation((...params: Parameters<OriginalConnectDb>) =>
@@ -14,7 +14,7 @@ const connectDb = vi
 vi.doMock('@/resource_managers/db', () => ({ connectDb }))
 
 type OriginalConnectWs = (typeof import('@/resource_managers/ws'))['connectWs']
-let connectWsImpl = (() => new Promise(() => {})) as OriginalConnectWs
+let connectWsImpl: OriginalConnectWs
 const connectWs = vi
 	.fn()
 	.mockImplementation((...params: Parameters<OriginalConnectWs>) =>
@@ -24,10 +24,7 @@ vi.doMock('@/resource_managers/ws', () => ({ connectWs }))
 
 type OriginalCreateMemoryModel =
 	(typeof import('./memory_model'))['createMemoryModel']
-let createMemoryModelImpl = (() =>
-	({}) as unknown as ReturnType<
-		typeof createMemoryModel
-	>) as OriginalCreateMemoryModel
+let createMemoryModelImpl: OriginalCreateMemoryModel
 const createMemoryModel = vi
 	.fn()
 	.mockImplementation((...params: Parameters<OriginalCreateMemoryModel>) =>
@@ -35,15 +32,26 @@ const createMemoryModel = vi
 	)
 vi.doMock('@/helpers/memory_model', () => ({ createMemoryModel }))
 
+type OriginalBrandedLog = (typeof import('@/common/branded_log'))['brandedLog']
+let brandedLogImpl: OriginalBrandedLog
+const brandedLog = vi
+	.fn()
+	.mockImplementation((...params: Parameters<OriginalBrandedLog>) =>
+		brandedLogImpl(...params)
+	)
+vi.doMock('@/common/branded_log', () => ({ brandedLog }))
+
 const announceTransformation = vi.fn()
 const pullWasmBinary = vi.fn()
 
-beforeEach(vi.clearAllMocks)
-afterEach(() => {
+beforeEach(() => {
+	vi.clearAllMocks()
+
 	connectDbImpl = () => new Promise(() => {})
 	connectWsImpl = () => new Promise(() => {})
 	createMemoryModelImpl = () =>
 		({}) as unknown as ReturnType<typeof createMemoryModel>
+	brandedLogImpl = () => {}
 })
 
 const WorkerLocalFirst = (await import('./worker_thread')).WorkerLocalFirst
@@ -133,74 +141,167 @@ describe('always', () => {
 			expect(workerLocalFirst.resourceBundle.ws).toBe(originalWsResource)
 			expect(values).not.toHaveBeenCalled()
 		})
-		it('updates the resourceBundle and cycles through transition runners once on db change', () => {
-			const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
-			// @ts-expect-error We need to access private members
-			const originalWsResource = workerLocalFirst.resourceBundle.ws
-			const values = vi.fn().mockImplementation(() => [])
-			// @ts-expect-error We need to access private members
-			workerLocalFirst.transitionRunners.values = values
+		describe('updates the resourceBundle correctly and cycles through transition runners once', () => {
+			it('on db change', () => {
+				const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+				// @ts-expect-error We need to access private members
+				const originalWsResource = workerLocalFirst.resourceBundle.ws
+				const values = vi.fn().mockImplementation(() => [])
+				// @ts-expect-error We need to access private members
+				workerLocalFirst.transitionRunners.values = values
 
-			const newDbResource = {
-				status: DbResourceStatus.ConnectedAndMigrated,
-				instance: {}
-			} as ResourceBundle['db']
+				const newDbResource = {
+					status: DbResourceStatus.ConnectedAndMigrated,
+					instance: {}
+				} as ResourceBundle['db']
 
-			// @ts-expect-error We need to access private members
-			workerLocalFirst.syncResources({ db: newDbResource })
+				// @ts-expect-error We need to access private members
+				workerLocalFirst.syncResources({ db: newDbResource })
 
-			// @ts-expect-error We need to access private members
-			expect(workerLocalFirst.resourceBundle.db).toBe(newDbResource)
-			// @ts-expect-error We need to access private members
-			expect(workerLocalFirst.resourceBundle.ws).toBe(originalWsResource)
-			expect(values).toHaveBeenCalledOnce()
+				// @ts-expect-error We need to access private members
+				expect(workerLocalFirst.resourceBundle.db).toBe(newDbResource)
+				// @ts-expect-error We need to access private members
+				expect(workerLocalFirst.resourceBundle.ws).toBe(originalWsResource)
+				expect(values).toHaveBeenCalledOnce()
+			})
+			it('on ws change', () => {
+				const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+				// @ts-expect-error We need to access private members
+				const originalDbResource = workerLocalFirst.resourceBundle.db
+				const values = vi.fn().mockImplementation(() => [])
+				// @ts-expect-error We need to access private members
+				workerLocalFirst.transitionRunners.values = values
+
+				const newWsResource = {
+					status: WsResourceStatus.Connected,
+					instance: {}
+				} as ResourceBundle['ws']
+
+				// @ts-expect-error We need to access private members
+				workerLocalFirst.syncResources({ ws: newWsResource })
+
+				// @ts-expect-error We need to access private members
+				expect(workerLocalFirst.resourceBundle.db).toBe(originalDbResource)
+				// @ts-expect-error We need to access private members
+				expect(workerLocalFirst.resourceBundle.ws).toBe(newWsResource)
+				expect(values).toHaveBeenCalledOnce()
+			})
+			it('when both db and ws change', () => {
+				const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+				const values = vi.fn().mockImplementation(() => [])
+				// @ts-expect-error We need to access private members
+				workerLocalFirst.transitionRunners.values = values
+
+				const newDbResource = {
+					status: DbResourceStatus.ConnectedAndMigrated,
+					instance: {}
+				} as ResourceBundle['db']
+
+				const newWsResource = {
+					status: WsResourceStatus.Connected,
+					instance: {}
+				} as ResourceBundle['ws']
+
+				// @ts-expect-error We need to access private members
+				workerLocalFirst.syncResources({ db: newDbResource, ws: newWsResource })
+
+				// @ts-expect-error We need to access private members
+				expect(workerLocalFirst.resourceBundle.db).toBe(newDbResource)
+				// @ts-expect-error We need to access private members
+				expect(workerLocalFirst.resourceBundle.ws).toBe(newWsResource)
+				expect(values).toHaveBeenCalledOnce()
+			})
 		})
-		it('updates the resourceBundle and cycles through transition runners once on db change', () => {
-			const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
-			// @ts-expect-error We need to access private members
-			const originalDbResource = workerLocalFirst.resourceBundle.db
-			const values = vi.fn().mockImplementation(() => [])
-			// @ts-expect-error We need to access private members
-			workerLocalFirst.transitionRunners.values = values
+	})
+	describe('handleMessage', () => {
+		describe('warns and otherwise does nothing on invalid input', () => {
+			test('ArrayBuffer', () => {
+				const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+				expect(brandedLog).not.toHaveBeenCalled()
 
-			const newWsResource = {
-				status: WsResourceStatus.Connected,
-				instance: {}
-			} as ResourceBundle['ws']
+				const arrayBuffer = new ArrayBuffer()
 
-			// @ts-expect-error We need to access private members
-			workerLocalFirst.syncResources({ ws: newWsResource })
+				// @ts-expect-error We need to access private members
+				workerLocalFirst.handleMessage(
+					new MessageEvent('message', { data: arrayBuffer })
+				)
 
-			// @ts-expect-error We need to access private members
-			expect(workerLocalFirst.resourceBundle.db).toBe(originalDbResource)
-			// @ts-expect-error We need to access private members
-			expect(workerLocalFirst.resourceBundle.ws).toBe(newWsResource)
-			expect(values).toHaveBeenCalledOnce()
-		})
-		it('updates the resourceBundle and cycles through transition runners once when both db and ws change', () => {
-			const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
-			const values = vi.fn().mockImplementation(() => [])
-			// @ts-expect-error We need to access private members
-			workerLocalFirst.transitionRunners.values = values
+				expect(brandedLog).toHaveBeenCalledOnce()
+				const call = brandedLog.mock.lastCall
+				if (!call) throw new Error()
+				expect(call[0]).toBe(console.warn)
+				expect(call[2]).toBe(arrayBuffer)
+			})
+			test('Blob', () => {
+				const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+				expect(brandedLog).not.toHaveBeenCalled()
 
-			const newDbResource = {
-				status: DbResourceStatus.ConnectedAndMigrated,
-				instance: {}
-			} as ResourceBundle['db']
+				const blob = new Blob()
 
-			const newWsResource = {
-				status: WsResourceStatus.Connected,
-				instance: {}
-			} as ResourceBundle['ws']
+				// @ts-expect-error We need to access private members
+				workerLocalFirst.handleMessage(
+					new MessageEvent('message', { data: blob })
+				)
 
-			// @ts-expect-error We need to access private members
-			workerLocalFirst.syncResources({ db: newDbResource, ws: newWsResource })
+				expect(brandedLog).toHaveBeenCalledOnce()
+				const call = brandedLog.mock.lastCall
+				if (!call) throw new Error()
+				expect(call[0]).toBe(console.warn)
+				expect(call[2]).toBe(blob)
+			})
+			test('empty string', () => {
+				const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+				expect(brandedLog).not.toHaveBeenCalled()
 
-			// @ts-expect-error We need to access private members
-			expect(workerLocalFirst.resourceBundle.db).toBe(newDbResource)
-			// @ts-expect-error We need to access private members
-			expect(workerLocalFirst.resourceBundle.ws).toBe(newWsResource)
-			expect(values).toHaveBeenCalledOnce()
+				// @ts-expect-error We need to access private members
+				workerLocalFirst.handleMessage(
+					new MessageEvent('message', { data: '' })
+				)
+
+				expect(brandedLog).toHaveBeenCalledOnce()
+				const call = brandedLog.mock.lastCall
+				if (!call) throw new Error()
+				expect(call[0]).toBe(console.warn)
+				expect(call[2]).toBe('')
+			})
+			test('non-JSON string', () => {
+				const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+				expect(brandedLog).not.toHaveBeenCalled()
+
+				const nonJSONString = 'nwyufhnp98n2pulhulh;;9'
+
+				// @ts-expect-error We need to access private members
+				workerLocalFirst.handleMessage(
+					new MessageEvent('message', { data: nonJSONString })
+				)
+
+				expect(brandedLog).toHaveBeenCalledOnce()
+				const call = brandedLog.mock.lastCall
+				if (!call) throw new Error()
+				expect(call[0]).toBe(console.warn)
+				expect(call[2]).toBe(nonJSONString)
+			})
+			test('JSON string without action', () => {
+				const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+				expect(brandedLog).not.toHaveBeenCalled()
+
+				const actionlessJSONString = JSON.stringify({
+					foo: 'bar',
+					94: 43,
+					anotherThing: { baz: 'wow' }
+				})
+
+				// @ts-expect-error We need to access private members
+				workerLocalFirst.handleMessage(
+					new MessageEvent('message', { data: actionlessJSONString })
+				)
+
+				expect(brandedLog).toHaveBeenCalledOnce()
+				const call = brandedLog.mock.lastCall
+				if (!call) throw new Error()
+				expect(call[0]).toBe(console.warn)
+				expect(call[2]).toBe(actionlessJSONString)
+			})
 		})
 	})
 })
