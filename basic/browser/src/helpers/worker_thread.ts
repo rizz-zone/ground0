@@ -118,6 +118,12 @@ export class WorkerLocalFirst<
 			!decoded
 		) {
 			// TODO: Use a 'wildcard' handler here
+
+			brandedLog(
+				console.warn,
+				'The server sent a ws message that could not be decoded:',
+				message.data
+			)
 			return
 		}
 
@@ -138,6 +144,11 @@ export class WorkerLocalFirst<
 				)
 			}
 			default:
+				brandedLog(
+					console.warn,
+					'The server sent a ws message that was decoded, but could not be matched to an action:',
+					decoded
+				)
 				return
 		}
 	}
