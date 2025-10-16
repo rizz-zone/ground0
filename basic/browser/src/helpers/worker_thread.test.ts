@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, test } from 'vitest'
 import {
 	defs,
 	DownstreamWsMessageAction,
+	TransitionImpact,
 	type DownstreamWsMessage,
 	type TestingTransition
 } from '@ground0/shared'
@@ -387,6 +388,32 @@ describe('always', () => {
 						)
 					})
 				})
+		})
+	})
+	describe('transition', () => {
+		test("rejects transition impacts that don't exist", () => {
+			for (const [index, impact] of Object.entries([
+				-1,
+				(Object.values(
+					TransitionImpact as unknown as Record<string, number> &
+						Record<number, string>
+				).reduce(
+					(acc, current) =>
+						typeof current === 'number' && current > (acc as number)
+							? current
+							: acc,
+					0
+				) as number) + 1
+			])) {
+				const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+				const transitionRunnersSet = vi.fn()
+				// @ts-expect-error We need to access private members
+				workerLocalFirst.transitionRunners.set = transitionRunnersSet
+
+				workerLocalFirst.transition({ impact, action: 'shift_foo_bar' })
+				expect(brandedLog).toHaveBeenCalledTimes(Number(index) + 1)
+				expect(transitionRunnersSet).not.toHaveBeenCalled()
+			}
 		})
 	})
 })
