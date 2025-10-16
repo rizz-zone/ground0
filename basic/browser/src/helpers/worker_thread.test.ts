@@ -49,6 +49,13 @@ const brandedLog = vi
 	)
 vi.doMock('@/common/branded_log', () => ({ brandedLog }))
 
+const runners = Object.fromEntries(
+	Object.values(TransitionImpact)
+		.filter((v) => typeof v === 'number')
+		.map((impact, idx) => [impact, vi.fn().mockName(`runner_${impact}_${idx}`)])
+) as unknown as (typeof import('@/runners/all'))['runners']
+vi.doMock('@/runners/all', () => ({ runners }))
+
 const announceTransformation = vi.fn()
 const pullWasmBinary = vi.fn()
 
@@ -413,6 +420,19 @@ describe('always', () => {
 				workerLocalFirst.transition({ impact, action: 'shift_foo_bar' })
 				expect(brandedLog).toHaveBeenCalledTimes(Number(index) + 1)
 				expect(transitionRunnersSet).not.toHaveBeenCalled()
+			}
+		})
+		test('constructs transitions with valid impacts', () => {
+			for (const impact of Object.values(TransitionImpact).filter(
+				(v) => typeof v === 'number'
+			)) {
+				expect(runners[impact]).not.toHaveBeenCalled()
+
+				const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+				// @ts-expect-error We don't need a definition of everything
+				workerLocalFirst.transition({ impact, action: 'shift_foo_bar' })
+
+				expect(runners[impact]).toHaveBeenCalledOnce()
 			}
 		})
 	})
