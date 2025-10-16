@@ -330,6 +330,21 @@ describe('always', () => {
 				expect(call[2]).toBe(actionlessJSONString)
 			})
 		})
-		// describe('')
+		describe('optimistic results', () => {
+			for (const action of [
+				DownstreamWsMessageAction.OptimisticCancel,
+				DownstreamWsMessageAction.OptimisticResolve
+			])
+				describe(DownstreamWsMessageAction[action], () => {
+					test('calls transitionRunners.get with the id', () => {
+						const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+						// @ts-expect-error We need to access private members
+						workerLocalFirst.handleMessage(
+							// TODO: this DownstreamWsMessage, the rest of the test
+							new MessageEvent('message', { data: SuperJSON.stringify({}) })
+						)
+					})
+				})
+		})
 	})
 })
