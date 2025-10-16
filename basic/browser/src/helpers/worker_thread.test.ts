@@ -1,8 +1,13 @@
 import { describe, it, expect, vi, beforeEach, test } from 'vitest'
-import { defs, type TestingTransition } from '@ground0/shared'
+import {
+	defs,
+	DownstreamWsMessageAction,
+	type TestingTransition
+} from '@ground0/shared'
 import { WsResourceStatus } from '@/types/status/WsResourceStatus'
 import type { ResourceBundle } from '@/types/status/ResourceBundle'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
+import SuperJSON from 'superjson'
 
 type OriginalConnectDb = (typeof import('@/resource_managers/db'))['connectDb']
 let connectDbImpl: OriginalConnectDb
@@ -281,11 +286,33 @@ describe('always', () => {
 				expect(call[0]).toBe(console.warn)
 				expect(call[2]).toBe(nonJSONString)
 			})
-			test('JSON string without action', () => {
+			test('non-SuperJSON string', () => {
 				const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
 				expect(brandedLog).not.toHaveBeenCalled()
 
-				const actionlessJSONString = JSON.stringify({
+				const jsonOnlyString = JSON.stringify({
+					foo: 'bar',
+					94: 43,
+					anotherThing: { baz: 'wow' },
+					action: DownstreamWsMessageAction.OptimisticCancel
+				})
+
+				// @ts-expect-error We need to access private members
+				workerLocalFirst.handleMessage(
+					new MessageEvent('message', { data: jsonOnlyString })
+				)
+
+				expect(brandedLog).toHaveBeenCalledOnce()
+				const call = brandedLog.mock.lastCall
+				if (!call) throw new Error()
+				expect(call[0]).toBe(console.warn)
+				expect(call[2]).toBe(jsonOnlyString)
+			})
+			test('SuperJSON string without action', () => {
+				const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+				expect(brandedLog).not.toHaveBeenCalled()
+
+				const actionlessJSONString = SuperJSON.stringify({
 					foo: 'bar',
 					94: 43,
 					anotherThing: { baz: 'wow' }
@@ -303,5 +330,6 @@ describe('always', () => {
 				expect(call[2]).toBe(actionlessJSONString)
 			})
 		})
+		// describe('')
 	})
 })
