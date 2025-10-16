@@ -2,12 +2,14 @@ import { describe, it, expect, vi, beforeEach, test } from 'vitest'
 import {
 	defs,
 	DownstreamWsMessageAction,
+	type DownstreamWsMessage,
 	type TestingTransition
 } from '@ground0/shared'
 import { WsResourceStatus } from '@/types/status/WsResourceStatus'
 import type { ResourceBundle } from '@/types/status/ResourceBundle'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import SuperJSON from 'superjson'
+import type { OptimisticPushTransitionRunner } from '@/runners/specialised/optimistic_push'
 
 type OriginalConnectDb = (typeof import('@/resource_managers/db'))['connectDb']
 let connectDbImpl: OriginalConnectDb
@@ -330,7 +332,7 @@ describe('always', () => {
 				expect(call[2]).toBe(actionlessJSONString)
 			})
 		})
-		describe('optimistic results', () => {
+		describe('normal messages', () => {
 			for (const action of [
 				DownstreamWsMessageAction.OptimisticCancel,
 				DownstreamWsMessageAction.OptimisticResolve
@@ -338,10 +340,50 @@ describe('always', () => {
 				describe(DownstreamWsMessageAction[action], () => {
 					test('calls transitionRunners.get with the id', () => {
 						const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+						const transitionRunnersGet = vi.fn()
+						// @ts-expect-error We need to access private members
+						workerLocalFirst.transitionRunners.get = transitionRunnersGet
+
+						expect(() =>
+							// @ts-expect-error We need to access private members
+							workerLocalFirst.handleMessage(
+								new MessageEvent('message', {
+									data: SuperJSON.stringify({
+										action,
+										id: 0
+									} satisfies DownstreamWsMessage)
+								})
+							)
+						).not.toThrow()
+						expect(transitionRunnersGet).toHaveBeenCalledExactlyOnceWith(0)
+					})
+					test('reports success or failure if the transition runner is found', ({
+						skip
+					}) => {
+						const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+
+						const mockRunner = {
+							reportWsResult: vi.fn()
+						} as unknown as OptimisticPushTransitionRunner<object>
+						const transitionRunnersGet = vi
+							.fn()
+							.mockImplementation((id) => (id === 0 ? mockRunner : skip()))
+						// @ts-expect-error We need to access private members
+						workerLocalFirst.transitionRunners.get = transitionRunnersGet
+
 						// @ts-expect-error We need to access private members
 						workerLocalFirst.handleMessage(
-							// TODO: this DownstreamWsMessage, the rest of the test
-							new MessageEvent('message', { data: SuperJSON.stringify({}) })
+							new MessageEvent('message', {
+								data: SuperJSON.stringify({
+									action,
+									id: 0
+								} satisfies DownstreamWsMessage)
+							})
+						)
+
+						expect(transitionRunnersGet).toHaveBeenCalledExactlyOnceWith(0)
+						expect(mockRunner.reportWsResult).toHaveBeenCalledExactlyOnceWith(
+							action === DownstreamWsMessageAction.OptimisticResolve
 						)
 					})
 				})
