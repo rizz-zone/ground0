@@ -7,8 +7,9 @@ import {
 	DB_ROLLBACK_TRANSACTION
 } from '@/errors/messages'
 import { DbQueryBatchingError } from '@/errors'
+import type { LocalDatabase } from '@ground0/shared'
 
-export function drizzlify(sqlite3: SQLiteAPI, db: number) {
+export function drizzlify(sqlite3: SQLiteAPI, db: number): LocalDatabase {
 	// TODO: (some day) put the actual db response in with the cause, where the
 	// error was numeric instead of an exception
 
