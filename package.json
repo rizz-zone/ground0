@@ -37,6 +37,9 @@
     "catalogs": {
       "drizzle": {
         "drizzle-orm": "^0.44.3"
+      },
+      "validators": {
+        "zod": "catalog:validators"
       }
     }
   },

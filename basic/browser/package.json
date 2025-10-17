@@ -9,7 +9,8 @@
   "devDependencies": {
     "jsdom": "^26.1.0",
     "msw": "^2.10.3",
-    "vite-bundle-analyzer": "^1.2.1"
+    "vite-bundle-analyzer": "^1.2.1",
+    "zod": "catalog:validators"
   },
   "peerDependencies": {
     "typescript": "^5.8.3"
