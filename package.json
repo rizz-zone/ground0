@@ -20,7 +20,7 @@
   "peerDependencies": {
     "typescript": "^5.9.3"
   },
-  "packageManager": "bun@1.2.18",
+  "packageManager": "pnpm@10.18.3",
   "private": false,
   "scripts": {
     "style": "prettier -c .",
@@ -34,17 +34,5 @@
   },
   "sideEffects": false,
   "type": "module",
-  "workspaces": {
-    "packages": ["basic/*", "adapters/*", "sample_integrations/*/*"],
-    "catalogs": {
-      "core-common": {
-        "drizzle-orm": "^0.44.6",
-        "superjson": "^2.2.2"
-      },
-      "validators": {
-        "zod": "^4.1.12"
-      }
-    }
-  },
   "dependencies": {}
 }

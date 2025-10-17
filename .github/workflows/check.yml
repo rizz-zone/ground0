@@ -13,15 +13,23 @@ jobs:
       - name: Check out
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
 
-      - name: Retrieve Bun cache
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Retrieve pnpm cache
         uses: actions/cache@v4
         with:
           path: |
-            ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+            ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
 
       - name: Cache turbo build setup
         uses: actions/cache@v4
@@ -32,10 +40,10 @@ jobs:
             ${{ runner.os }}-turbo-lint-
 
       - name: Install dependencies
-        run: bun i
+        run: pnpm install
 
       - name: Lint
-        run: bun run lint
+        run: pnpm run lint
 
   Style:
     runs-on: ubuntu-latest
@@ -44,21 +52,29 @@ jobs:
       - name: Check out
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
 
-      - name: Retrieve Bun cache
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Retrieve pnpm cache
         uses: actions/cache@v4
         with:
           path: |
-            ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+            ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
 
       - name: Install dependencies
-        run: bun i
+        run: pnpm install
 
       - name: Style
-        run: bun run style
+        run: pnpm run style
 
   Test:
     runs-on: ubuntu-latest
@@ -67,15 +83,23 @@ jobs:
       - name: Check out
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
 
-      - name: Retrieve Bun cache
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Retrieve pnpm cache
         uses: actions/cache@v4
         with:
           path: |
-            ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+            ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
 
       - name: Cache turbo build setup
         uses: actions/cache@v4
@@ -86,10 +110,10 @@ jobs:
             ${{ runner.os }}-turbo-test-
 
       - name: Install dependencies
-        run: bun i
+        run: pnpm install
 
       - name: Test
-        run: bun run test
+        run: pnpm run test
 
       - name: Coveralls
         uses: coverallsapp/github-action@v2
@@ -101,15 +125,23 @@ jobs:
       - name: Check out
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
 
-      - name: Retrieve Bun cache
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Retrieve pnpm cache
         uses: actions/cache@v4
         with:
           path: |
-            ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+            ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
 
       - name: Cache turbo build setup
         uses: actions/cache@v4
@@ -120,10 +152,10 @@ jobs:
             ${{ runner.os }}-turbo-tsc-
 
       - name: Install dependencies
-        run: bun i
+        run: pnpm install
 
       - name: Check types
-        run: bun run check-types
+        run: pnpm run check-types
 
   Build:
     runs-on: ubuntu-latest
@@ -132,15 +164,23 @@ jobs:
       - name: Check out
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
 
-      - name: Retrieve Bun cache
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Retrieve pnpm cache
         uses: actions/cache@v4
         with:
           path: |
-            ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+            ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
 
       - name: Cache turbo build setup
         uses: actions/cache@v4
@@ -151,7 +191,7 @@ jobs:
             ${{ runner.os }}-turbo-build-
 
       - name: Install dependencies
-        run: bun i
+        run: pnpm install
 
       - name: Build
-        run: bun run build
+        run: pnpm run build
