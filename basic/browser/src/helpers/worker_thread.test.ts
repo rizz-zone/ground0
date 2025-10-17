@@ -20,7 +20,7 @@ import type { ResourceBundle } from '@/types/status/ResourceBundle'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import SuperJSON from 'superjson'
 import type { OptimisticPushTransitionRunner } from '@/runners/specialised/optimistic_push'
-import type { Ingredients } from '@/runners/base'
+import type { Ingredients, TransitionRunner } from '@/runners/base'
 
 type OriginalConnectDb = (typeof import('@/resource_managers/db'))['connectDb']
 let connectDbImpl: OriginalConnectDb
@@ -240,9 +240,46 @@ describe('always', () => {
 				expect(values).toHaveBeenCalledOnce()
 			})
 		})
+		it('syncs transition runners on changes', () => {
+			const mockRunners = Array.from(
+				{ length: 10 },
+				() =>
+					({ syncResources: vi.fn() }) as unknown as TransitionRunner<
+						object,
+						TransitionImpact
+					>
+			)
+			const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+
+			for (const [index, runner] of Object.entries(mockRunners)) {
+				// @ts-expect-error We need to access private members
+				workerLocalFirst.transitionRunners.set(Number(index), runner)
+				expect(runner.syncResources).not.toHaveBeenCalled()
+			}
+
+			const newWsResource = {
+				status: WsResourceStatus.Connected,
+				instance: {}
+			} as ResourceBundle['ws']
+
+			// @ts-expect-error We need to access private members
+			workerLocalFirst.syncResources({ ws: newWsResource })
+
+			for (const runner of mockRunners) {
+				expect(runner.syncResources).toHaveBeenCalledOnce()
+				const call = (runner.syncResources as ReturnType<typeof vi.fn>).mock
+					.lastCall as
+					| Parameters<
+							TransitionRunner<object, TransitionImpact>['syncResources']
+					  >
+					| undefined
+				if (!call) throw new Error()
+				expect(call[0].ws).toBe(newWsResource)
+			}
+		})
 	})
 	describe('handleMessage', () => {
-		describe('warns and otherwise does nothing on invalid input', () => {
+		describe('warns and otherwise does nothing on entirely invalid input', () => {
 			test('ArrayBuffer', () => {
 				const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
 				expect(brandedLog).not.toHaveBeenCalled()
@@ -352,6 +389,41 @@ describe('always', () => {
 				expect(call[0]).toBe(console.warn)
 				expect(call[2]).toBe(actionlessJSONString)
 			})
+		})
+		test('warns and otherwise does nothing on actions not in enum', () => {
+			const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+			for (const [index, action] of Object.entries([
+				-1,
+				(Object.values(
+					DownstreamWsMessageAction as unknown as Record<string, number> &
+						Record<number, string>
+				).reduce(
+					(acc, current) =>
+						typeof current === 'number' && current > (acc as number)
+							? current
+							: acc,
+					0
+				) as number) + 1
+			])) {
+				const i = Number(index)
+				expect(brandedLog).toHaveBeenCalledTimes(i)
+
+				const messageObj = {
+					action
+				}
+				const messageContent = SuperJSON.stringify(messageObj)
+
+				// @ts-expect-error We need to access private members
+				workerLocalFirst.handleMessage(
+					new MessageEvent('message', { data: messageContent })
+				)
+
+				expect(brandedLog).toHaveBeenCalledTimes(i + 1)
+				const call = brandedLog.mock.lastCall
+				if (!call) throw new Error()
+				expect(call[0]).toBe(console.warn)
+				expect(call[2]).toStrictEqual(messageObj)
+			}
 		})
 		describe('normal messages', () => {
 			for (const action of [
