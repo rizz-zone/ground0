@@ -234,12 +234,12 @@ describe('websocket message handler', () => {
 	beforeEach(async () => {
 		await runInDurableObject(stub, (_, ctx) => {
 			socket = new WebSocketPair()[0]
-			ctx.acceptWebSocket(socket)
+			ctx.acceptWebSocket(socket, [crypto.randomUUID()])
 		})
 	})
 	const wsOpen = () =>
 		vi.waitUntil(() => socket.readyState === WebSocket.OPEN, {
-			interval: 5,
+			interval: 1,
 			timeout: 1000
 		})
 	describe('message validation', () => {
