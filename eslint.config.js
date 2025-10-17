@@ -4,11 +4,12 @@ import { includeIgnoreFile } from '@eslint/compat'
 import globals from 'globals'
 import { fileURLToPath, URL } from 'node:url'
 import ts from 'typescript-eslint'
+import { globalIgnores } from 'eslint/config'
 
 const gitignorePath = fileURLToPath(new URL('./.gitignore', import.meta.url))
 
 export default ts.config(
-	includeIgnoreFile(gitignorePath),
+	includeIgnoreFile(gitignorePath, 'Imported gitignore file'),
 	js.configs.recommended,
 	...ts.configs.strict,
 	prettier,
@@ -26,5 +27,9 @@ export default ts.config(
 				}
 			]
 		}
-	}
+	},
+	globalIgnores([
+		'**/worker-configuration.d.ts',
+		'Cloudflare Workers type definitions'
+	])
 )

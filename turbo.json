@@ -11,6 +11,7 @@
 		},
 		"lint": {
 			"dependsOn": ["@ground0/shared#build", "^lint"],
+			"inputs": ["$TURBO_ROOT$/eslint.config.js"],
 			"outputs": []
 		},
 		"test:watch": {
