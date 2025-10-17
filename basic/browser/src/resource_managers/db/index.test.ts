@@ -1,8 +1,7 @@
 import { ResourceInitError } from '@/errors'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import type { ResourceBundle } from '@/types/status/ResourceBundle'
-import { defs } from '@ground0/shared'
-import type { SqliteRemoteDatabase } from 'drizzle-orm/sqlite-proxy'
+import { defs, type LocalDatabase } from '@ground0/shared'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
 let getRawSqliteDbImpl: () => unknown
@@ -24,7 +23,7 @@ let migrateImpl: () => unknown
 const migrate = vi.fn().mockImplementation(() => migrateImpl())
 vi.doMock('./drizzle_stage/migrate.ts', () => ({ migrate }))
 
-const drizzle = {} as SqliteRemoteDatabase<Record<string, unknown>>
+const drizzle = {} as LocalDatabase
 
 // This silences debug messages. They're not an essential part of the
 // implementation, so we won't use this for testing.
