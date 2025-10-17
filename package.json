@@ -39,7 +39,7 @@
         "drizzle-orm": "^0.44.3"
       },
       "validators": {
-        "zod": "catalog:validators"
+        "zod": "^4.1.12"
       }
     }
   },
