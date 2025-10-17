@@ -33,7 +33,7 @@
   "dependencies": {
     "@cloudflare/workers-types": "^4.20251011.0",
     "@ground0/shared": "workspace:*",
-    "drizzle-orm": "^0.44.4",
+    "drizzle-orm": "catalog:core-common",
     "semver": "^7.7.2",
     "superjson": "catalog:core-common"
   }
