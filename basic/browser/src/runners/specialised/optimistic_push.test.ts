@@ -294,8 +294,7 @@ async function runExecutionTest({
 	}
 	testing: IncludedHandlerFunctions
 }) {
-	const someTimeout = (extended: boolean) =>
-		(extended ? 120 : 20) + Math.random() * 60
+	const someTimeout = (extended: boolean) => (extended ? 180 : 60)
 	const standardHandler = async
 		? () =>
 				new Promise<void>((resolve, reject) =>
