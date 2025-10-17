@@ -20,6 +20,7 @@ import type { ResourceBundle } from '@/types/status/ResourceBundle'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import SuperJSON from 'superjson'
 import type { OptimisticPushTransitionRunner } from '@/runners/specialised/optimistic_push'
+import type { Ingredients } from '@/runners/base'
 
 type OriginalConnectDb = (typeof import('@/resource_managers/db'))['connectDb']
 let connectDbImpl: OriginalConnectDb
@@ -447,9 +448,34 @@ describe('always', () => {
 				expect(runners[impact]).toHaveBeenCalledOnce()
 			}
 		})
+		test('provides a markComplete function to constructors that removes the runner from the map', ({
+			skip
+		}) => {
+			for (const impact of Object.values(TransitionImpact).filter(
+				(v) => typeof v === 'number'
+			)) {
+				expect(runners[impact]).not.toHaveBeenCalled()
+
+				const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+				// @ts-expect-error We don't need a definition of everything
+				workerLocalFirst.transition({ impact, action: 'shift_foo_bar' })
+
+				const call = (runners[impact] as ReturnType<typeof vi.fn>).mock
+					.lastCall as undefined | [Ingredients<object, TransitionImpact>]
+				if (!call) return skip()
+
+				expect(call[0].markComplete).toBeTypeOf('function')
+
+				// @ts-expect-error We need to access private members
+				expect(workerLocalFirst.transitionRunners.size).toBe(1)
+				call[0].markComplete()
+				// @ts-expect-error We need to access private members
+				expect(workerLocalFirst.transitionRunners.size).toBe(0)
+			}
+		})
 	})
 })
-describe('SharedWorker', () => {
+describe('shared worker', () => {
 	beforeAll(() => {
 		sharedCtx.onconnect = null
 	})
@@ -478,6 +504,21 @@ describe('SharedWorker', () => {
 			expect(call.migrations).toBe(baseInput.engineDef.db.migrations)
 			expect(call.pullWasmBinary).toBeTypeOf('function')
 			expect(call.syncResources).toBeTypeOf('function')
+		})
+	})
+})
+describe('dedicated worker', () => {
+	describe('constructor', () => {
+		test('sets resourceBundle.db.status to NeverConnecting', () => {
+			const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+			// @ts-expect-error We need to access private members
+			expect(workerLocalFirst.resourceBundle.db.status).toBe(
+				DbResourceStatus.NeverConnecting
+			)
+		})
+		test('does not call connectDb', () => {
+			new WorkerLocalFirst({ ...baseInput })
+			expect(connectDb).not.toHaveBeenCalled()
 		})
 	})
 })
