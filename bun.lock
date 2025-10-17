@@ -44,6 +44,7 @@
         "jsdom": "^26.1.0",
         "msw": "^2.10.3",
         "vite-bundle-analyzer": "^1.2.1",
+        "zod": "catalog:validators",
       },
       "peerDependencies": {
         "typescript": "^5.8.3",
@@ -86,7 +87,7 @@
       "dependencies": {
         "@standard-schema/spec": "^1.0.0",
         "semver": "^7.7.2",
-        "zod": "^4.0.2",
+        "zod": "catalog:validators",
       },
       "devDependencies": {
         "@cloudflare/workers-types": "^4.20250801.0",
@@ -103,6 +104,9 @@
   "catalogs": {
     "drizzle": {
       "drizzle-orm": "^0.44.3",
+    },
+    "validators": {
+      "zod": "^4.1.12",
     },
   },
   "packages": {
@@ -1120,7 +1124,7 @@
 
     "youch-core": ["youch-core@0.3.3", "", { "dependencies": { "@poppinss/exception": "^1.2.2", "error-stack-parser-es": "^1.0.5" } }, "sha512-ho7XuGjLaJ2hWHoK8yFnsUGy2Y5uDpqSTq1FkHLK4/oqKtyUU1AFbOOxY4IpC9f0fTLjwYbslUz0Po5BpD1wrA=="],
 
-    "zod": ["zod@4.0.2", "", {}, "sha512-X2niJNY54MGam4L6Kj0AxeedeDIi/E5QFW0On2faSX5J4/pfLk1tW+cRMIMoojnCavn/u5W/kX17e1CSGnKMxA=="],
+    "zod": ["zod@4.1.12", "", {}, "sha512-JInaHOamG8pt5+Ey8kGmdcAcg3OL9reK8ltczgHTAwNhMys/6ThXHityHxVV2p3fkw/c+MAvBHFVYHFZDmjMCQ=="],
 
     "@babel/code-frame/js-tokens": ["js-tokens@4.0.0", "", {}, "sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ=="],
 
