@@ -514,7 +514,6 @@ describe('always', () => {
 				expect(runners[impact]).not.toHaveBeenCalled()
 
 				const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
-				// @ts-expect-error We don't need a definition of everything
 				workerLocalFirst.transition({ impact, action: 'shift_foo_bar' })
 
 				expect(runners[impact]).toHaveBeenCalledOnce()
@@ -529,7 +528,6 @@ describe('always', () => {
 				expect(runners[impact]).not.toHaveBeenCalled()
 
 				const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
-				// @ts-expect-error We don't need a definition of everything
 				workerLocalFirst.transition({ impact, action: 'shift_foo_bar' })
 
 				const call = (runners[impact] as ReturnType<typeof vi.fn>).mock
