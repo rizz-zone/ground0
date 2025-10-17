@@ -36,7 +36,7 @@
     "packages": ["basic/*", "adapters/*", "sample_integrations/*/*"],
     "catalogs": {
       "core-common": {
-        "drizzle-orm": "^0.44.3",
+        "drizzle-orm": "^0.44.6",
         "superjson": "^2.2.2"
       },
       "validators": {

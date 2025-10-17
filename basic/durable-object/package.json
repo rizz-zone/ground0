@@ -7,8 +7,9 @@
   "sideEffects": false,
   "packageManager": "bun@1.2.18",
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.8.58",
+    "@cloudflare/vitest-pool-workers": "^0.9.13",
     "@standard-schema/spec": "^1.0.0",
+    "@types/semver": "^7.7.1",
     "@vitest/coverage-istanbul": "^3.2.4"
   },
   "peerDependencies": {
@@ -30,10 +31,10 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "superjson": "catalog:core-common",
-    "semver": "^7.7.2",
-    "@cloudflare/workers-types": "^4.20250712.0",
+    "@cloudflare/workers-types": "^4.20251011.0",
     "@ground0/shared": "workspace:*",
-    "drizzle-orm": "catalog:core-common"
+    "drizzle-orm": "^0.44.4",
+    "semver": "^7.7.2",
+    "superjson": "catalog:core-common"
   }
 }

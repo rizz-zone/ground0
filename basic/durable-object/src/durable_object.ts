@@ -1,3 +1,5 @@
+/// <reference types="./testing/worker-configuration" />
+
 import { DurableObject } from 'cloudflare:workers'
 import {
 	UpstreamWsMessageAction,
@@ -83,7 +85,7 @@ export abstract class SyncEngineBackend<
 	protected db: DrizzleSqliteDODatabase<Record<string, unknown>>
 	private initialisedSockets: UUID[] = []
 
-	constructor(ctx: DurableObjectState, env: object) {
+	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env)
 		this.db = drizzle(ctx.storage, { logger: false })
 
