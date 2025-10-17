@@ -1,4 +1,13 @@
-import { describe, it, expect, vi, beforeEach, test } from 'vitest'
+import {
+	describe,
+	it,
+	expect,
+	vi,
+	beforeEach,
+	test,
+	beforeAll,
+	afterAll
+} from 'vitest'
 import {
 	defs,
 	DownstreamWsMessageAction,
@@ -91,6 +100,9 @@ const baseInput: ConstructorParameters<
 	}
 }
 
+const sharedCtx = self as unknown as SharedWorkerGlobalScope
+// const dedicatedCtx = self as DedicatedWorkerGlobalScope
+
 describe('always', () => {
 	describe('constructor', () => {
 		it('sets engineDef', () => {
@@ -121,7 +133,7 @@ describe('always', () => {
 				WsResourceStatus.Disconnected
 			)
 		})
-		it('calls connectWs', () => {
+		it('calls connectWs correctly', () => {
 			new WorkerLocalFirst({ ...baseInput })
 			expect(connectWs).toHaveBeenCalledOnce()
 
@@ -434,6 +446,38 @@ describe('always', () => {
 
 				expect(runners[impact]).toHaveBeenCalledOnce()
 			}
+		})
+	})
+})
+describe('SharedWorker', () => {
+	beforeAll(() => {
+		sharedCtx.onconnect = null
+	})
+	afterAll(() => {
+		// @ts-expect-error TS will never understand our objectives
+		delete sharedCtx.onconnect
+	})
+	describe('constructor', () => {
+		test('sets resourceBundle.db.status to Disconnected', () => {
+			const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+			// @ts-expect-error We need to access private members
+			expect(workerLocalFirst.resourceBundle.db.status).toBe(
+				DbResourceStatus.Disconnected
+			)
+		})
+		test('calls connectDb correctly', () => {
+			new WorkerLocalFirst({ ...baseInput })
+			expect(connectDb).toHaveBeenCalledOnce()
+
+			if (!connectDb.mock.lastCall || connectDb.mock.lastCall.length === 0)
+				throw new Error()
+			const call = connectDb.mock
+				.lastCall[0] as Parameters<OriginalConnectDb>[0]
+
+			expect(call.dbName).toBe(baseInput.dbName)
+			expect(call.migrations).toBe(baseInput.engineDef.db.migrations)
+			expect(call.pullWasmBinary).toBeTypeOf('function')
+			expect(call.syncResources).toBeTypeOf('function')
 		})
 	})
 })
