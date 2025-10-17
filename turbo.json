@@ -23,7 +23,12 @@
 			"cache": false
 		},
 		"check-types": {
-			"dependsOn": ["@ground0/shared#build", "^check-types"],
+			"dependsOn": [
+				"@ground0/shared#build",
+				"@ground0/browser#build",
+				"@ground0/durable-object#build",
+				"^check-types"
+			],
 			"outputs": []
 		}
 	}
