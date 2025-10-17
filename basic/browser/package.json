@@ -31,8 +31,8 @@
   },
   "dependencies": {
     "@ground0/shared": "workspace:*",
-    "drizzle-orm": "^0.44.4",
-    "superjson": "^2.2.2",
+    "drizzle-orm": "catalog:core-common",
+    "superjson": "catalog:core-common",
     "wa-sqlite": "^1.0.0",
     "xstate": "^5.20.1"
   }

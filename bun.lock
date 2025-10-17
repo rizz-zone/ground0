@@ -35,8 +35,8 @@
       "version": "0.1.0",
       "dependencies": {
         "@ground0/shared": "workspace:*",
-        "drizzle-orm": "^0.44.4",
-        "superjson": "^2.2.2",
+        "drizzle-orm": "catalog:core-common",
+        "superjson": "catalog:core-common",
         "wa-sqlite": "^1.0.0",
         "xstate": "^5.20.1",
       },
@@ -56,9 +56,9 @@
       "dependencies": {
         "@cloudflare/workers-types": "^4.20250712.0",
         "@ground0/shared": "workspace:*",
-        "drizzle-orm": "catalog:drizzle",
+        "drizzle-orm": "catalog:core-common",
         "semver": "^7.7.2",
-        "superjson": "^2.2.2",
+        "superjson": "catalog:core-common",
       },
       "devDependencies": {
         "@cloudflare/vitest-pool-workers": "^0.8.58",
@@ -94,7 +94,7 @@
         "@types/semver": "^7.7.0",
         "arktype": "^2.1.20",
         "drizzle-kit": "^0.31.4",
-        "drizzle-orm": "^0.44.4",
+        "drizzle-orm": "catalog:core-common",
       },
       "peerDependencies": {
         "typescript": "^5.8.3",
@@ -102,8 +102,9 @@
     },
   },
   "catalogs": {
-    "drizzle": {
+    "core-common": {
       "drizzle-orm": "^0.44.3",
+      "superjson": "^2.2.2",
     },
     "validators": {
       "zod": "^4.1.12",

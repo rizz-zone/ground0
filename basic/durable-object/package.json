@@ -30,10 +30,10 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "superjson": "^2.2.2",
+    "superjson": "catalog:core-common",
     "semver": "^7.7.2",
     "@cloudflare/workers-types": "^4.20250712.0",
     "@ground0/shared": "workspace:*",
-    "drizzle-orm": "catalog:drizzle"
+    "drizzle-orm": "catalog:core-common"
   }
 }

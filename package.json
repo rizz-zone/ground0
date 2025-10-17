@@ -35,8 +35,9 @@
   "workspaces": {
     "packages": ["basic/*", "adapters/*", "sample_integrations/*/*"],
     "catalogs": {
-      "drizzle": {
-        "drizzle-orm": "^0.44.3"
+      "core-common": {
+        "drizzle-orm": "^0.44.3",
+        "superjson": "^2.2.2"
       },
       "validators": {
         "zod": "^4.1.12"
