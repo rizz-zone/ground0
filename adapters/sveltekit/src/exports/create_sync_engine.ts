@@ -1,8 +1,16 @@
 import { BrowserLocalFirst } from '@ground0/browser'
 
-export function createSyncEngine(workerUrl: string) {
+/**
+ * Creates a reactive sync engine instance that is reactive in **Svelte**.
+ * @param workerUrl A `URL` object that leads to the worker (see example)
+ * @example
+ * ```
+ * const syncEngine = createSyncEngine(new URL('./worker.ts', import.meta.url))
+ * ```
+ */
+export function createSyncEngine(workerUrl: URL) {
 	const input: ConstructorParameters<typeof Worker> = [
-		new URL(workerUrl, import.meta.url),
+		workerUrl,
 		{ type: 'module' }
 	]
 	const worker =
