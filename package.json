@@ -34,5 +34,22 @@
   },
   "sideEffects": false,
   "type": "module",
-  "dependencies": {}
+  "dependencies": {},
+  "workspaces": {
+    "packages": [
+      "basic/*",
+      "adapters/*",
+      "examples/*/*",
+      "sample_integrations/*/*"
+    ],
+    "catalogs": {
+      "core-common": {
+        "drizzle-orm": "^0.44.6",
+        "superjson": "^2.2.2"
+      },
+      "validators": {
+        "zod": "^4.1.12"
+      }
+    }
+  }
 }

@@ -70,6 +70,9 @@ importers:
       '@ground0/browser':
         specifier: workspace:*
         version: link:../../basic/browser
+      '@ground0/shared':
+        specifier: workspace:*
+        version: link:../../basic/shared
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
