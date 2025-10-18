@@ -3,7 +3,8 @@
 	"tasks": {
 		"build": {
 			"dependsOn": ["^build"],
-			"outputs": ["dist/**"]
+			"outputs": ["dist/**"],
+			"inputs": ["!vitest.config.ts"]
 		},
 		"test": {
 			"dependsOn": ["@ground0/shared#build", "^test"],
