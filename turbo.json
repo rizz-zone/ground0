@@ -4,7 +4,15 @@
 		"build": {
 			"dependsOn": ["^build"],
 			"outputs": ["dist/**"],
-			"inputs": ["!vitest.config.ts"]
+			"inputs": [
+				"!vitest.config.ts",
+				"**/*.ts",
+				"**/*.js",
+				"src/**",
+				"!src/**/*.test.ts",
+				"!coverage/**",
+				"!dist/**"
+			]
 		},
 		"test": {
 			"dependsOn": ["@ground0/shared#build", "^test"],
@@ -12,7 +20,13 @@
 		},
 		"lint": {
 			"dependsOn": ["@ground0/shared#build", "^lint"],
-			"inputs": ["$TURBO_ROOT$/eslint.config.js"],
+			"inputs": [
+				"$TURBO_ROOT$/eslint.config.js",
+				"**/*.ts",
+				"**/*.js",
+				"!coverage/**",
+				"!dist/**"
+			],
 			"outputs": []
 		},
 		"test:watch": {
