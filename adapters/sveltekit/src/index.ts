@@ -1,1 +1,1 @@
-export const something = {}
+export { FalseProperty } from './exports/false_property'
