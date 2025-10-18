@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@ground0/browser": "workspace:*",
-    "@ground0/shared": "workspace:*"
+    "@ground0/shared": "workspace:*",
+    "svelte": "^5.41.0"
   }
 }

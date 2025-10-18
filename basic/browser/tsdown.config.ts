@@ -11,7 +11,8 @@ export default defineConfig({
 	platform: 'browser',
 	sourcemap: true,
 	entry: {
-		index: 'src/index.ts'
+		index: 'src/index.ts',
+		adapter_extras: 'src/adapter_extras.ts'
 	}
 	// ,minify: true,
 	// noExternal: [/[\s\S]*/],

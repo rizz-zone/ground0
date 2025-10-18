@@ -27,6 +27,7 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": "./dist/index.js",
+    "./adapter_extras": "./dist/adapter_extras.js",
     "./package.json": "./package.json"
   },
   "dependencies": {
