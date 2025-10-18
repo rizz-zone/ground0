@@ -2,7 +2,6 @@ import { configDefaults } from 'vitest/config'
 import { defineWorkersConfig } from '@cloudflare/vitest-pool-workers/config'
 import tsconfigPaths from 'vite-tsconfig-paths'
 
-// @ts-expect-error The plugin is definitely fine, it's just disliked in this community for some reason
 export default defineWorkersConfig({
 	test: {
 		poolOptions: {

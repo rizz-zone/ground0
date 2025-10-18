@@ -15,6 +15,5 @@ export default defineConfig({
 		},
 		globals: true
 	},
-	// @ts-expect-error There's some kind of type conflict but the plugin definitely works
 	plugins: [tsconfigPaths()]
 })
