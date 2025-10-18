@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "private": false,
   "sideEffects": false,
-  "packageManager": "bun@1.2.18",
+  "packageManager": "pnpm@10.18.3",
   "devDependencies": {
     "jsdom": "^26.1.0",
     "msw": "^2.10.3",

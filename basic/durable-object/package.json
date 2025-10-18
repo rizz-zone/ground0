@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "private": false,
   "sideEffects": false,
-  "packageManager": "bun@1.2.18",
+  "packageManager": "pnpm@10.18.3",
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.9.13",
     "@standard-schema/spec": "^1.0.0",
