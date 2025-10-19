@@ -9,7 +9,6 @@ import type { Transition } from '@ground0/shared'
 import { onDestroy } from 'svelte'
 import { derived, readonly, writable, type Readable } from 'svelte/store'
 import type { PathValue } from '@/types/path_values/PathValue'
-
 class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 	private editableMemoryModel = writable<MemoryModel | undefined>()
 	public memoryModel = readonly(this.editableMemoryModel)
@@ -31,9 +30,11 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 		onDestroy(this[Symbol.dispose].bind(this))
 	}
 
+	private pathSubscriptions = new Map<string, Map<symbol, () => unknown>>()
+
 	public path<
-		P extends StringPath<MemoryModel> | Readonly<ArrayPath<MemoryModel>>
-	>(path: P): Readable<PathValue<MemoryModel, P> | undefined> {
+		Path extends StringPath<MemoryModel> | Readonly<ArrayPath<MemoryModel>>
+	>(path: Path): Readable<PathValue<MemoryModel, Path> | undefined> {
 		let properPath: string[]
 		switch (typeof path) {
 			case 'string':
@@ -53,20 +54,23 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 				throw new Error()
 		}
 
-		const getter = (
-			root: MemoryModel | undefined
-		): PathValue<MemoryModel, P> | undefined => {
-			if (!root) return undefined
-			let cur: unknown = root
-			for (const segment of properPath) {
-				if (cur == null || (typeof cur !== 'object' && typeof cur !== 'string'))
-					return undefined
-				cur = (cur as Record<string, unknown>)[segment as string]
-			}
-			return cur as PathValue<MemoryModel, P>
-		}
+		const pathString = JSON.stringify(properPath)
 
-		return derived(this.memoryModel, (m) => getter(m))
+		return {
+			subscribe: (
+				update: (newValue: PathValue<MemoryModel, Path> | undefined) => unknown
+			) => {
+				const subscriptionId = Symbol()
+				let subscriptionFnMap = this.pathSubscriptions.get(pathString)
+				if (!subscriptionFnMap) {
+					subscriptionFnMap = new Map()
+					this.pathSubscriptions.set(pathString, subscriptionFnMap)
+				}
+				subscriptionFnMap.set(subscriptionId, update)
+				// TODO: call update for the first time
+				return () => subscriptionFnMap.delete(subscriptionId)
+			}
+		}
 	}
 
 	private onMessage(message: DownstreamWorkerMessage<MemoryModel>) {
