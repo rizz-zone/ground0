@@ -4,11 +4,11 @@ import {
 	DownstreamWorkerMessageType
 } from '@ground0/browser/adapter_extras'
 import type { Transition } from '@ground0/shared'
-import { writable } from 'svelte/store'
+import { readonly, writable } from 'svelte/store'
 
 class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
-	// TODO: Use a custom store (so that the consumer doesn't .set)
-	public memoryModel = writable<MemoryModel | undefined>()
+	private editableMemoryModel = writable<MemoryModel | undefined>()
+	public memoryModel = readonly(this.editableMemoryModel)
 	private browserLocalFirst: BrowserLocalFirst<T, MemoryModel>
 
 	constructor(workerUrl: URL) {
@@ -27,7 +27,7 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 	onMessage(message: DownstreamWorkerMessage<MemoryModel>) {
 		switch (message.type) {
 			case DownstreamWorkerMessageType.InitMemoryModel:
-				this.memoryModel.set(message.memoryModel)
+				this.editableMemoryModel.set(message.memoryModel)
 				return
 			case DownstreamWorkerMessageType.Transformation:
 		}
