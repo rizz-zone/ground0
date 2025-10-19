@@ -1,9 +1,11 @@
+import type { StringPath } from '@/types/path_stores/StringPath'
 import { BrowserLocalFirst } from '@ground0/browser'
 import {
 	type DownstreamWorkerMessage,
 	DownstreamWorkerMessageType
 } from '@ground0/browser/adapter_extras'
 import type { Transition } from '@ground0/shared'
+import { onDestroy } from 'svelte'
 import { readonly, writable } from 'svelte/store'
 
 class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
@@ -16,15 +18,20 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 			workerUrl,
 			{ type: 'module' }
 		]
+
 		this.browserLocalFirst = new BrowserLocalFirst(
 			'SharedWorker' in globalThis
 				? new SharedWorker(...input)
 				: new Worker(...input),
 			this.onMessage.bind(this)
 		)
+
+		onDestroy(this[Symbol.dispose].bind(this))
 	}
 
-	onMessage(message: DownstreamWorkerMessage<MemoryModel>) {
+	public path(path: StringPath<MemoryModel>) {}
+
+	private onMessage(message: DownstreamWorkerMessage<MemoryModel>) {
 		switch (message.type) {
 			case DownstreamWorkerMessageType.InitMemoryModel:
 				this.editableMemoryModel.set(message.memoryModel)
@@ -32,10 +39,14 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 			case DownstreamWorkerMessageType.Transformation:
 		}
 	}
-	transition(
+	public transition(
 		...params: Parameters<(typeof this.browserLocalFirst)['transition']>
 	) {
 		return this.browserLocalFirst.transition(...params)
+	}
+
+	[Symbol.dispose]() {
+		// TODO: Make this
 	}
 }
 
