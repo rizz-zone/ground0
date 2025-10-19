@@ -1,3 +1,4 @@
+import type { ArrayPath } from '@/types/path_stores/ArrayPath'
 import type { StringPath } from '@/types/path_stores/StringPath'
 import { BrowserLocalFirst } from '@ground0/browser'
 import {
@@ -29,7 +30,11 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 		onDestroy(this[Symbol.dispose].bind(this))
 	}
 
-	public path(path: StringPath<MemoryModel>) {}
+	public path(path: StringPath<MemoryModel> | ArrayPath<MemoryModel>) {
+		if (typeof path === 'string') {
+			// TODO: convert this to an array path
+		}
+	}
 
 	private onMessage(message: DownstreamWorkerMessage<MemoryModel>) {
 		switch (message.type) {
