@@ -7,7 +7,7 @@ import {
 } from '@ground0/browser/adapter_extras'
 import type { Transition } from '@ground0/shared'
 import { onDestroy } from 'svelte'
-import { derived, readonly, writable, type Readable } from 'svelte/store'
+import { readonly, writable, type Readable } from 'svelte/store'
 import type { PathValue } from '@/types/path_values/PathValue'
 class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 	private editableMemoryModel = writable<MemoryModel | undefined>()
@@ -30,7 +30,13 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 		onDestroy(this[Symbol.dispose].bind(this))
 	}
 
-	private pathSubscriptions = new Map<string, Map<symbol, () => unknown>>()
+	private pathSubscriptions = new Map<
+		string,
+		Map<
+			symbol,
+			(newValue: PathValue<MemoryModel, never> | undefined) => unknown
+		>
+	>()
 
 	public path<
 		Path extends StringPath<MemoryModel> | Readonly<ArrayPath<MemoryModel>>
