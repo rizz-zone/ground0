@@ -7,10 +7,12 @@ import {
 } from '@ground0/browser/adapter_extras'
 import type { Transition } from '@ground0/shared'
 import { onDestroy } from 'svelte'
-import { readonly, writable, type Readable } from 'svelte/store'
+import { readonly, type Readable } from 'svelte/store'
 import type { PathValue } from '@/types/path_stores/values/PathValue'
+import { MemoryModelStore } from '@/stores/memory_model'
+
 class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
-	private editableMemoryModel = writable<MemoryModel | undefined>()
+	private editableMemoryModel = new MemoryModelStore<MemoryModel>()
 	public memoryModel = readonly(this.editableMemoryModel)
 	private browserLocalFirst: BrowserLocalFirst<T, MemoryModel>
 
@@ -92,7 +94,7 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 	private onMessage(message: DownstreamWorkerMessage<MemoryModel>) {
 		switch (message.type) {
 			case DownstreamWorkerMessageType.InitMemoryModel:
-				this.editableMemoryModel.set(message.memoryModel)
+				this.editableMemoryModel.currentValue = message.memoryModel
 				return
 			case DownstreamWorkerMessageType.Transformation:
 		}
