@@ -72,7 +72,12 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 					subscriptionFnMap = new Map()
 					this.pathSubscriptions.set(pathString, subscriptionFnMap)
 				}
-				subscriptionFnMap.set(subscriptionId, update)
+				subscriptionFnMap.set(
+					subscriptionId,
+					update as unknown as (
+						newValue: PathValue<MemoryModel, never> | undefined
+					) => unknown
+				)
 				// TODO: call update for the first time
 				return () => subscriptionFnMap.delete(subscriptionId)
 			}
