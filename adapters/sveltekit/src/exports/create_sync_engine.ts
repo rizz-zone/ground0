@@ -7,7 +7,8 @@ import {
 } from '@ground0/browser/adapter_extras'
 import type { Transition } from '@ground0/shared'
 import { onDestroy } from 'svelte'
-import { readonly, writable } from 'svelte/store'
+import { derived, readonly, writable, type Readable } from 'svelte/store'
+import type { PathValue } from '@/types/path_values/PathValue'
 
 class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 	private editableMemoryModel = writable<MemoryModel | undefined>()
@@ -30,10 +31,42 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 		onDestroy(this[Symbol.dispose].bind(this))
 	}
 
-	public path(path: StringPath<MemoryModel> | ArrayPath<MemoryModel>) {
-		if (typeof path === 'string') {
-			// TODO: convert this to an array path
+	public path<
+		P extends StringPath<MemoryModel> | Readonly<ArrayPath<MemoryModel>>
+	>(path: P): Readable<PathValue<MemoryModel, P> | undefined> {
+		let properPath: string[]
+		switch (typeof path) {
+			case 'string':
+				properPath = path.split('.')
+				break
+			// @ts-expect-error We want a fallthrough case here
+			case 'object':
+				if (Array.isArray(path)) {
+					properPath = path.map((item) =>
+						typeof item === 'string' ? item : String(item)
+					)
+					break
+				}
+			// eslint-disable-next-line no-fallthrough
+			default:
+				// TODO: Make this error more good
+				throw new Error()
 		}
+
+		const getter = (
+			root: MemoryModel | undefined
+		): PathValue<MemoryModel, P> | undefined => {
+			if (!root) return undefined
+			let cur: unknown = root
+			for (const segment of properPath) {
+				if (cur == null || (typeof cur !== 'object' && typeof cur !== 'string'))
+					return undefined
+				cur = (cur as Record<string, unknown>)[segment as string]
+			}
+			return cur as PathValue<MemoryModel, P>
+		}
+
+		return derived(this.memoryModel, (m) => getter(m))
 	}
 
 	private onMessage(message: DownstreamWorkerMessage<MemoryModel>) {
@@ -63,9 +96,10 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
  * const syncEngine = createSyncEngine(new URL('./worker.ts', import.meta.url))
  * ```
  */
-export function createSyncEngine(
-	...params: ConstructorParameters<typeof ReactiveSyncEngine>
-) {
-	return new ReactiveSyncEngine(...params)
+export function createSyncEngine<
+	T extends Transition,
+	MemoryModel extends object
+>(...params: ConstructorParameters<typeof ReactiveSyncEngine>) {
+	return new ReactiveSyncEngine<T, MemoryModel>(...params)
 }
 export type { ReactiveSyncEngine }
