@@ -8,7 +8,7 @@ import {
 import type { Transition } from '@ground0/shared'
 import { onDestroy } from 'svelte'
 import { readonly, writable, type Readable } from 'svelte/store'
-import type { PathValue } from '@/types/path_values/PathValue'
+import type { PathValue } from '@/types/path_stores/values/PathValue'
 class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 	private editableMemoryModel = writable<MemoryModel | undefined>()
 	public memoryModel = readonly(this.editableMemoryModel)
