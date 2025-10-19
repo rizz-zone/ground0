@@ -78,7 +78,12 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 						newValue: PathValue<MemoryModel, never> | undefined
 					) => unknown
 				)
-				// TODO: call update for the first time
+				// TODO: Make acc initially the actual value of memoryModel,
+				// but we'll need to make the custom store first
+				properPath.reduce((acc: object, pathValue: string) => {
+					if (typeof acc !== 'object' || !(pathValue in acc)) return undefined
+					return acc[pathValue]
+				}, {})
 				return () => subscriptionFnMap.delete(subscriptionId)
 			}
 		}
