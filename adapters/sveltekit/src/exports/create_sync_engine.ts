@@ -62,6 +62,10 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 				update: (newValue: PathValue<MemoryModel, Path> | undefined) => unknown
 			) => {
 				const subscriptionId = Symbol()
+
+				const containerPath = [...properPath].pop()
+				const container = properPath.reduce(())
+
 				if (!subscriptionFnMap) {
 					subscriptionFnMap = new Map()
 					this.pathSubscriptions.set(pathString, subscriptionFnMap)
