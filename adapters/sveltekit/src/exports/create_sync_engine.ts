@@ -10,6 +10,7 @@ import { onDestroy } from 'svelte'
 import { readonly, type Readable } from 'svelte/store'
 import type { PathValue } from '@/types/path_stores/values/PathValue'
 import { MemoryModelStore } from '@/stores/memory_model'
+import { createStoreTree } from '@/stores/path_store_tree'
 
 class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 	private editableMemoryModel = new MemoryModelStore<MemoryModel>()
@@ -32,13 +33,7 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 		onDestroy(this[Symbol.dispose].bind(this))
 	}
 
-	private pathSubscriptions = new Map<
-		string,
-		Map<
-			symbol,
-			(newValue: PathValue<MemoryModel, never> | undefined) => unknown
-		>
-	>()
+	private subscriptionTree = createStoreTree()
 
 	public path<
 		Path extends StringPath<MemoryModel> | Readonly<ArrayPath<MemoryModel>>
@@ -62,14 +57,11 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 				throw new Error()
 		}
 
-		const pathString = JSON.stringify(properPath)
-
 		return {
 			subscribe: (
 				update: (newValue: PathValue<MemoryModel, Path> | undefined) => unknown
 			) => {
 				const subscriptionId = Symbol()
-				let subscriptionFnMap = this.pathSubscriptions.get(pathString)
 				if (!subscriptionFnMap) {
 					subscriptionFnMap = new Map()
 					this.pathSubscriptions.set(pathString, subscriptionFnMap)
