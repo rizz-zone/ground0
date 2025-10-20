@@ -1,6 +1,10 @@
 const members = Symbol()
 
-function emptyObject(path: string[], members: symbol) {
+function emptyObject(
+	path: string[],
+	members: symbol,
+	reportEmpty?: () => unknown
+) {
 	return new Proxy(
 		{
 			[members]: 0
@@ -8,8 +12,10 @@ function emptyObject(path: string[], members: symbol) {
 		{
 			get(target, prop) {
 				if (prop in target || typeof prop !== 'string') return prop
-				// TODO: Allow for reports back about deletions
-				const newObject = emptyObject([...path, prop], members)
+				const newObject = emptyObject([...path, prop], members, () => {
+					;(target[members] as number)--
+					if ((target[members] as number) <= 0) reportEmpty?.()
+				})
 				target[prop] = newObject
 				;(target[members] as number)++
 				return newObject
@@ -17,6 +23,14 @@ function emptyObject(path: string[], members: symbol) {
 			set(target, prop, value, receiver) {
 				;(target[members] as number)++
 				return Reflect.set(target, prop, value, receiver)
+			},
+			deleteProperty(target, prop) {
+				const deleteSuccess = Reflect.deleteProperty(target, prop)
+				if (deleteSuccess) {
+					;(target[members] as number)--
+					if ((target[members] as number) <= 0) reportEmpty?.()
+				}
+				return deleteSuccess
 			}
 		}
 	)
