@@ -11,9 +11,11 @@ function emptyObject(
 		} as { [key: string]: unknown; [k: symbol]: number },
 		{
 			get(target, prop) {
-				if (prop in target || typeof prop !== 'string') return prop
+				if (prop in target || typeof prop !== 'string')
+					return Reflect.get(target, prop)
 				const newObject = emptyObject([...path, prop], members, () => {
 					;(target[members] as number)--
+					Reflect.deleteProperty(target, prop)
 					if ((target[members] as number) <= 0) reportEmpty?.()
 				})
 				target[prop] = newObject
@@ -21,16 +23,17 @@ function emptyObject(
 				return newObject
 			},
 			set(target, prop, value, receiver) {
-				;(target[members] as number)++
-				return Reflect.set(target, prop, value, receiver)
+				const success = Reflect.set(target, prop, value, receiver)
+				if (success) (target[members] as number)++
+				return success
 			},
 			deleteProperty(target, prop) {
-				const deleteSuccess = Reflect.deleteProperty(target, prop)
-				if (deleteSuccess) {
+				const success = Reflect.deleteProperty(target, prop)
+				if (success) {
 					;(target[members] as number)--
 					if ((target[members] as number) <= 0) reportEmpty?.()
 				}
-				return deleteSuccess
+				return success
 			}
 		}
 	)
