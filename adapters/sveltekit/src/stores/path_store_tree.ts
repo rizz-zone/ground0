@@ -1,4 +1,9 @@
+import type { ArbitraryPath } from '@/types/path_stores/ArbitraryPath'
+import type { PathValue } from '@/types/path_stores/values/PathValue'
+import { getProperty } from 'dot-prop'
+
 const members = Symbol()
+const stores = Symbol()
 
 function emptyObject(
 	path: string[],
@@ -40,4 +45,29 @@ function emptyObject(
 }
 export function createStoreTree() {
 	return emptyObject([], members)
+}
+
+type SomePathStoreSubscriber = (
+	newValue: PathValue<never, never> | undefined
+) => unknown
+type TreeAgent = {
+	[key: string]: TreeAgent
+	[members]: number
+	[stores]: SomePathStoreSubscriber[]
+}
+export class PathStoreTree {
+	private rawTree: { [key: string]: TreeAgent } = {}
+
+	public getPathSubscribers(path: ArbitraryPath): SomePathStoreSubscriber[] {
+		const pathResult = getProperty(this.rawTree, path)
+		if (typeof pathResult !== 'object') return []
+		return pathResult[stores]
+	}
+	public createPathSubscriber(
+		path: ArbitraryPath,
+		updateFn: SomePathStoreSubscriber
+	): symbol {
+		const newSubscriberId = Symbol()
+		return newSubscriberId
+	}
 }

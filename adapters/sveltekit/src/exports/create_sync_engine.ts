@@ -64,7 +64,7 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 				const subscriptionId = Symbol()
 
 				const containerPath = [...properPath].pop()
-				const container = properPath.reduce(())
+				const container = properPath.reduce((acc) => {})
 
 				if (!subscriptionFnMap) {
 					subscriptionFnMap = new Map()
