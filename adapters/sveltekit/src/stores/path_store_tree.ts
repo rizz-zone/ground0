@@ -1,3 +1,4 @@
+import { brandedLog } from '@/common/branded_log'
 import type { ArbitraryPath } from '@/types/path_stores/ArbitraryPath'
 import type { PathValue } from '@/types/path_stores/values/PathValue'
 import { getProperty } from 'dot-prop'
@@ -86,7 +87,8 @@ export class PathStoreTree {
 					[members]: 1,
 					[stores]: new Map()
 				}
-				break
+				previousSegmentReference = previousSegmentReference[pathSegment]
+				continue
 			}
 			const reference = previousSegmentReference[pathSegment] as TreeAgent
 			reference[members]++
@@ -103,25 +105,33 @@ export class PathStoreTree {
 	}
 	public deletePathSubscriber(
 		path: PopulatedArbitraryPath,
-		updateFn: SomePathStoreSubscriber
+		subscriberId: symbol
 	): void {
-		const references: TreeAgent[] = []
+		const finalIndex = path.length
+		let previous: typeof this.rawTree | TreeAgent = this.rawTree
 
-		// We need to get all the references along the path so that we can
-		// decrement members from inside out, starting with the actually
-		// affected object.
-		// TODO: Maybe this is unnecessary? Though it seems like it still would
-		// be more efficient (not duplicating how many times we access it
-		// by redoing the work dot-prop would otherwise have to do)
-		for (const pathSegment of path) {
-			const previous = references.at(-1) ?? this.rawTree
-			// If what we're looking for doesn't exist, we don't have to continue.
+		for (const [index, pathSegment] of path.entries()) {
 			if (
 				!(pathSegment in previous) ||
 				typeof previous[pathSegment] !== 'object'
 			)
+				return brandedLog(
+					console.error,
+					'Path could not fully be resolved while deleting store subscriber, which may mean the store tree is now corrupted:',
+					path,
+					'\n\nFailed at',
+					pathSegment
+				)
+			const item: TreeAgent = previous[pathSegment]
+			if (--item[members] <= 0) {
+				// eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+				delete previous[pathSegment]
 				return
-			references.push(previous[pathSegment])
+			}
+			if (index === finalIndex) {
+				item[stores].delete(subscriberId)
+			}
+			previous = item
 		}
 	}
 	public pushUpdateThroughPath(
