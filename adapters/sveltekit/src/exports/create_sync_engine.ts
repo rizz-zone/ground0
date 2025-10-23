@@ -10,7 +10,7 @@ import { onDestroy } from 'svelte'
 import { readonly, type Readable } from 'svelte/store'
 import type { PathValue } from '@/types/path_stores/values/PathValue'
 import { MemoryModelStore } from '@/stores/memory_model'
-import { createStoreTree } from '@/stores/path_store_tree'
+import { PathStoreTree } from '@/stores/path_store_tree'
 
 class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 	private editableMemoryModel = new MemoryModelStore<MemoryModel>()
@@ -33,7 +33,7 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 		onDestroy(this[Symbol.dispose].bind(this))
 	}
 
-	private subscriptionTree = createStoreTree()
+	private storeTree = new PathStoreTree()
 
 	public path<
 		Path extends StringPath<MemoryModel> | Readonly<ArrayPath<MemoryModel>>
@@ -57,32 +57,23 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 				throw new Error()
 		}
 
+		// TODO: Make this error more good too
+		if (properPath.length <= 0) throw new Error()
+		const finalPath = properPath as Parameters<
+			PathStoreTree['createPathSubscriber']
+		>[0]
+
 		return {
 			subscribe: (
 				update: (newValue: PathValue<MemoryModel, Path> | undefined) => unknown
 			) => {
-				const subscriptionId = Symbol()
-
-				const containerPath = [...properPath].pop()
-				const container = properPath.reduce((acc) => {})
-
-				if (!subscriptionFnMap) {
-					subscriptionFnMap = new Map()
-					this.pathSubscriptions.set(pathString, subscriptionFnMap)
-				}
-				subscriptionFnMap.set(
-					subscriptionId,
-					update as unknown as (
-						newValue: PathValue<MemoryModel, never> | undefined
-					) => unknown
+				const subscription = this.storeTree.createPathSubscriber(
+					finalPath,
+					update,
+					this.memoryModel
 				)
-				// TODO: Make acc initially the actual value of memoryModel,
-				// but we'll need to make the custom store first
-				properPath.reduce((acc: object, pathValue: string) => {
-					if (typeof acc !== 'object' || !(pathValue in acc)) return undefined
-					return acc[pathValue]
-				}, {})
-				return () => subscriptionFnMap.delete(subscriptionId)
+				return () =>
+					this.storeTree.deletePathSubscriber(finalPath, subscription)
 			}
 		}
 	}
