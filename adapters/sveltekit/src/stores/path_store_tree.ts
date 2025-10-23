@@ -70,7 +70,8 @@ export class PathStoreTree {
 	}
 	public createPathSubscriber(
 		path: PopulatedArbitraryPath,
-		updateFn: SomePathStoreSubscriber
+		updateFn: SomePathStoreSubscriber,
+		latestMemoryModel: { [key: string | number]: unknown }
 	): symbol {
 		const newSubscriberId = Symbol()
 
@@ -101,6 +102,13 @@ export class PathStoreTree {
 			newSubscriberId,
 			updateFn
 		)
+
+		try {
+			updateFn(getProperty(latestMemoryModel, path))
+		} catch {
+			// empty
+		}
+
 		return newSubscriberId
 	}
 	public deletePathSubscriber(
@@ -138,7 +146,34 @@ export class PathStoreTree {
 		path: PopulatedArbitraryPath,
 		latestMemoryModel: { [key: string | number]: unknown }
 	): void {
-		// TODO: This will update any subscriber functions present from the
-		// outside in.
+		let previousOriginal: unknown = latestMemoryModel
+		let previousTree: TreeAgent | typeof this.rawTree = this.rawTree
+		for (const pathSegment of path) {
+			if (
+				!(pathSegment in previousTree) ||
+				typeof previousTree[pathSegment] !== 'object'
+			)
+				return
+			const thisTree = previousTree[
+				pathSegment
+			] satisfies TreeAgent as TreeAgent
+			const thisOriginal =
+				typeof previousOriginal === 'object' &&
+				previousOriginal !== null &&
+				pathSegment in previousOriginal
+					? (previousOriginal as { [key: string | number]: unknown })[
+							pathSegment
+						]
+					: undefined
+			for (const fn of thisTree[stores].values()) {
+				try {
+					fn(thisOriginal as PathValue<never, never> | undefined)
+				} catch {
+					// empty
+				}
+			}
+			previousTree = thisTree
+			previousOriginal = thisOriginal
+		}
 	}
 }
