@@ -136,22 +136,9 @@ export class PathStoreTree {
 	}
 	public pushUpdateThroughPath(
 		path: PopulatedArbitraryPath,
-		latestMemoryModel: object
+		latestMemoryModel: { [key: string | number]: unknown }
 	): void {
 		// TODO: This will update any subscriber functions present from the
 		// outside in.
-
-		let previousSegmentReference: typeof this.rawTree | TreeAgent = this.rawTree
-		let previousMemoryModelPositionReference = latestMemoryModel
-		for (const pathSegment of path) {
-			if (
-				!(pathSegment in previousSegmentReference) ||
-				typeof previousSegmentReference[pathSegment] === 'undefined'
-			) return
-			const referenceNowIsObject = pathSegment in previousMemoryModelPositionReference && typeof previousMemoryModelPositionReference[pathSegment] === 'object'
-			if (previousSegmentReference[pathSegment][stores].entries() === 0) {
-				previousMemoryModelPositionReference = 
-			}
-		}
 	}
 }
