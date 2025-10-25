@@ -59,7 +59,7 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 
 		// TODO: Make this error more good too
 		if (properPath.length <= 0) throw new Error()
-		const finalPath = properPath as Parameters<
+		const finalPath = properPath as unknown as Parameters<
 			PathStoreTree['createPathSubscriber']
 		>[0]
 
@@ -70,7 +70,7 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 				const subscription = this.storeTree.createPathSubscriber(
 					finalPath,
 					update,
-					this.memoryModel
+					this.memoryModel as unknown as { [key: string | number]: unknown }
 				)
 				return () =>
 					this.storeTree.deletePathSubscriber(finalPath, subscription)
