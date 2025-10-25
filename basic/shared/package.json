@@ -28,6 +28,7 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": "./dist/index.js",
+    "./zod": "./dist/zod.js",
     "./package.json": "./package.json"
   },
   "dependencies": {

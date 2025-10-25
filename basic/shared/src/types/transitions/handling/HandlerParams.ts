@@ -1,4 +1,6 @@
-import type { Transition } from '../Transition'
+/// <reference lib="dom" />
+
+import type { Transition } from '@/types/transitions/Transition'
 
 /**
  * The object passed into every transition handler.

@@ -1,4 +1,4 @@
-import type { Transition } from '../Transition'
+import type { Transition } from '@/types/transitions/Transition'
 
 /**
  * @deprecated Different transition impacts need fundamentally different functions.

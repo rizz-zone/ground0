@@ -1,4 +1,4 @@
-import type { Transition } from '../../Transition'
+import type { Transition } from '@/types/transitions/Transition'
 import type { BaseHandlerParams } from './BaseHandlerParams'
 
 export type MemoryHandlerParams<

@@ -1,9 +1,7 @@
-/// <reference types="@cloudflare/workers-types" />
-
-import type { Transition } from '../../Transition'
-import type { TransitionImpact } from '../../TransitionImpact'
-import type { HandlerParams } from '../HandlerParams'
-import type { RequiredActionsForImpact } from '../RequiredActionsForImpact'
+import type { Transition } from '@/types/transitions/Transition'
+import type { TransitionImpact } from '@/types/transitions/TransitionImpact'
+import type { HandlerParams } from '@/types/transitions/handling/HandlerParams'
+import type { RequiredActionsForImpact } from '@/types/transitions/handling/RequiredActionsForImpact'
 
 export type BackendHandlers<T extends Transition> = {
 	[K in RequiredActionsForImpact<

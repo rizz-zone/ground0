@@ -1,9 +1,9 @@
 import type { IgnoredReturn } from '@/types/common/IgnoredReturn'
-import type { Transition } from '../../Transition'
-import type { TransitionImpact } from '../../TransitionImpact'
-import type { DbHandlerParams } from '../functions/DbHandlerParams'
-import type { RequiredActionsForImpact } from '../RequiredActionsForImpact'
-import type { MemoryHandlerParams } from '../functions/MemoryHandlerParams'
+import type { Transition } from '@/types/transitions/Transition'
+import type { TransitionImpact } from '@/types/transitions/TransitionImpact'
+import type { DbHandlerParams } from '@/types/transitions/handling/functions/DbHandlerParams'
+import type { RequiredActionsForImpact } from '@/types/transitions/handling/RequiredActionsForImpact'
+import type { MemoryHandlerParams } from '@/types/transitions/handling/functions/MemoryHandlerParams'
 
 export type LocalHandlers<MemoryModel extends object, T extends Transition> = {
 	[K in RequiredActionsForImpact<

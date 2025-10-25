@@ -1,5 +1,5 @@
 import type { StandardSchemaV1 } from '@standard-schema/spec'
-import type { Transition } from '../types/transitions/Transition'
+import type { Transition } from '@/types/transitions/Transition'
 import type { TransitionSchema } from '../types/transitions/TransitionSchema'
 
 /**

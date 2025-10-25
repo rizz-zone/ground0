@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'vitest'
 import {
 	DownstreamWsMessageSchema,
-	isDownstreamWsMessage,
-	type DownstreamWsMessage
+	isDownstreamWsMessage
 } from './DownstreamWsMessage'
-import { DownstreamWsMessageAction } from './DownstreamWsMessageAction'
+import { DownstreamWsMessageAction } from '../../types/ws/DownstreamWsMessageAction'
+import type { DownstreamWsMessage } from '@/types/ws/DownstreamWsMessage'
 
 describe('valid messages', () => {
 	describe('optimistic confirmations', () => {

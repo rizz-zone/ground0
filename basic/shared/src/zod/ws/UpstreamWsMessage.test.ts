@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'vitest'
 import {
 	isUpstreamWsMessage,
-	UpstreamWsMessageSchema,
-	type UpstreamWsMessage
+	UpstreamWsMessageSchema
 } from './UpstreamWsMessage'
-import { UpstreamWsMessageAction } from './UpstreamWsMessageAction'
-import { TransitionImpact } from '../transitions/TransitionImpact'
+import { UpstreamWsMessageAction } from '../../types/ws/UpstreamWsMessageAction'
+import { TransitionImpact } from '../../types/transitions/TransitionImpact'
+import type { UpstreamWsMessage } from '@/types/ws/UpstreamWsMessage'
 
 describe('valid messages', () => {
 	test('init', () => {

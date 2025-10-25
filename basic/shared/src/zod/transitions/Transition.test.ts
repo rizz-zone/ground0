@@ -1,10 +1,7 @@
 import { describe, test, expect } from 'vitest'
-import { TransitionImpact } from './TransitionImpact'
-import {
-	isTransition,
-	TransitionZodSchema,
-	type Transition
-} from './Transition'
+import { TransitionImpact } from '../../types/transitions/TransitionImpact'
+import { isTransition, TransitionSchema } from './Transition'
+import type { Transition } from '@/types/transitions/Transition'
 
 describe('valid data', () => {
 	describe('with string action', () => {
@@ -19,7 +16,7 @@ describe('valid data', () => {
 				}
 			}
 			expect(isTransition(transition)).toBe(true)
-			expect(TransitionZodSchema.safeParse(transition).success).toBe(true)
+			expect(TransitionSchema.safeParse(transition).success).toBe(true)
 		})
 		test('without data', () => {
 			const transition: Transition = {
@@ -27,7 +24,7 @@ describe('valid data', () => {
 				impact: TransitionImpact.OptimisticPush
 			}
 			expect(isTransition(transition)).toBe(true)
-			expect(TransitionZodSchema.safeParse(transition).success).toBe(true)
+			expect(TransitionSchema.safeParse(transition).success).toBe(true)
 		})
 	})
 	describe('with integer action', () => {
@@ -42,7 +39,7 @@ describe('valid data', () => {
 				}
 			}
 			expect(isTransition(transition)).toBe(true)
-			expect(TransitionZodSchema.safeParse(transition).success).toBe(true)
+			expect(TransitionSchema.safeParse(transition).success).toBe(true)
 		})
 		test('without data', () => {
 			const transition: Transition = {
@@ -50,7 +47,7 @@ describe('valid data', () => {
 				impact: TransitionImpact.OptimisticPush
 			}
 			expect(isTransition(transition)).toBe(true)
-			expect(TransitionZodSchema.safeParse(transition).success).toBe(true)
+			expect(TransitionSchema.safeParse(transition).success).toBe(true)
 		})
 	})
 })
@@ -61,7 +58,7 @@ describe('invalid data', () => {
 			impact: TransitionImpact.OptimisticPush
 		}
 		expect(isTransition(transition)).toBe(false)
-		expect(TransitionZodSchema.safeParse(transition).success).toBe(false)
+		expect(TransitionSchema.safeParse(transition).success).toBe(false)
 	})
 	test('nonexistent impact', () => {
 		const transition = {
@@ -69,6 +66,6 @@ describe('invalid data', () => {
 			impact: Number.MAX_SAFE_INTEGER
 		}
 		expect(isTransition(transition)).toBe(false)
-		expect(TransitionZodSchema.safeParse(transition).success).toBe(false)
+		expect(TransitionSchema.safeParse(transition).success).toBe(false)
 	})
 })

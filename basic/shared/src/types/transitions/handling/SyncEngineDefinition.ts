@@ -1,5 +1,5 @@
-import type { Transition } from '../Transition'
-import type { TransitionSchema } from '../TransitionSchema'
+import type { Transition } from '@/types/transitions/Transition'
+import type { TransitionSchema } from '@/types/transitions/TransitionSchema'
 import type { GeneratedMigrationSchema } from './GeneratedMigrationSchema'
 import type { SharedHandlers } from './sets/SharedHandlers'
 

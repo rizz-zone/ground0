@@ -1,4 +1,4 @@
-import type { Transition } from '../Transition'
+import type { Transition } from '@/types/transitions/Transition'
 
 export type RequiredActionsForImpact<
 	T extends Transition,

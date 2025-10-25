@@ -1,4 +1,4 @@
-import type { Transition } from '../../Transition'
+import type { Transition } from '@/types/transitions/Transition'
 // import type { TransitionImpact } from '../../TransitionImpact'
 import type { RequiredActionsForImpact } from '../RequiredActionsForImpact'
 

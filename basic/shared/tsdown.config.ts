@@ -19,7 +19,8 @@ export default defineConfig({
 	platform: 'neutral',
 	sourcemap: true,
 	entry: {
-		index: 'src/index.ts'
+		index: 'src/index.ts',
+		zod: 'src/zod.ts'
 	},
 	plugins: [sqlRawPlugin]
 })
