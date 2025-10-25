@@ -9,3 +9,5 @@ catalogs:
     superjson: ^2.2.2
   validators:
     zod: ^4.1.12
+onlyBuiltDependencies:
+  - esbuild

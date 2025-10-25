@@ -10,7 +10,7 @@ import {
 	gte
 } from 'zod/mini'
 import { UpstreamWsMessageAction } from './UpstreamWsMessageAction'
-import semverValid from 'semver/functions/valid'
+import semverValid from 'semver/functions/valid.js'
 import { TransitionZodSchema } from '../transitions/Transition'
 import { TransitionImpact } from '../transitions/TransitionImpact'
 import { int } from 'zod'
