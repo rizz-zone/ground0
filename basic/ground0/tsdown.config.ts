@@ -8,6 +8,8 @@ export default defineConfig({
 	platform: 'neutral',
 	sourcemap: true,
 	entry: {
-		index: 'src/index.ts'
+		index: 'src/index.ts',
+		worker: 'src/worker.ts',
+		durable_object: 'src/durable_object.ts'
 	}
 })

@@ -19,6 +19,8 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": "./dist/index.js",
+    "./durable_object": "./dist/durable_object.js",
+    "./worker": "./dist/worker.js",
     "./package.json": "./package.json"
   },
   "dependencies": {

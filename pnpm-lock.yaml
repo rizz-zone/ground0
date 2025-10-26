@@ -198,10 +198,17 @@ importers:
         version: 0.44.6(@cloudflare/workers-types@4.20251011.0)
 
   sample_integrations/counter/sveltekit:
-    devDependencies:
+    dependencies:
       '@ground0/adapter-svelte':
         specifier: workspace:*
         version: link:../../../adapters/sveltekit
+      ground0:
+        specifier: workspace:*
+        version: link:../../../basic/ground0
+      zod:
+        specifier: ^4.1.12
+        version: 4.1.12
+    devDependencies:
       '@sveltejs/adapter-auto':
         specifier: ^6.1.0
         version: 6.1.1(@sveltejs/kit@2.47.3(@sveltejs/vite-plugin-svelte@6.2.1(svelte@5.41.0)(vite@7.1.10(jiti@2.6.1)))(svelte@5.41.0)(vite@7.1.10(jiti@2.6.1)))
