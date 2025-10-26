@@ -116,9 +116,19 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
  * ```
  */
 export function createSyncEngine<
-	T extends Transition,
-	MemoryModel extends object
->(...params: ConstructorParameters<typeof ReactiveSyncEngine>) {
-	return new ReactiveSyncEngine<T, MemoryModel>(...params)
+	T extends Transition = never,
+	MemoryModel extends object = never
+>(
+	...params: ConstructorParameters<typeof ReactiveSyncEngine>
+): T extends never
+	? never
+	: MemoryModel extends never
+		? never
+		: ReactiveSyncEngine<T, MemoryModel> {
+	return new ReactiveSyncEngine<T, MemoryModel>(...params) as T extends never
+		? never
+		: MemoryModel extends never
+			? never
+			: ReactiveSyncEngine<T, MemoryModel>
 }
 export type { ReactiveSyncEngine }
