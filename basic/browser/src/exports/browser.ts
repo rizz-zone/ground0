@@ -16,7 +16,7 @@ function logMessageError(workerType: string) {
 	)
 }
 function logError(workerType: string) {
-	brandedLog(console.error, `A ${workerType} worker failed!`)
+	brandedLog(console.error, `A ${workerType}Worker failed!`)
 }
 
 export class BrowserLocalFirst<

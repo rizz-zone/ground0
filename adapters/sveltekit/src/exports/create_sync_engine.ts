@@ -15,7 +15,7 @@ import { PathStoreTree } from '@/stores/path_store_tree'
 class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 	private editableMemoryModel = new MemoryModelStore<MemoryModel>()
 	public memoryModel = readonly(this.editableMemoryModel)
-	private browserLocalFirst: BrowserLocalFirst<T, MemoryModel>
+	private browserLocalFirst?: BrowserLocalFirst<T, MemoryModel>
 
 	constructor(workerUrl: URL) {
 		const input: ConstructorParameters<typeof Worker> = [
@@ -23,12 +23,15 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 			{ type: 'module' }
 		]
 
-		this.browserLocalFirst = new BrowserLocalFirst(
-			'SharedWorker' in globalThis
-				? new SharedWorker(...input)
-				: new Worker(...input),
-			this.onMessage.bind(this)
-		)
+		this.browserLocalFirst =
+			'Worker' in globalThis
+				? new BrowserLocalFirst(
+						'SharedWorker' in globalThis
+							? new SharedWorker(...input)
+							: new Worker(...input),
+						this.onMessage.bind(this)
+					)
+				: undefined
 
 		onDestroy(this[Symbol.dispose].bind(this))
 	}
@@ -87,9 +90,11 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 		}
 	}
 	public transition(
-		...params: Parameters<(typeof this.browserLocalFirst)['transition']>
+		...params: Parameters<
+			NonNullable<typeof this.browserLocalFirst>['transition']
+		>
 	) {
-		return this.browserLocalFirst.transition(...params)
+		return this.browserLocalFirst?.transition(...params)
 	}
 
 	[Symbol.dispose]() {

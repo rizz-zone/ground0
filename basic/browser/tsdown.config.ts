@@ -12,7 +12,8 @@ export default defineConfig({
 	sourcemap: true,
 	entry: {
 		index: 'src/index.ts',
-		adapter_extras: 'src/adapter_extras.ts'
+		adapter_extras: 'src/adapter_extras.ts',
+		worker: 'src/worker.ts'
 	}
 	// ,minify: true,
 	// noExternal: [/[\s\S]*/],
