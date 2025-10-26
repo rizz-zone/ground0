@@ -1,5 +1,6 @@
 import type { ArrayPath } from '@/types/path_stores/ArrayPath'
 import type { StringPath } from '@/types/path_stores/StringPath'
+import type { PathValue } from '@/types/path_stores/values/PathValue'
 import { BrowserLocalFirst } from '@ground0/browser'
 import {
 	type DownstreamWorkerMessage,
@@ -8,7 +9,6 @@ import {
 import type { Transition } from '@ground0/shared'
 import { onDestroy } from 'svelte'
 import { readonly, type Readable } from 'svelte/store'
-import type { PathValue } from '@/types/path_stores/values/PathValue'
 import { MemoryModelStore } from '@/stores/memory_model'
 import { PathStoreTree } from '@/stores/path_store_tree'
 
@@ -40,24 +40,25 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 
 	public path<
 		Path extends StringPath<MemoryModel> | Readonly<ArrayPath<MemoryModel>>
-	>(path: Path): Readable<PathValue<MemoryModel, Path> | undefined> {
+	>(
+		path: Path
+	): Readable<
+		Path extends string
+			? PathValue<MemoryModel, Path> | undefined
+			: Path extends readonly (string | number)[]
+				? PathValue<MemoryModel, Path> | undefined
+				: never
+	> {
 		let properPath: string[]
-		switch (typeof path) {
-			case 'string':
-				properPath = path.split('.')
-				break
-			// @ts-expect-error We want a fallthrough case here
-			case 'object':
-				if (Array.isArray(path)) {
-					properPath = path.map((item) =>
-						typeof item === 'string' ? item : String(item)
-					)
-					break
-				}
-			// eslint-disable-next-line no-fallthrough
-			default:
-				// TODO: Make this error more good
-				throw new Error()
+		if (typeof path === 'string') {
+			properPath = path.split('.')
+		} else if (Array.isArray(path)) {
+			properPath = path.map((item) =>
+				typeof item === 'string' ? item : String(item)
+			)
+		} else {
+			// TODO: Make this error more good
+			throw new Error()
 		}
 
 		// TODO: Make this error more good too
@@ -67,9 +68,7 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 		>[0]
 
 		return {
-			subscribe: (
-				update: (newValue: PathValue<MemoryModel, Path> | undefined) => unknown
-			) => {
+			subscribe: (update: (newValue: unknown) => unknown) => {
 				const subscription = this.storeTree.createPathSubscriber(
 					finalPath,
 					update,
@@ -78,7 +77,13 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 				return () =>
 					this.storeTree.deletePathSubscriber(finalPath, subscription)
 			}
-		}
+		} as Readable<
+			Path extends string
+				? PathValue<MemoryModel, Path> | undefined
+				: Path extends readonly (string | number)[]
+					? PathValue<MemoryModel, Path> | undefined
+					: never
+		>
 	}
 
 	private onMessage(message: DownstreamWorkerMessage<MemoryModel>) {
