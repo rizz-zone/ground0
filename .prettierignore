@@ -9,4 +9,5 @@ bun.lock
 # Generated files
 dist/
 drizzle/
+.svelte-kit/
 worker-configuration.d.ts
