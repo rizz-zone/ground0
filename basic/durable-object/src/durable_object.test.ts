@@ -8,11 +8,11 @@ import { migrate } from 'drizzle-orm/durable-sqlite/migrator'
 import type { SampleObject } from './testing/sample_object'
 import { SyncEngineBackend } from './durable_object'
 import {
-	isUpstreamWsMessage,
 	UpstreamWsMessageAction,
 	WsCloseCode,
 	type UpstreamWsMessage
 } from '@ground0/shared'
+import { isUpstreamWsMessage } from '@ground0/shared/zod'
 import SuperJSON from 'superjson'
 
 // If we don't do this, env.* won't have our SAMPLE_OBJECT binding.

@@ -5,7 +5,6 @@ import {
 	UpstreamWsMessageAction,
 	type Transition,
 	type SyncEngineDefinition,
-	isUpstreamWsMessage,
 	type UpstreamWsMessage,
 	WsCloseCode,
 	type BackendHandlers,
@@ -14,6 +13,7 @@ import {
 	DownstreamWsMessageAction,
 	type UUID
 } from '@ground0/shared'
+import { isUpstreamWsMessage } from '@ground0/shared/zod'
 import SuperJSON from 'superjson'
 import semverMajor from 'semver/functions/major'
 import semverMinor from 'semver/functions/minor'
