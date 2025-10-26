@@ -19,10 +19,12 @@
 		"svelte": "^5.39.5",
 		"svelte-check": "^4.3.2",
 		"typescript": "^5.9.2",
-		"vite": "^7.1.7"
+		"vite": "^7.1.7",
+		"drizzle-kit": "catalog:dev-common"
 	},
 	"dependencies": {
 		"@ground0/adapter-svelte": "workspace:*",
+		"drizzle-orm": "catalog:core-common",
 		"ground0": "workspace:*",
 		"zod": "^4.1.12"
 	}

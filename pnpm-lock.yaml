@@ -12,6 +12,10 @@ catalogs:
     superjson:
       specifier: ^2.2.2
       version: 2.2.2
+  dev-common:
+    drizzle-kit:
+      specifier: ^0.31.4
+      version: 0.31.5
   validators:
     zod:
       specifier: ^4.1.12
@@ -162,6 +166,9 @@ importers:
       '@ground0/shared':
         specifier: workspace:*
         version: link:../shared
+      drizzle-orm:
+        specifier: catalog:core-common
+        version: 0.44.6(@cloudflare/workers-types@4.20251011.0)
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
@@ -191,7 +198,7 @@ importers:
         specifier: ^2.1.20
         version: 2.1.23
       drizzle-kit:
-        specifier: ^0.31.4
+        specifier: catalog:dev-common
         version: 0.31.5
       drizzle-orm:
         specifier: catalog:core-common
@@ -202,6 +209,9 @@ importers:
       '@ground0/adapter-svelte':
         specifier: workspace:*
         version: link:../../../adapters/sveltekit
+      drizzle-orm:
+        specifier: catalog:core-common
+        version: 0.44.6(@cloudflare/workers-types@4.20251011.0)
       ground0:
         specifier: workspace:*
         version: link:../../../basic/ground0
@@ -218,6 +228,9 @@ importers:
       '@sveltejs/vite-plugin-svelte':
         specifier: ^6.2.0
         version: 6.2.1(svelte@5.41.0)(vite@7.1.10(jiti@2.6.1))
+      drizzle-kit:
+        specifier: catalog:dev-common
+        version: 0.31.5
       svelte:
         specifier: ^5.39.5
         version: 5.41.0

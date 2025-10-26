@@ -7,6 +7,8 @@ catalogs:
   core-common:
     drizzle-orm: ^0.44.6
     superjson: ^2.2.2
+  dev-common:
+    drizzle-kit: ^0.31.4
   validators:
     zod: ^4.1.12
 onlyBuiltDependencies:

@@ -13,6 +13,7 @@
     "zod": "catalog:validators"
   },
   "peerDependencies": {
+    "drizzle-orm": "catalog:core-common",
     "typescript": "^5.8.3"
   },
   "scripts": {
@@ -33,7 +34,6 @@
   },
   "dependencies": {
     "@ground0/shared": "workspace:*",
-    "drizzle-orm": "catalog:core-common",
     "superjson": "catalog:core-common",
     "wa-sqlite": "^1.0.0",
     "xstate": "^5.20.1"
