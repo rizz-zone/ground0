@@ -1,2 +1,1 @@
-// @ts-expect-error The WASM file doesn't have type defs
-export { default } from 'wa-sqlite/dist/wa-sqlite.wasm'
+export const wasmUrl = new URL('wa-sqlite/dist/wa-sqlite.wasm', import.meta.url)

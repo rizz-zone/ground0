@@ -1,1 +1,1 @@
-export { default } from '@ground0/browser/wasm'
+export { wasmUrl } from '@ground0/browser/wasm'
