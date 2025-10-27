@@ -38,3 +38,11 @@ export class LocalQueryExecutionError extends Error {
 		Object.setPrototypeOf(this, LocalQueryExecutionError.prototype)
 	}
 }
+export class DownloadFailedError extends Error {
+	constructor(...input: ConstructorParameters<typeof Error>) {
+		super(...input)
+		this.name = 'DownloadFailedError'
+
+		Object.setPrototypeOf(this, DownloadFailedError.prototype)
+	}
+}

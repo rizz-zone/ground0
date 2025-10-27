@@ -13,6 +13,7 @@ export const BROWSER_QUOTA = `Could not get browser storage quota. ${INTERNAL_PR
 export const DB_BEGIN_TRANSACTION = `Could not begin transaction for batched query. ${INTERNAL_PROCESS} ${reportAt('batch_start')}`
 export const DB_ROLLBACK_TRANSACTION = `Tried to run transaction, failed, and could not rollback. ${INTERNAL_PROCESS} ${reportAt('batch_rb')}`
 export const DB_COMMIT_TRANSACTION = `Could not commit transaction. ${INTERNAL_PROCESS} ${reportAt('batch_commit')}`
+export const DOWNLOAD_FAILED = `The database WASM could not be downloaded within 30 seconds.`
 export const badRowResult = (expected: number, got: number) =>
 	`Expected ${expected} response (at step), got ${got}`
 export const overallQueryFailure = (query: string, params: unknown[]) =>
