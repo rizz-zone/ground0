@@ -11,8 +11,9 @@ export default defineConfig({
 	platform: 'browser',
 	sourcemap: true,
 	entry: {
-		index: 'src/index.ts',
 		adapter_extras: 'src/adapter_extras.ts',
+		index: 'src/index.ts',
+		wasm: 'src/wasm.ts',
 		worker: 'src/worker.ts'
 	}
 	// ,minify: true,
