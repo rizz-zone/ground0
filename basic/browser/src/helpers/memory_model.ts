@@ -76,7 +76,7 @@ function newReactiveProxy<Schema extends object>({
 			// While we'll do the operation, we won't let the consumer think
 			// this means everything worked (because it didn't)
 			console.warn(
-				'defineProperty was used on your memory model! This only impacts the copy of the memory model that your worker has, so it may be out of sync now. https://ground0.rizz.zone/non-sync-methods'
+				'defineProperty was used on your memory model! This only impacts the copy of the memory model that your worker has, so it may be out of sync with the client now. https://ground0.rizz.zone/non-sync-methods'
 			)
 			return true
 		},
@@ -84,7 +84,7 @@ function newReactiveProxy<Schema extends object>({
 			Reflect.preventExtensions(target)
 
 			console.warn(
-				'preventExtensions was used on your memory model! This only impacts the copy of the memory model that your worker has, so it may be out of sync now. https://ground0.rizz.zone/non-sync-methods'
+				'preventExtensions was used on your memory model! This only impacts the copy of the memory model that your worker has, so it may be out of sync with the client now. https://ground0.rizz.zone/non-sync-methods'
 			)
 			return true
 		}
