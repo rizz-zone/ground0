@@ -1,5 +1,6 @@
 import { brandedLog } from '@/common/branded_log'
 import { SHAREDWORKER_NO_PORTS } from '@/errors/messages'
+import { deepUnwrap } from '@/helpers/deep_unwrap_memory_model'
 import { WorkerLocalFirst } from '@/helpers/worker_thread'
 import type { LocalEngineDefinition } from '@/types/LocalEngineDefinition'
 import {
@@ -10,6 +11,7 @@ import {
 	UpstreamWorkerMessageType,
 	type UpstreamWorkerMessage
 } from '@/types/internal_messages/UpstreamWorkerMessage'
+import type { Unwrappable } from '@/types/memory_model/Unwrappable'
 import { NoPortsError, type Transition } from '@ground0/shared'
 
 const ctx = self as unknown as
@@ -86,7 +88,9 @@ export function workerEntrypoint<
 			ports.push(port)
 			port.postMessage({
 				type: DownstreamWorkerMessageType.InitMemoryModel,
-				memoryModel: workerLocalFirst.memoryModel
+				memoryModel: deepUnwrap(
+					workerLocalFirst.memoryModel as Unwrappable<MemoryModel>
+				)
 			} satisfies DownstreamWorkerMessage<MemoryModel>)
 			port.onmessage = (ev) => onmessage(ev, port)
 			port.onmessageerror = onmessageerror
@@ -94,7 +98,9 @@ export function workerEntrypoint<
 	else {
 		ctx.postMessage({
 			type: DownstreamWorkerMessageType.InitMemoryModel,
-			memoryModel: workerLocalFirst.memoryModel
+			memoryModel: deepUnwrap(
+				workerLocalFirst.memoryModel as Unwrappable<MemoryModel>
+			)
 		} satisfies DownstreamWorkerMessage<MemoryModel>)
 		ctx.onmessage = onmessage
 		ctx.onmessageerror = onmessageerror

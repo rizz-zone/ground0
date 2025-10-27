@@ -1,10 +1,22 @@
 import type { Transformation } from '@/types/memory_model/Tranformation'
 import { TransformationAction } from '@/types/memory_model/TransformationAction'
+import type { Unwrappable } from '@/types/memory_model/Unwrappable'
 
 type TransformationBroadcastFunction = (
 	transformation: Transformation
 ) => unknown
 type RecursionLimitingMap = WeakMap<object, object>
+
+export const unwrap = Symbol()
+const globalProxyRegistry = new WeakSet()
+
+type IncidentalHasRelevantUnwrapGuard = (
+	value: WeakKey
+) => value is Unwrappable<never>
+export const isReactiveProxy: IncidentalHasRelevantUnwrapGuard =
+	globalProxyRegistry.has.bind(
+		globalProxyRegistry
+	) as IncidentalHasRelevantUnwrapGuard
 
 function newReactiveProxy<Schema extends object>({
 	initial,
@@ -30,6 +42,14 @@ function newReactiveProxy<Schema extends object>({
 			return potentialProxyToEarlyReturn
 		}
 	}
+
+	// Ensure the proxy can be unwrapped
+	Object.defineProperty(initial, unwrap, {
+		value: () => initial,
+		enumerable: false,
+		configurable: false,
+		writable: false
+	})
 
 	const proxy = new Proxy(initial, {
 		// We omit receiver because the main thread won't have one. This will
@@ -93,6 +113,8 @@ function newReactiveProxy<Schema extends object>({
 
 	// Ensure this item is mapped so that an infinite loop cannot happen
 	recursionLimitingMap.set(initial, proxy)
+	// Also ensure it's registered as a proxy for reference elsewhere
+	globalProxyRegistry.add(proxy)
 
 	// Loop through iniital to ensure all nested objects are reactive proxies
 	for (const key in initial) {
