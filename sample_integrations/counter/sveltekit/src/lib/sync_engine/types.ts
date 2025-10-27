@@ -1,15 +1,20 @@
 import { createTransitionSchema, TransitionImpact } from 'ground0'
 import z from 'zod'
 
-const sourceSchema = z.object({
-	action: z.literal('abc'),
-	impact: z.literal(TransitionImpact.LocalOnly)
-})
-type MemoryModel = {
-	counter: number
+// Action enum
+export enum TransitionAction {
+	Increment
 }
 
+// Transition schema
+const sourceSchema = z.object({
+	action: z.literal(TransitionAction.Increment),
+	impact: z.literal(TransitionImpact.OptimisticPush)
+})
 export const appTransitionSchema = createTransitionSchema(sourceSchema)
-
 export type AppTransition = z.infer<typeof sourceSchema>
-export type { MemoryModel }
+
+// Memory model shape
+export type MemoryModel = {
+	counter: number
+}
