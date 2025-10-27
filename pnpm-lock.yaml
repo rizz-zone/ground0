@@ -204,6 +204,18 @@ importers:
         specifier: catalog:core-common
         version: 0.44.6(@cloudflare/workers-types@4.20251011.0)
 
+  extras/sql-dts:
+    dependencies:
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
+  extras/vite-plugin-sql-raw:
+    dependencies:
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
   sample_integrations/counter/sveltekit:
     dependencies:
       '@ground0/adapter-svelte':
@@ -231,6 +243,9 @@ importers:
       drizzle-kit:
         specifier: catalog:dev-common
         version: 0.31.5
+      sql-dts:
+        specifier: workspace:*
+        version: link:../../../extras/sql-dts
       svelte:
         specifier: ^5.39.5
         version: 5.41.0
@@ -243,6 +258,9 @@ importers:
       vite:
         specifier: ^7.1.7
         version: 7.1.10(jiti@2.6.1)
+      vite-plugin-sql-raw:
+        specifier: workspace:*
+        version: link:../../../extras/vite-plugin-sql-raw
 
 packages:
 

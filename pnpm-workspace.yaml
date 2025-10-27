@@ -1,7 +1,7 @@
 packages:
   - 'basic/*'
   - 'adapters/*'
-  - 'examples/*/*'
+  - 'extras/*'
   - 'sample_integrations/*/*'
 catalogs:
   core-common:

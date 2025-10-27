@@ -1,0 +1,16 @@
+{
+    "name": "sql-dts",
+    "type": "module",
+    "version": "1.0.0",
+    "private": false,
+    "sideEffects": false,
+    "packageManager": "pnpm@10.18.3",
+    "peerDependencies": {
+      "typescript": "^5.8.3"
+    },
+    "scripts": {
+      "check-types": "tsc",
+      "lint": "eslint ."
+    },
+    "types": "./src/index.d.ts"
+  }
