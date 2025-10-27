@@ -102,8 +102,8 @@ importers:
         specifier: ^5.8.3
         version: 5.9.3
       wa-sqlite:
-        specifier: github:rhashimoto/wa-sqlite
-        version: https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/a3b1324ed5a57928141b02eb3204421e1164ed53
+        specifier: https://github.com/rhashimoto/wa-sqlite/archive/refs/tags/v1.0.9.tar.gz
+        version: https://github.com/rhashimoto/wa-sqlite/archive/refs/tags/v1.0.9.tar.gz
       xstate:
         specifier: ^5.20.1
         version: 5.23.0
@@ -2957,8 +2957,8 @@ packages:
     resolution: {integrity: sha512-o8qghlI8NZHU1lLPrpi2+Uq7abh4GGPpYANlalzWxyWteJOCsr/P+oPBA49TOLu5FTZO4d3F9MnWJfiMo4BkmA==}
     engines: {node: '>=18'}
 
-  wa-sqlite@https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/a3b1324ed5a57928141b02eb3204421e1164ed53:
-    resolution: {tarball: https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/a3b1324ed5a57928141b02eb3204421e1164ed53}
+  wa-sqlite@https://github.com/rhashimoto/wa-sqlite/archive/refs/tags/v1.0.9.tar.gz:
+    resolution: {tarball: https://github.com/rhashimoto/wa-sqlite/archive/refs/tags/v1.0.9.tar.gz}
     version: 1.0.9
 
   webidl-conversions@7.0.0:
@@ -5507,7 +5507,7 @@ snapshots:
     dependencies:
       xml-name-validator: 5.0.0
 
-  wa-sqlite@https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/a3b1324ed5a57928141b02eb3204421e1164ed53: {}
+  wa-sqlite@https://github.com/rhashimoto/wa-sqlite/archive/refs/tags/v1.0.9.tar.gz: {}
 
   webidl-conversions@7.0.0: {}
 
