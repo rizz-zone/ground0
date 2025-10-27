@@ -1,6 +1,7 @@
-import { workerEntrypoint } from 'ground0/worker'
-import { engineDef } from './defs'
 import { TransitionAction, type AppTransition, type MemoryModel } from './types'
+import { fetchWasmFromUrl, workerEntrypoint } from 'ground0/worker'
+import wasmUrl from 'ground0/wasm?url'
+import { engineDef } from './defs'
 
 workerEntrypoint<MemoryModel, AppTransition>({
 	engineDef,
@@ -17,7 +18,7 @@ workerEntrypoint<MemoryModel, AppTransition>({
 			}
 		}
 	},
-	pullWasmBinary: () => {},
+	pullWasmBinary: fetchWasmFromUrl(wasmUrl),
 	wsUrl: '',
 	dbName: ''
 })
