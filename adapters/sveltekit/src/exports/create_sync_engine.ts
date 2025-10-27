@@ -18,17 +18,12 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 	private browserLocalFirst?: BrowserLocalFirst<T, MemoryModel>
 
 	constructor(workerUrl: URL) {
-		const input: ConstructorParameters<typeof Worker> = [
-			workerUrl,
-			{ type: 'module' }
-		]
-
 		this.browserLocalFirst =
 			'Worker' in globalThis
 				? new BrowserLocalFirst(
 						'SharedWorker' in globalThis
-							? new SharedWorker(...input)
-							: new Worker(...input),
+							? new SharedWorker(workerUrl, { type: 'module' })
+							: new Worker(workerUrl, { type: 'module' }),
 						this.onMessage.bind(this)
 					)
 				: undefined

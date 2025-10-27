@@ -1,4 +1,5 @@
-import { OPFSCoopSyncVFS } from './vfs'
+// @ts-expect-error wa-sqlite has limited type definitions
+import { OPFSCoopSyncVFS } from 'wa-sqlite/src/examples/OPFSCoopSyncVFS.js'
 import { Factory } from 'wa-sqlite'
 import { createModule } from './create_module'
 

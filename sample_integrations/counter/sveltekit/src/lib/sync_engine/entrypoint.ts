@@ -3,6 +3,9 @@ import { fetchWasmFromUrl, workerEntrypoint } from 'ground0/worker'
 import { wasmUrl } from 'ground0/wasm'
 import { engineDef } from './defs'
 
+console.log(wasmUrl)
+console.log('onconnect' in self ? 'shared' : 'dedicated')
+
 workerEntrypoint<MemoryModel, AppTransition>({
 	engineDef,
 	initialMemoryModel: {
