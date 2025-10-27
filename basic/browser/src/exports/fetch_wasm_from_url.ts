@@ -5,6 +5,7 @@ import { DOWNLOAD_FAILED } from '@/errors/messages'
 export function fetchWasmFromUrl(
 	...params: Parameters<typeof fetch>
 ): () => Promise<ArrayBuffer> {
+	// TODO: Exponential backoff
 	return async () => {
 		const startedTryingAt = performance.now()
 		let lastError: unknown
