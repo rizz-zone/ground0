@@ -11,3 +11,4 @@ dist/
 drizzle/
 .svelte-kit/
 worker-configuration.d.ts
+generated/
