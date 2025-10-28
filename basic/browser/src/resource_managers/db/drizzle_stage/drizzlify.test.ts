@@ -99,7 +99,9 @@ describe('drizzlify', () => {
 			`dbop_${dbId}`,
 			expect.any(Function)
 		)
-		const { baseDrizzleQuery } = await import('./base_query')
+		const { baseDrizzleQuery } = await import(
+			'../nested_dedicated_worker/drizzle_stage/base_query'
+		)
 		expect(baseDrizzleQuery).toHaveBeenCalledTimes(1)
 		expect(baseDrizzleQuery).toHaveBeenCalledWith({
 			sqlite3,
@@ -142,7 +144,9 @@ describe('drizzlify', () => {
 		const lastCall = exec.mock.calls.at(-1)
 		expect(lastCall?.[1]).toContain('COMMIT')
 
-		const { baseDrizzleQuery } = await import('./base_query')
+		const { baseDrizzleQuery } = await import(
+			'../nested_dedicated_worker/drizzle_stage/base_query'
+		)
 		expect(baseDrizzleQuery).toHaveBeenCalledTimes(2)
 		expect(Array.isArray(out)).toBe(true)
 		expect(out).toEqual(results)

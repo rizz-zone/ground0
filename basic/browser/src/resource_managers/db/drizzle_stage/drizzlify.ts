@@ -1,5 +1,5 @@
 import { drizzle } from 'drizzle-orm/sqlite-proxy'
-import { baseDrizzleQuery } from './base_query'
+import { baseDrizzleQuery } from '../nested_dedicated_worker/drizzle_stage/base_query'
 import * as DbConstants from 'wa-sqlite/src/sqlite-constants.js'
 import {
 	DB_BEGIN_TRANSACTION,

@@ -1,9 +1,22 @@
+import type { drizzle } from 'drizzle-orm/sqlite-proxy'
+
 export enum UpstreamDbWorkerMessageType {
-	Init
+	Init,
+	ExecOne,
+	ExecBatch
 }
 
-export type UpstreamDbWorkerMessage = {
-	type: UpstreamDbWorkerMessageType.Init
-	buffer: ArrayBuffer
-	dbName: string
-}
+export type UpstreamDbWorkerMessage =
+	| {
+			type: UpstreamDbWorkerMessageType.Init
+			buffer: ArrayBuffer
+			dbName: string
+	  }
+	| {
+			type: UpstreamDbWorkerMessageType.ExecOne
+			params: Parameters<Parameters<typeof drizzle>[0]>
+	  }
+	| {
+			type: UpstreamDbWorkerMessageType.ExecBatch
+			params: Parameters<NonNullable<Parameters<typeof drizzle>[1]>>
+	  }

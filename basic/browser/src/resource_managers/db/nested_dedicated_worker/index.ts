@@ -77,5 +77,7 @@ ctx.onmessage = async (rawMessage: MessageEvent<UpstreamDbWorkerMessage>) => {
 				brandedLog(console.error, 'Could not init db!', e)
 			}
 			break
+		case UpstreamDbWorkerMessageType.ExecOne: {
+		}
 	}
 }
