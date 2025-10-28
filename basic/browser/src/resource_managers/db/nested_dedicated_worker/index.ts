@@ -10,6 +10,7 @@ import {
 import { brandedLog } from '@/common/branded_log'
 import { getSizeInfo } from './raw_stage/get_size_info'
 import { setDbHardSizeLimit } from './raw_stage/set_size_limit'
+import { baseDrizzleQuery } from './drizzle_stage/base_query'
 
 // This will always run as a dedicated worker.
 const ctx = self as DedicatedWorkerGlobalScope
@@ -78,6 +79,20 @@ ctx.onmessage = async (rawMessage: MessageEvent<UpstreamDbWorkerMessage>) => {
 			}
 			break
 		case UpstreamDbWorkerMessageType.ExecOne: {
+			if (!dbBundle) {
+				console.error()
+				return
+			}
+			const { sqlite3, db } = dbBundle
+
+			const [sql, params, method] = message.params
+			const result = await baseDrizzleQuery({
+				sqlite3,
+				db,
+				sql,
+				params,
+				method
+			})
 		}
 	}
 }
