@@ -14,7 +14,7 @@ export type DownstreamDbWorkerMessage =
 			type:
 				| DownstreamDbWorkerMessageType.NotConnecting
 				| DownstreamDbWorkerMessageType.Ready
-				| DownstreamDbWorkerMessageType.BatchSuccessfulExecResult
+				| DownstreamDbWorkerMessageType.SingleFailedExecResult
 				| DownstreamDbWorkerMessageType.BatchFailedExecResult
 	  }
 	| {
