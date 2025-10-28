@@ -17,6 +17,13 @@ const ctx = self as DedicatedWorkerGlobalScope
 // Prevent double init
 let initReceived = false
 
+let dbBundle:
+	| {
+			sqlite3: SQLiteAPI
+			db: number
+	  }
+	| undefined
+
 ctx.onmessage = async (rawMessage: MessageEvent<UpstreamDbWorkerMessage>) => {
 	const message = rawMessage.data
 	switch (message.type) {
@@ -51,15 +58,18 @@ ctx.onmessage = async (rawMessage: MessageEvent<UpstreamDbWorkerMessage>) => {
 				const { maxBytes, maxPages } = await setDbHardSizeLimit({
 					pageSizeBytes,
 					quotaBytes,
-					sqlite3,
-					db
+					sqlite3: sqlite3,
+					db: db
 				})
 				brandedLog(
 					console.debug,
 					`Set max_page_count to ${maxPages} (~${maxBytes}B)`
 				)
 
-				// TODO: Be ready to handle Drizzle queries in some form
+				dbBundle = { sqlite3, db }
+				ctx.postMessage({
+					type: DownstreamDbWorkerMessageType.Ready
+				} satisfies DownstreamDbWorkerMessage)
 			} catch (e) {
 				ctx.postMessage({
 					type: DownstreamDbWorkerMessageType.NotConnecting

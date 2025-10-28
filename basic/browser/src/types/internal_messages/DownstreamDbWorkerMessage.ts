@@ -1,7 +1,10 @@
 export enum DownstreamDbWorkerMessageType {
-	NotConnecting
+	NotConnecting,
+	Ready
 }
 
 export type DownstreamDbWorkerMessage = {
-	type: DownstreamDbWorkerMessageType.NotConnecting
+	type:
+		| DownstreamDbWorkerMessageType.NotConnecting
+		| DownstreamDbWorkerMessageType.Ready
 }
