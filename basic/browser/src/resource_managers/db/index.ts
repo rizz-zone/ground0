@@ -1,14 +1,18 @@
 import type { ResourceBundle } from '@/types/status/ResourceBundle'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import { brandedLog } from '@/common/branded_log'
-import { sizeInfo } from './raw_stage/size_info'
-import { setDbHardSizeLimit } from './raw_stage/set_size_limit'
+import { getSizeInfo } from './nested_dedicated_worker/raw_stage/get_size_info'
+import { setDbHardSizeLimit } from './nested_dedicated_worker/raw_stage/set_size_limit'
 import { drizzlify } from './drizzle_stage/drizzlify'
 import { migrate } from './drizzle_stage/migrate'
 import type { GeneratedMigrationSchema } from '@ground0/shared'
-import { getRawSqliteDb } from './raw_stage'
+import { getRawSqliteDb } from './nested_dedicated_worker/raw_stage'
 import { ResourceInitError } from '@/errors'
 import { DB_DOWNLOAD, DB_INIT } from '@/errors/messages'
+import {
+	UpstreamDbWorkerMessageType,
+	type UpstreamDbWorkerMessage
+} from '@/types/internal_messages/UpstreamDbWorkerMessage'
 
 export async function connectDb({
 	syncResources,
@@ -21,8 +25,28 @@ export async function connectDb({
 	dbName: string
 	migrations: GeneratedMigrationSchema
 }) {
+	const binaryPromise = pullWasmBinary()
+	const dbWorker = new Worker(
+		new URL('./nested_dedicated_worker', import.meta.url)
+	)
 	const signalNeverConnecting = () =>
 		syncResources({ db: { status: DbResourceStatus.NeverConnecting } })
+
+	binaryPromise.then(
+		(wasmBuffer) => {
+			dbWorker.postMessage(
+				{
+					type: UpstreamDbWorkerMessageType.Init,
+					buffer: wasmBuffer,
+					dbName
+				} satisfies UpstreamDbWorkerMessage,
+				[wasmBuffer]
+			)
+		},
+		() => {
+			signalNeverConnecting()
+		}
+	)
 
 	let sqlite3: SQLiteAPI, db: number
 	try {
@@ -33,31 +57,6 @@ export async function connectDb({
 	}
 
 	try {
-		const { pageSizeBytes, dbSizeBytes, quotaBytes } = await sizeInfo(
-			sqlite3,
-			db
-		)
-		brandedLog(
-			console.debug,
-			`${dbName} is using ${dbSizeBytes}B (${quotaBytes}B available - ${Math.floor(dbSizeBytes / quotaBytes) * 100}% used)`
-		)
-
-		// TODO: If we're getting dangerously close to the max size, signal to the
-		// main thread that the consumer should probably urge the user to provide
-		// the persistent storage permission.
-
-		// Limit the db's size based off what we just got.
-		const { maxBytes, maxPages } = await setDbHardSizeLimit({
-			pageSizeBytes,
-			quotaBytes,
-			sqlite3,
-			db
-		})
-		brandedLog(
-			console.debug,
-			`Set max_page_count to ${maxPages} (~${maxBytes}B)`
-		)
-
 		const drizzleDb = drizzlify(sqlite3, db)
 		await migrate(drizzleDb, migrations)
 

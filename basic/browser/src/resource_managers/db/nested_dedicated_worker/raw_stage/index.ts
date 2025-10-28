@@ -4,16 +4,16 @@ import { Factory } from 'wa-sqlite'
 import { createModule } from './create_module'
 
 export async function getRawSqliteDb({
-	pullWasmBinary,
+	wasmBinary,
 	dbName
 }: {
-	pullWasmBinary: () => Promise<ArrayBuffer>
+	wasmBinary: ArrayBuffer
 	dbName: string
 }): Promise<{ sqlite3: SQLiteAPI; db: number }> {
 	// Get the wasm with the code of the adapter. It's the adapter's
 	// responsibility to do this, including providing a retry method. If it
 	// fails, it's fine to push the error upward.
-	const module = await createModule(pullWasmBinary)
+	const module = await createModule(wasmBinary)
 
 	// Wrap the module with the JS API.
 	const sqlite3 = Factory(module)

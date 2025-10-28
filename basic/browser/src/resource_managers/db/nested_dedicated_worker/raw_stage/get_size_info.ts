@@ -8,7 +8,7 @@ import {
 } from '@/errors/messages'
 import * as DbConstants from 'wa-sqlite/src/sqlite-constants.js'
 
-export async function sizeInfo(sqlite3: SQLiteAPI, db: number) {
+export async function getSizeInfo(sqlite3: SQLiteAPI, db: number) {
 	let pageSizeBytes: number | undefined
 	if (
 		(await sqlite3.exec(db, `PRAGMA page_size;`, (row) => {
