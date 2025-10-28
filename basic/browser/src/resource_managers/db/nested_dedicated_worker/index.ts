@@ -42,6 +42,8 @@ ctx.onmessage = async (rawMessage: MessageEvent<UpstreamDbWorkerMessage>) => {
 				initReceived = true
 
 				// Create a db instance
+				// TODO: This needs locks pretty urgently so consumers don't
+				// make mistakes that corrupt databases!
 
 				const { sqlite3, db } = await getRawSqliteDb({
 					wasmBinary: buffer,
