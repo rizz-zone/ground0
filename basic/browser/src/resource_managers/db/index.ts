@@ -30,14 +30,12 @@ export async function connectDb({
 	syncResources,
 	dbName,
 	pullWasmBinary,
-	migrations,
-	dbWorker
+	migrations
 }: {
 	syncResources: (modifications: Partial<ResourceBundle>) => void
 	pullWasmBinary: () => Promise<ArrayBuffer>
 	dbName: string
 	migrations: GeneratedMigrationSchema
-	dbWorker: Worker
 }) {
 	const binaryPromise = pullWasmBinary()
 

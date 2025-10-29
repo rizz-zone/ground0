@@ -37,8 +37,7 @@ export class WorkerLocalFirst<
 		localHandlers,
 		initialMemoryModel,
 		announceTransformation,
-		pullWasmBinary,
-		workerUrl
+		pullWasmBinary
 	}: {
 		wsUrl: string
 		dbName: string
@@ -47,7 +46,6 @@ export class WorkerLocalFirst<
 		initialMemoryModel: MemoryModel
 		announceTransformation: (transformation: Transformation) => unknown
 		pullWasmBinary: () => Promise<ArrayBuffer>
-		workerUrl: URL
 	}) {
 		const shared = 'onconnect' in self
 		this.resourceBundle = {
@@ -71,8 +69,7 @@ export class WorkerLocalFirst<
 				pullWasmBinary,
 				syncResources: this.syncResources.bind(this),
 				dbName,
-				migrations: engineDef.db.migrations,
-				dbWorker: new Worker(workerUrl)
+				migrations: engineDef.db.migrations
 			})
 		connectWs({
 			wsUrl,
