@@ -13,6 +13,11 @@ import {
 	UpstreamDbWorkerMessageType,
 	type UpstreamDbWorkerMessage
 } from '@/types/internal_messages/UpstreamDbWorkerMessage'
+import {
+	DownstreamDbWorkerMessageType,
+	type DownstreamDbWorkerMessage
+} from '@/types/internal_messages/DownstreamDbWorkerMessage'
+import { drizzle } from 'drizzle-orm/sqlite-proxy'
 
 export async function connectDb({
 	syncResources,
@@ -48,23 +53,21 @@ export async function connectDb({
 		}
 	)
 
-	let sqlite3: SQLiteAPI, db: number
-	try {
-		;({ sqlite3, db } = await getRawSqliteDb({ dbName, pullWasmBinary }))
-	} catch (e) {
-		signalNeverConnecting()
-		throw new ResourceInitError(DB_DOWNLOAD, { cause: e })
-	}
-
-	try {
-		const drizzleDb = drizzlify(sqlite3, db)
-		await migrate(drizzleDb, migrations)
-
-		syncResources({
-			db: { status: DbResourceStatus.ConnectedAndMigrated, instance: drizzleDb }
-		})
-	} catch (e) {
-		signalNeverConnecting()
-		throw new ResourceInitError(DB_INIT, { cause: e })
+	dbWorker.onmessage = (
+		rawMessage: MessageEvent<DownstreamDbWorkerMessage>
+	) => {
+		const message = rawMessage.data
+		switch (message.type) {
+			case DownstreamDbWorkerMessageType.NotConnecting:
+				signalNeverConnecting()
+				break
+			case DownstreamDbWorkerMessageType.Ready: {
+				// Migrate and pass
+				const db = drizzle(
+					async (sql, params, method) => {},
+					async (queries) => {}
+				)
+			}
+		}
 	}
 }
