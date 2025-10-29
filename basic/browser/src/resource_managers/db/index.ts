@@ -39,7 +39,7 @@ export async function connectDb({
 }) {
 	const binaryPromise = pullWasmBinary()
 	const dbWorker = new Worker(
-		new URL('./nested_dedicated_worker/index', import.meta.url)
+		new URL('../../db_nested_worker', import.meta.url)
 	)
 	const signalNeverConnecting = () =>
 		syncResources({ db: { status: DbResourceStatus.NeverConnecting } })

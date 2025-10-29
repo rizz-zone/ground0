@@ -4,7 +4,9 @@
   "type": "module",
   "version": "0.1.0",
   "private": false,
-  "sideEffects": false,
+  "sideEffects": [
+    "./src/resource_managers/db/nested_dedicated_worker"
+  ],
   "packageManager": "pnpm@10.18.3",
   "devDependencies": {
     "jsdom": "^26.1.0",
@@ -29,7 +31,7 @@
   "exports": {
     ".": "./dist/index.js",
     "./adapter_extras": "./dist/adapter_extras.js",
-    "./db_worker_entrypoint": "./dist/db_worker_entrypoint.js",
+    "./db_nested_worker": "./dist/db_nested_worker.js",
     "./wasm": "./dist/wasm.js",
     "./worker": "./dist/worker.js",
     "./package.json": "./package.json"
