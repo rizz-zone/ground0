@@ -60,10 +60,14 @@ export async function connectDb({
 		}
 	)
 
-	const thenableQueue = new Set<SomeAsyncSuccessfulWorkerResultHandler>()
+	const thenableQueue = new Set<
+		[SomeAsyncSuccessfulWorkerResultHandler, () => unknown]
+	>()
 	const lockedThenable = {
-		then: (handler: SomeAsyncSuccessfulWorkerResultHandler) =>
-			thenableQueue.add(handler)
+		then: (
+			handler: SomeAsyncSuccessfulWorkerResultHandler,
+			onRejection: () => unknown
+		) => thenableQueue.add([handler, onRejection])
 	}
 
 	dbWorker.onmessage = (
@@ -138,19 +142,32 @@ export async function connectDb({
 				break
 			}
 			case DownstreamDbWorkerMessageType.SingleSuccessfulExecResult:
-				;(
-					thenableQueue as Set<
-						AsyncSuccessfulWorkerResultHandler<DownstreamDbWorkerMessageType.SingleSuccessfulExecResult>
-					>
-				).forEach((thenable) => thenable(message.result))
-				thenableQueue.clear()
-				break
 			case DownstreamDbWorkerMessageType.BatchSuccessfulExecResult:
 				;(
 					thenableQueue as Set<
-						AsyncSuccessfulWorkerResultHandler<DownstreamDbWorkerMessageType.BatchSuccessfulExecResult>
+						[
+							AsyncSuccessfulWorkerResultHandler<typeof message.type>,
+							() => unknown
+						]
 					>
-				).forEach((thenable) => thenable(message.result))
+				).forEach((thenable) => {
+					try {
+						thenable[0](message.result)
+					} catch (e) {
+						brandedLog(console.error, e)
+					}
+				})
+				thenableQueue.clear()
+				break
+			case DownstreamDbWorkerMessageType.SingleFailedExecResult:
+			case DownstreamDbWorkerMessageType.BatchFailedExecResult:
+				thenableQueue.forEach((thenable) => {
+					try {
+						thenable[1]()
+					} catch (e) {
+						brandedLog(console.error, e)
+					}
+				})
 				thenableQueue.clear()
 				break
 		}
