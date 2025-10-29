@@ -14,4 +14,5 @@ export type LocalEngineDefinition<
 	pullWasmBinary: () => Promise<ArrayBuffer>
 	wsUrl: string
 	dbName: string
+	workerUrl: URL
 }

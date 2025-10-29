@@ -27,7 +27,8 @@ export function workerEntrypoint<
 	initialMemoryModel,
 	pullWasmBinary,
 	wsUrl,
-	dbName
+	dbName,
+	workerUrl
 }: LocalEngineDefinition<MemoryModel, T>) {
 	const shared = 'onconnect' in ctx
 	const ports: MessagePort[] = []
@@ -49,7 +50,8 @@ export function workerEntrypoint<
 				type: DownstreamWorkerMessageType.Transformation,
 				transformation
 			}),
-		pullWasmBinary
+		pullWasmBinary,
+		workerUrl
 	})
 
 	function onmessage(

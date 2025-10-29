@@ -30,17 +30,17 @@ export async function connectDb({
 	syncResources,
 	dbName,
 	pullWasmBinary,
-	migrations
+	migrations,
+	dbWorker
 }: {
 	syncResources: (modifications: Partial<ResourceBundle>) => void
 	pullWasmBinary: () => Promise<ArrayBuffer>
 	dbName: string
 	migrations: GeneratedMigrationSchema
+	dbWorker: Worker
 }) {
 	const binaryPromise = pullWasmBinary()
-	const dbWorker = new Worker(
-		new URL('../../db_nested_worker', import.meta.url)
-	)
+
 	const signalNeverConnecting = () =>
 		syncResources({ db: { status: DbResourceStatus.NeverConnecting } })
 

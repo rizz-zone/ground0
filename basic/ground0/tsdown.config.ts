@@ -11,6 +11,7 @@ export default defineConfig({
 		durable_object: 'src/durable_object.ts',
 		index: 'src/index.ts',
 		wasm: 'src/wasm.ts',
-		worker: 'src/worker.ts'
+		worker: 'src/worker.ts',
+		db_worker: 'src/db_worker.ts'
 	}
 })

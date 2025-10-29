@@ -15,7 +15,7 @@ export default defineConfig({
 		index: 'src/index.ts',
 		wasm: 'src/wasm.ts',
 		worker: 'src/worker.ts',
-		db_nested_worker: 'src/db_nested_worker.ts'
+		db_worker: 'src/db_worker.ts'
 	}
 	// ,minify: true,
 	// noExternal: [/[\s\S]*/],

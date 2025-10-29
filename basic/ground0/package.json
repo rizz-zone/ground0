@@ -20,6 +20,7 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": "./dist/index.js",
+    "./db_worker": "./dist/db_worker.js",
     "./durable_object": "./dist/durable_object.js",
     "./wasm": "./dist/wasm.js",
     "./worker": "./dist/worker.js",
