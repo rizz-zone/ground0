@@ -1,7 +1,7 @@
 import type { ResourceBundle } from '@/types/status/ResourceBundle'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import { brandedLog } from '@/common/branded_log'
-import { migrate } from './drizzle_stage/migrate'
+import { migrate } from './migrate'
 import type { GeneratedMigrationSchema } from '@ground0/shared'
 import {
 	UpstreamDbWorkerMessageType,
@@ -39,7 +39,7 @@ export async function connectDb({
 }) {
 	const binaryPromise = pullWasmBinary()
 	const dbWorker = new Worker(
-		new URL('./nested_dedicated_worker', import.meta.url)
+		new URL('./nested_dedicated_worker/index', import.meta.url)
 	)
 	const signalNeverConnecting = () =>
 		syncResources({ db: { status: DbResourceStatus.NeverConnecting } })

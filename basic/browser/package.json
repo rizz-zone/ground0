@@ -29,6 +29,7 @@
   "exports": {
     ".": "./dist/index.js",
     "./adapter_extras": "./dist/adapter_extras.js",
+    "./db_worker_entrypoint": "./dist/db_worker_entrypoint.js",
     "./wasm": "./dist/wasm.js",
     "./worker": "./dist/worker.js",
     "./package.json": "./package.json"
