@@ -1,9 +1,6 @@
 import type { ResourceBundle } from '@/types/status/ResourceBundle'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import { brandedLog } from '@/common/branded_log'
-import { getSizeInfo } from './nested_dedicated_worker/raw_stage/get_size_info'
-import { setDbHardSizeLimit } from './nested_dedicated_worker/raw_stage/set_size_limit'
-import { drizzlify } from './drizzle_stage/drizzlify'
 import { migrate } from './drizzle_stage/migrate'
 import type { GeneratedMigrationSchema } from '@ground0/shared'
 import { getRawSqliteDb } from './nested_dedicated_worker/raw_stage'
@@ -18,6 +15,19 @@ import {
 	type DownstreamDbWorkerMessage
 } from '@/types/internal_messages/DownstreamDbWorkerMessage'
 import { drizzle } from 'drizzle-orm/sqlite-proxy'
+
+type AsyncSuccessfulWorkerResultHandler<
+	SpecificType extends
+		| DownstreamDbWorkerMessageType.SingleSuccessfulExecResult
+		| DownstreamDbWorkerMessageType.BatchSuccessfulExecResult
+> = (
+	result: (DownstreamDbWorkerMessage & {
+		type: SpecificType
+	})['result']
+) => unknown
+type SomeAsyncSuccessfulWorkerResultHandler =
+	| AsyncSuccessfulWorkerResultHandler<DownstreamDbWorkerMessageType.SingleSuccessfulExecResult>
+	| AsyncSuccessfulWorkerResultHandler<DownstreamDbWorkerMessageType.BatchSuccessfulExecResult>
 
 export async function connectDb({
 	syncResources,
@@ -53,6 +63,12 @@ export async function connectDb({
 		}
 	)
 
+	const thenableQueue = new Set<SomeAsyncSuccessfulWorkerResultHandler>()
+	const lockedThenable = {
+		then: (handler: SomeAsyncSuccessfulWorkerResultHandler) =>
+			thenableQueue.add(handler)
+	}
+
 	dbWorker.onmessage = (
 		rawMessage: MessageEvent<DownstreamDbWorkerMessage>
 	) => {
@@ -64,10 +80,54 @@ export async function connectDb({
 			case DownstreamDbWorkerMessageType.Ready: {
 				// Migrate and pass
 				const db = drizzle(
-					async (sql, params, method) => {},
-					async (queries) => {}
+					async (...input) => {
+						return (await navigator.locks.request(
+							`ground0::dbop_${dbName}`,
+							() => {
+								dbWorker.postMessage({
+									type: UpstreamDbWorkerMessageType.ExecOne,
+									params: input
+								} satisfies UpstreamDbWorkerMessage)
+								return lockedThenable
+							}
+						)) as (DownstreamDbWorkerMessage & {
+							type: DownstreamDbWorkerMessageType.SingleSuccessfulExecResult
+						})['result']
+					},
+					async (...input) => {
+						return (await navigator.locks.request(
+							`ground0::dbop_${dbName}`,
+							() => {
+								dbWorker.postMessage({
+									type: UpstreamDbWorkerMessageType.ExecBatch,
+									params: input
+								} satisfies UpstreamDbWorkerMessage)
+								return lockedThenable
+							}
+						)) as (DownstreamDbWorkerMessage & {
+							type: DownstreamDbWorkerMessageType.BatchSuccessfulExecResult
+						})['result']
+					}
 				)
+
+				break
 			}
+			case DownstreamDbWorkerMessageType.SingleSuccessfulExecResult:
+				;(
+					thenableQueue as Set<
+						AsyncSuccessfulWorkerResultHandler<DownstreamDbWorkerMessageType.SingleSuccessfulExecResult>
+					>
+				).forEach((thenable) => thenable(message.result))
+				thenableQueue.clear()
+				break
+			case DownstreamDbWorkerMessageType.BatchSuccessfulExecResult:
+				;(
+					thenableQueue as Set<
+						AsyncSuccessfulWorkerResultHandler<DownstreamDbWorkerMessageType.BatchSuccessfulExecResult>
+					>
+				).forEach((thenable) => thenable(message.result))
+				thenableQueue.clear()
+				break
 		}
 	}
 }
