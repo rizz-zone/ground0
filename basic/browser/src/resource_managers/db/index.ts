@@ -3,9 +3,6 @@ import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import { brandedLog } from '@/common/branded_log'
 import { migrate } from './drizzle_stage/migrate'
 import type { GeneratedMigrationSchema } from '@ground0/shared'
-import { getRawSqliteDb } from './nested_dedicated_worker/raw_stage'
-import { ResourceInitError } from '@/errors'
-import { DB_DOWNLOAD, DB_INIT } from '@/errors/messages'
 import {
 	UpstreamDbWorkerMessageType,
 	type UpstreamDbWorkerMessage
@@ -78,38 +75,66 @@ export async function connectDb({
 				signalNeverConnecting()
 				break
 			case DownstreamDbWorkerMessageType.Ready: {
-				// Migrate and pass
-				const db = drizzle(
-					async (...input) => {
-						return (await navigator.locks.request(
-							`ground0::dbop_${dbName}`,
-							() => {
-								dbWorker.postMessage({
-									type: UpstreamDbWorkerMessageType.ExecOne,
-									params: input
-								} satisfies UpstreamDbWorkerMessage)
-								return lockedThenable
-							}
-						)) as (DownstreamDbWorkerMessage & {
-							type: DownstreamDbWorkerMessageType.SingleSuccessfulExecResult
-						})['result']
-					},
-					async (...input) => {
-						return (await navigator.locks.request(
-							`ground0::dbop_${dbName}`,
-							() => {
-								dbWorker.postMessage({
-									type: UpstreamDbWorkerMessageType.ExecBatch,
-									params: input
-								} satisfies UpstreamDbWorkerMessage)
-								return lockedThenable
-							}
-						)) as (DownstreamDbWorkerMessage & {
-							type: DownstreamDbWorkerMessageType.BatchSuccessfulExecResult
-						})['result']
-					}
-				)
+				try {
+					// Migrate and pass
+					const db = drizzle(
+						async (...input) => {
+							return (await navigator.locks.request(
+								`ground0::dbop_${dbName}`,
+								() => {
+									dbWorker.postMessage({
+										type: UpstreamDbWorkerMessageType.ExecOne,
+										params: input
+									} satisfies UpstreamDbWorkerMessage)
+									return lockedThenable
+								}
+							)) as (DownstreamDbWorkerMessage & {
+								type: DownstreamDbWorkerMessageType.SingleSuccessfulExecResult
+							})['result']
+						},
+						async (...input) => {
+							return (await navigator.locks.request(
+								`ground0::dbop_${dbName}`,
+								() => {
+									dbWorker.postMessage({
+										type: UpstreamDbWorkerMessageType.ExecBatch,
+										params: input
+									} satisfies UpstreamDbWorkerMessage)
+									return lockedThenable
+								}
+							)) as (DownstreamDbWorkerMessage & {
+								type: DownstreamDbWorkerMessageType.BatchSuccessfulExecResult
+							})['result']
+						}
+					)
 
+					migrate(db, migrations).then(
+						() => {
+							brandedLog(console.debug, 'db is now migrated, syncing resources')
+							syncResources({
+								db: {
+									status: DbResourceStatus.ConnectedAndMigrated,
+									instance: db
+								}
+							})
+						},
+						(e) => {
+							brandedLog(
+								console.error,
+								'A migration error occurred while wrapping the nested worker:',
+								e
+							)
+							signalNeverConnecting()
+						}
+					)
+				} catch (e) {
+					brandedLog(
+						console.error,
+						'An error occurred while wrapping the nested worker:',
+						e
+					)
+					signalNeverConnecting()
+				}
 				break
 			}
 			case DownstreamDbWorkerMessageType.SingleSuccessfulExecResult:
