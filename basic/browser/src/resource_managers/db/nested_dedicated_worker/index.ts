@@ -82,12 +82,12 @@ ctx.onmessage = async (rawMessage: MessageEvent<UpstreamDbWorkerMessage>) => {
 					type: DownstreamDbWorkerMessageType.NotConnecting
 				} satisfies DownstreamDbWorkerMessage)
 				brandedLog(console.error, 'Could not init db!', e)
+				break
 			}
 
 			ctx.postMessage({
 				type: DownstreamDbWorkerMessageType.Ready
 			} satisfies DownstreamDbWorkerMessage)
-
 			break
 		case UpstreamDbWorkerMessageType.ExecOne: {
 			let result: Awaited<ReturnType<typeof baseDrizzleQuery>>
