@@ -1,5 +1,6 @@
 import { brandedLog } from '@/common/branded_log'
 import { type DownstreamWorkerMessage } from '@/types/internal_messages/DownstreamWorkerMessage'
+import type { UpstreamDbWorkerInitMessage } from '@/types/internal_messages/UpstreamDbWorkerInitMessage'
 import {
 	type UpstreamWorkerMessage,
 	UpstreamWorkerMessageType
@@ -38,11 +39,13 @@ export class BrowserLocalFirst<
 	constructor({
 		worker,
 		dbWorker,
-		onMessage
+		onMessage,
+		pullWasmBinary
 	}: {
 		worker: Worker | SharedWorker
 		dbWorker: Worker
 		onMessage: (message: DownstreamWorkerMessage<MemoryModel>) => unknown
+		pullWasmBinary: () => Promise<ArrayBuffer>
 	}) {
 		// It's the consumer's responsibility to provide this because, while
 		// Worker and SharedWorker are standard browser features, they are
@@ -61,14 +64,32 @@ export class BrowserLocalFirst<
 			worker.port.onmessage = onmessage
 			worker.port.onmessageerror = () => logMessageError('Shared')
 			worker.onerror = () => logError('Shared')
+
+			try {
+				brandedLog(console.debug, 'Attempting to get WASM via user code...')
+				pullWasmBinary().then(
+					(buffer) => {
+						brandedLog(console.debug, 'Success! Sending to db worker')
+						dbWorker.postMessage(
+							{ buffer } satisfies UpstreamDbWorkerInitMessage,
+							[buffer]
+						)
+					},
+					(e) => brandedLog(console.error, 'Obtaining WASM binary failed:', e)
+				)
+			} catch (e) {
+				brandedLog(
+					console.error,
+					'Obtaining WASM binary failed (synchronously):',
+					e
+				)
+			}
+			dbWorker.onmessage = () => console.debug
 		} else {
 			worker.onmessage = onmessage
 			worker.onmessageerror = () => logMessageError('Dedicated')
 			worker.onerror = () => logError('Dedicated')
 		}
-
-		// TODO: Handle a 'lock acquired' message from the dbWorker
-		dbWorker.onmessage = () => {}
 	}
 	public transition(transition: TransitionSchema) {
 		this.submitWorkerMessage({

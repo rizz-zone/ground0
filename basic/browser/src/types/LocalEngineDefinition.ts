@@ -11,7 +11,6 @@ export type LocalEngineDefinition<
 	engineDef: SyncEngineDefinition<T>
 	localHandlers: LocalHandlers<MemoryModel, T>
 	initialMemoryModel: MemoryModel
-	pullWasmBinary: () => Promise<ArrayBuffer>
 	wsUrl: string
 	dbName: string
 }

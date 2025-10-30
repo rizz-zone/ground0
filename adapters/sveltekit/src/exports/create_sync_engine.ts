@@ -19,10 +19,14 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 
 	constructor({
 		workerUrl,
-		dbWorkerUrl
+		dbWorkerUrl,
+		pullWasmBinary,
+		autoDestroy
 	}: {
 		workerUrl: URL
 		dbWorkerUrl: URL
+		pullWasmBinary: () => Promise<ArrayBuffer>
+		autoDestroy?: boolean
 	}) {
 		this.browserLocalFirst =
 			'Worker' in globalThis
@@ -32,11 +36,12 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 								? new SharedWorker(workerUrl, { type: 'module' })
 								: new Worker(workerUrl, { type: 'module' }),
 						onMessage: this.onMessage.bind(this),
-						dbWorker: new Worker(dbWorkerUrl)
+						dbWorker: new Worker(dbWorkerUrl, { type: 'module' }),
+						pullWasmBinary
 					})
 				: undefined
 
-		onDestroy(this[Symbol.dispose].bind(this))
+		if (autoDestroy) onDestroy(this[Symbol.dispose].bind(this))
 	}
 
 	private storeTree = new PathStoreTree()

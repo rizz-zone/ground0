@@ -25,7 +25,6 @@ export function workerEntrypoint<
 	engineDef,
 	localHandlers,
 	initialMemoryModel,
-	pullWasmBinary,
 	wsUrl,
 	dbName
 }: LocalEngineDefinition<MemoryModel, T>) {
@@ -48,8 +47,7 @@ export function workerEntrypoint<
 			broadcastMessage({
 				type: DownstreamWorkerMessageType.Transformation,
 				transformation
-			}),
-		pullWasmBinary
+			})
 	})
 
 	function onmessage(
