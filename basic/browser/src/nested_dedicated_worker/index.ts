@@ -86,7 +86,7 @@ async function init({
 		return
 	}
 
-	brandedLog(console.debug, 'db is ready')
+	brandedLog(console.debug, 'db is ready at', performance.now())
 	port.postMessage({
 		type: DownstreamDbWorkerMessageType.Ready
 	} satisfies DownstreamDbWorkerMessage)
@@ -199,12 +199,12 @@ async function init({
 }
 
 export function dbWorkerEntrypoint(dbName: string) {
-	brandedLog(console.debug, 'db worker entrypoint loaded.')
+	brandedLog(console.debug, 'db worker entrypoint loaded at', performance.now())
 	ctx.onmessage = (rawMessage: MessageEvent<UpstreamDbWorkerInitMessage>) => {
 		const { buffer } = rawMessage.data
 		brandedLog(console.debug, 'wasm buffer received, requesting lock for db...')
 		navigator.locks.request(`ground0::db_${dbName}`, () => {
-			brandedLog(console.debug, 'db lock acquired!')
+			brandedLog(console.debug, 'db lock acquired at', performance.now())
 			return new Promise((die) => {
 				const { port1, port2 } = new MessageChannel()
 				ctx.postMessage(
