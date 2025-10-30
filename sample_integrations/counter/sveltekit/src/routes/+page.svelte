@@ -2,10 +2,13 @@
 	import type { AppTransition, MemoryModel } from '$lib/sync_engine/types'
 	import { createSyncEngine } from '@ground0/adapter-svelte'
 
-	const engine = createSyncEngine<AppTransition, MemoryModel>(
-		new URL('$lib/sync_engine/worker.ts', import.meta.url)
-	)
+	const engine = createSyncEngine<AppTransition, MemoryModel>({
+		workerUrl: new URL('$lib/sync_engine/worker.ts', import.meta.url),
+		dbWorkerUrl: new URL('$lib/sync_engine/db_worker.ts', import.meta.url)
+	})
 	const { memoryModel } = engine
+
+	$inspect($memoryModel)
 </script>
 
 <h1>Welcome to SvelteKit</h1>

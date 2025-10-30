@@ -35,10 +35,15 @@ export class BrowserLocalFirst<
 		this.worker.postMessage(message)
 	}
 
-	constructor(
-		worker: Worker | SharedWorker,
+	constructor({
+		worker,
+		dbWorker,
+		onMessage
+	}: {
+		worker: Worker | SharedWorker
+		dbWorker: Worker
 		onMessage: (message: DownstreamWorkerMessage<MemoryModel>) => unknown
-	) {
+	}) {
 		// It's the consumer's responsibility to provide this because, while
 		// Worker and SharedWorker are standard browser features, they are
 		// implemented differently depending on the build system. We need to
@@ -61,6 +66,9 @@ export class BrowserLocalFirst<
 			worker.onmessageerror = () => logMessageError('Dedicated')
 			worker.onerror = () => logError('Dedicated')
 		}
+
+		// TODO: Handle a 'lock acquired' message from the dbWorker
+		dbWorker.onmessage = () => {}
 	}
 	public transition(transition: TransitionSchema) {
 		this.submitWorkerMessage({

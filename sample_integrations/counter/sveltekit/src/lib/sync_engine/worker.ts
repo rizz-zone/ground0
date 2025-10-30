@@ -23,6 +23,5 @@ workerEntrypoint<MemoryModel, AppTransition>({
 	},
 	pullWasmBinary: fetchWasmFromUrl(wasmUrl),
 	wsUrl: '',
-	dbName: '',
-	workerUrl: new URL('./db_worker', import.meta.url)
+	dbName: 'counter'
 })

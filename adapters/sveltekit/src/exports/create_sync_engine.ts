@@ -17,15 +17,23 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 	public memoryModel = readonly(this.editableMemoryModel)
 	private browserLocalFirst?: BrowserLocalFirst<T, MemoryModel>
 
-	constructor(workerUrl: URL) {
+	constructor({
+		workerUrl,
+		dbWorkerUrl
+	}: {
+		workerUrl: URL
+		dbWorkerUrl: URL
+	}) {
 		this.browserLocalFirst =
 			'Worker' in globalThis
-				? new BrowserLocalFirst(
-						'SharedWorker' in globalThis
-							? new SharedWorker(workerUrl, { type: 'module' })
-							: new Worker(workerUrl, { type: 'module' }),
-						this.onMessage.bind(this)
-					)
+				? new BrowserLocalFirst({
+						worker:
+							'SharedWorker' in globalThis
+								? new SharedWorker(workerUrl, { type: 'module' })
+								: new Worker(workerUrl, { type: 'module' }),
+						onMessage: this.onMessage.bind(this),
+						dbWorker: new Worker(dbWorkerUrl)
+					})
 				: undefined
 
 		onDestroy(this[Symbol.dispose].bind(this))
@@ -107,7 +115,10 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
  * @param workerUrl A `URL` object that leads to the worker (see example)
  * @example
  * ```ts
- * const syncEngine = createSyncEngine<AppTransition, MemoryModel>(new URL('./worker.ts', import.meta.url))
+ * const syncEngine = createSyncEngine<AppTransition, MemoryModel>({
+ * 	workerUrl: new URL('./worker.ts', import.meta.url),
+ * 	dbWorkerUrl: new URL('./db_worker.ts', import.meta.url)
+ * })
  * ```
  */
 export function createSyncEngine<
