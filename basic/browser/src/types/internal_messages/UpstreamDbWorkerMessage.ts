@@ -8,11 +8,6 @@ export enum UpstreamDbWorkerMessageType {
 
 export type UpstreamDbWorkerMessage =
 	| {
-			type: UpstreamDbWorkerMessageType.Init
-			buffer: ArrayBuffer
-			dbName: string
-	  }
-	| {
 			type: UpstreamDbWorkerMessageType.ExecOne
 			params: Parameters<Parameters<typeof drizzle>[0]>
 	  }

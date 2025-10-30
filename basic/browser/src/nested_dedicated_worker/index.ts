@@ -18,12 +18,11 @@ import {
 	DB_ROLLBACK_TRANSACTION
 } from '@/errors/messages'
 import { SQLITE_OK } from 'wa-sqlite/src/sqlite-constants.js'
+import type { UpstreamDbWorkerInitMessage } from '@/types/internal_messages/UpstreamDbWorkerInitMessage'
+import type { DownstreamDbWorkerInitMessage } from '@/types/internal_messages/DownstreamDbWorkerInitMessage'
 
 // This will always run as a dedicated worker.
 const ctx = self as DedicatedWorkerGlobalScope
-
-// Prevent double init
-let initReceived = false
 
 let dbBundle:
 	| {
@@ -32,99 +31,74 @@ let dbBundle:
 	  }
 	| undefined
 
-export function dbWorkerEntrypoint(dbName: string) {
-	navigator.locks.request(`ground0::db_${dbName}`, () => {
-		ctx.onmessage = async (
-			rawMessage: MessageEvent<UpstreamDbWorkerMessage>
-		) => {
-			const message = rawMessage.data
-			switch (message.type) {
-				case UpstreamDbWorkerMessageType.Init:
-					try {
-						const { dbName, buffer } = message
-						if (initReceived) return
-						initReceived = true
+async function init({
+	dbName,
+	buffer,
+	port,
+	die
+}: {
+	dbName: string
+	buffer: ArrayBuffer
+	port: MessagePort
+	die: () => unknown
+}) {
+	brandedLog(console.debug, 'Acquired lock for db', dbName)
 
-						// Create a db instance
+	try {
+		// Create a db instance
+		const { sqlite3, db } = await getRawSqliteDb({
+			wasmBinary: buffer,
+			dbName: dbName
+		})
 
-						const { sqlite3, db } = await getRawSqliteDb({
-							wasmBinary: buffer,
-							dbName: dbName
-						})
+		// Set a size limit
+		const { pageSizeBytes, dbSizeBytes, quotaBytes } = await getSizeInfo(
+			sqlite3,
+			db
+		)
+		brandedLog(
+			console.debug,
+			`${dbName} is using ${dbSizeBytes}B (${quotaBytes}B available - ${Math.floor(dbSizeBytes / quotaBytes) * 100}% used)`
+		)
 
-						// Set a size limit
+		// TODO: If we're getting dangerously close to the max size, signal to the
+		// main thread that the consumer should probably urge the user to provide
+		// the persistent storage permission.
 
-						const { pageSizeBytes, dbSizeBytes, quotaBytes } =
-							await getSizeInfo(sqlite3, db)
-						brandedLog(
-							console.debug,
-							`${dbName} is using ${dbSizeBytes}B (${quotaBytes}B available - ${Math.floor(dbSizeBytes / quotaBytes) * 100}% used)`
-						)
+		const { maxBytes, maxPages } = await setDbHardSizeLimit({
+			pageSizeBytes,
+			quotaBytes,
+			sqlite3: sqlite3,
+			db: db
+		})
+		brandedLog(
+			console.debug,
+			`Set max_page_count to ${maxPages} (~${maxBytes}B)`
+		)
 
-						// TODO: If we're getting dangerously close to the max size, signal to the
-						// main thread that the consumer should probably urge the user to provide
-						// the persistent storage permission.
+		dbBundle = { sqlite3, db }
+	} catch (e) {
+		port.postMessage({
+			type: DownstreamDbWorkerMessageType.NotConnecting
+		} satisfies DownstreamDbWorkerMessage)
+		brandedLog(console.error, 'Could not init db!', e)
+		die()
+		return
+	}
 
-						const { maxBytes, maxPages } = await setDbHardSizeLimit({
-							pageSizeBytes,
-							quotaBytes,
-							sqlite3: sqlite3,
-							db: db
-						})
-						brandedLog(
-							console.debug,
-							`Set max_page_count to ${maxPages} (~${maxBytes}B)`
-						)
+	port.postMessage({
+		type: DownstreamDbWorkerMessageType.Ready
+	} satisfies DownstreamDbWorkerMessage)
 
-						dbBundle = { sqlite3, db }
-					} catch (e) {
-						ctx.postMessage({
-							type: DownstreamDbWorkerMessageType.NotConnecting
-						} satisfies DownstreamDbWorkerMessage)
-						brandedLog(console.error, 'Could not init db!', e)
-						break
-					}
+	port.onmessage = async (
+		rawMessage: MessageEvent<UpstreamDbWorkerMessage>
+	) => {
+		const message = rawMessage.data
+		switch (message.type) {
+			case UpstreamDbWorkerMessageType.ExecOne: {
+				let result: Awaited<ReturnType<typeof baseDrizzleQuery>>
 
-					ctx.postMessage({
-						type: DownstreamDbWorkerMessageType.Ready
-					} satisfies DownstreamDbWorkerMessage)
-					break
-				case UpstreamDbWorkerMessageType.ExecOne: {
-					let result: Awaited<ReturnType<typeof baseDrizzleQuery>>
-
-					try {
-						if (!dbBundle) {
-							brandedLog(
-								console.error,
-								'Received a query to execute but there is no dbBundle!'
-							)
-							return
-						}
-						const { sqlite3, db } = dbBundle
-
-						const [sql, params, method] = message.params
-						result = await baseDrizzleQuery({
-							sqlite3,
-							db,
-							sql,
-							params,
-							method
-						})
-					} catch (e) {
-						ctx.postMessage({
-							type: DownstreamDbWorkerMessageType.SingleFailedExecResult
-						} satisfies DownstreamDbWorkerMessage)
-						brandedLog(console.error, 'Drizzle (single) query failed:', e)
-						return
-					}
-
-					ctx.postMessage({
-						type: DownstreamDbWorkerMessageType.SingleSuccessfulExecResult,
-						result
-					} satisfies DownstreamDbWorkerMessage)
-					break
-				}
-				case UpstreamDbWorkerMessageType.ExecBatch: {
+				try {
 					if (!dbBundle) {
 						brandedLog(
 							console.error,
@@ -134,61 +108,114 @@ export function dbWorkerEntrypoint(dbName: string) {
 					}
 					const { sqlite3, db } = dbBundle
 
-					const errors: unknown[] = []
-					const [queries] = message.params
+					const [sql, params, method] = message.params
+					result = await baseDrizzleQuery({
+						sqlite3,
+						db,
+						sql,
+						params,
+						method
+					})
+				} catch (e) {
+					port.postMessage({
+						type: DownstreamDbWorkerMessageType.SingleFailedExecResult
+					} satisfies DownstreamDbWorkerMessage)
+					brandedLog(console.error, 'Drizzle (single) query failed:', e)
+					return
+				}
 
-					normalPath: {
-						if (
-							(await sqlite3.exec(db, `BEGIN TRANSACTION;`, () => {})) !==
-							SQLITE_OK
-						) {
-							errors.push(new DbQueryBatchingError(DB_BEGIN_TRANSACTION))
-							break normalPath
-						}
-
-						const queryResults: { rows: unknown[] | unknown[][] }[] = []
-						try {
-							for (const { sql, params, method } of queries) {
-								queryResults.push(
-									await baseDrizzleQuery({ sqlite3, db, sql, params, method })
-								)
-							}
-						} catch (e) {
-							errors.push(e)
-							if ((await sqlite3.exec(db, `ROLLBACK;`, () => {})) !== SQLITE_OK)
-								errors.push(
-									new DbQueryBatchingError(DB_ROLLBACK_TRANSACTION, {
-										cause: e
-									})
-								)
-							break normalPath
-						}
-
-						// After all queries succeed
-						if ((await sqlite3.exec(db, `COMMIT;`, () => {})) !== SQLITE_OK) {
-							errors.push(new DbQueryBatchingError(DB_COMMIT_TRANSACTION))
-							break normalPath
-						}
-
-						ctx.postMessage({
-							type: DownstreamDbWorkerMessageType.BatchSuccessfulExecResult,
-							result: queryResults
-						} satisfies DownstreamDbWorkerMessage)
-						return
-					}
-
-					// We'll only reach this if there are errors.
+				port.postMessage({
+					type: DownstreamDbWorkerMessageType.SingleSuccessfulExecResult,
+					result
+				} satisfies DownstreamDbWorkerMessage)
+				break
+			}
+			case UpstreamDbWorkerMessageType.ExecBatch: {
+				if (!dbBundle) {
 					brandedLog(
 						console.error,
-						'A batch query request failed:',
-						errors.length === 1 ? errors[0] : errors
+						'Received a query to execute but there is no dbBundle!'
 					)
-					ctx.postMessage({
-						type: DownstreamDbWorkerMessageType.BatchFailedExecResult
-					} satisfies DownstreamDbWorkerMessage)
+					return
 				}
+				const { sqlite3, db } = dbBundle
+
+				const errors: unknown[] = []
+				const [queries] = message.params
+
+				normalPath: {
+					if (
+						(await sqlite3.exec(db, `BEGIN TRANSACTION;`, () => {})) !==
+						SQLITE_OK
+					) {
+						errors.push(new DbQueryBatchingError(DB_BEGIN_TRANSACTION))
+						break normalPath
+					}
+
+					const queryResults: { rows: unknown[] | unknown[][] }[] = []
+					try {
+						for (const { sql, params, method } of queries) {
+							queryResults.push(
+								await baseDrizzleQuery({ sqlite3, db, sql, params, method })
+							)
+						}
+					} catch (e) {
+						errors.push(e)
+						if ((await sqlite3.exec(db, `ROLLBACK;`, () => {})) !== SQLITE_OK)
+							errors.push(
+								new DbQueryBatchingError(DB_ROLLBACK_TRANSACTION, {
+									cause: e
+								})
+							)
+						break normalPath
+					}
+
+					// After all queries succeed
+					if ((await sqlite3.exec(db, `COMMIT;`, () => {})) !== SQLITE_OK) {
+						errors.push(new DbQueryBatchingError(DB_COMMIT_TRANSACTION))
+						break normalPath
+					}
+
+					port.postMessage({
+						type: DownstreamDbWorkerMessageType.BatchSuccessfulExecResult,
+						result: queryResults
+					} satisfies DownstreamDbWorkerMessage)
+					return
+				}
+
+				// We'll only reach this if there are errors.
+				brandedLog(
+					console.error,
+					'A batch query request failed:',
+					errors.length === 1 ? errors[0] : errors
+				)
+				port.postMessage({
+					type: DownstreamDbWorkerMessageType.BatchFailedExecResult
+				} satisfies DownstreamDbWorkerMessage)
 			}
 		}
-		return new Promise(() => {})
-	})
+	}
+}
+
+export function dbWorkerEntrypoint(dbName: string) {
+	ctx.onmessage = (rawMessage: MessageEvent<UpstreamDbWorkerInitMessage>) => {
+		const { buffer } = rawMessage.data
+		navigator.locks.request(
+			`ground0::db_${dbName}`,
+			() =>
+				new Promise((die) => {
+					const { port1, port2 } = new MessageChannel()
+					ctx.postMessage(
+						{ port: port2 } satisfies DownstreamDbWorkerInitMessage,
+						[port2]
+					)
+					init({
+						dbName,
+						buffer,
+						port: port1,
+						die: die as () => unknown
+					})
+				})
+		)
+	}
 }
