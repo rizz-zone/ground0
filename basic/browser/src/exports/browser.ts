@@ -1,4 +1,5 @@
 import { brandedLog } from '@/common/branded_log'
+import type { DownstreamDbWorkerInitMessage } from '@/types/internal_messages/DownstreamDbWorkerInitMessage'
 import { type DownstreamWorkerMessage } from '@/types/internal_messages/DownstreamWorkerMessage'
 import type { UpstreamDbWorkerInitMessage } from '@/types/internal_messages/UpstreamDbWorkerInitMessage'
 import {
@@ -17,7 +18,7 @@ function logMessageError(workerType: string) {
 	)
 }
 function logError(workerType: string) {
-	brandedLog(console.error, `A ${workerType}Worker failed!`)
+	brandedLog(console.error, `${workerType}Worker failed!`)
 }
 
 export class BrowserLocalFirst<
@@ -83,8 +84,15 @@ export class BrowserLocalFirst<
 					'Obtaining WASM binary failed (synchronously):',
 					e
 				)
+				dbWorker.terminate()
 			}
-			dbWorker.onmessage = () => console.debug
+			dbWorker.onmessage = ({
+				data: message
+			}: MessageEvent<DownstreamDbWorkerInitMessage>) =>
+				this.submitWorkerMessage({
+					type: UpstreamWorkerMessageType.DbWorkerPrepared,
+					port: message.port
+				})
 		} else {
 			worker.onmessage = onmessage
 			worker.onmessageerror = () => logMessageError('Dedicated')

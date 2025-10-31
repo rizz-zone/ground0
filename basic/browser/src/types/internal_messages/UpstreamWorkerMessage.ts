@@ -1,7 +1,8 @@
 export enum UpstreamWorkerMessageType {
 	Transition,
 	Close,
-	DebugLog
+	DebugLog,
+	DbWorkerPrepared
 }
 
 export type UpstreamWorkerMessage<T> =
@@ -15,4 +16,8 @@ export type UpstreamWorkerMessage<T> =
 	| {
 			type: UpstreamWorkerMessageType.DebugLog
 			message: string
+	  }
+	| {
+			type: UpstreamWorkerMessageType.DbWorkerPrepared
+			port: MessagePort
 	  }
