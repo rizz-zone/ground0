@@ -141,8 +141,11 @@ export class DbThinClient {
 										status: DbResourceStatus.ConnectedAndMigrated,
 										instance: this.db
 									})
+
+								// Request the current blocking tx if one
+								// exists
 								if (this.currentHotMessage)
-									this.port?.postMessage(this.currentHotMessage)
+									port.postMessage(this.currentHotMessage)
 							},
 							(e) => {
 								brandedLog(
@@ -161,153 +164,36 @@ export class DbThinClient {
 					}
 					break
 				}
-			}
-		}
-	}
-}
-
-export async function connectDb({
-	syncResources,
-	dbName,
-	pullWasmBinary,
-	migrations
-}: {
-	syncResources: (modifications: Partial<ResourceBundle>) => void
-	pullWasmBinary: () => Promise<ArrayBuffer>
-	dbName: string
-	migrations: GeneratedMigrationSchema
-}) {
-	const binaryPromise = pullWasmBinary()
-
-	const signalNeverConnecting = () =>
-		syncResources({ db: { status: DbResourceStatus.NeverConnecting } })
-
-	binaryPromise.then(
-		(wasmBuffer) => {
-			dbWorker.postMessage(
-				{
-					type: UpstreamDbWorkerMessageType.Init,
-					buffer: wasmBuffer,
-					dbName
-				} satisfies UpstreamDbWorkerMessage,
-				[wasmBuffer]
-			)
-		},
-		() => {
-			signalNeverConnecting()
-		}
-	)
-
-	const thenableQueue = new Set<
-		[SomeAsyncSuccessfulWorkerResultHandler, () => unknown]
-	>()
-	const lockedThenable = {
-		then: (
-			handler: SomeAsyncSuccessfulWorkerResultHandler,
-			onRejection: () => unknown
-		) => thenableQueue.add([handler, onRejection])
-	}
-
-	dbWorker.onmessage = (
-		rawMessage: MessageEvent<DownstreamDbWorkerMessage>
-	) => {
-		const message = rawMessage.data
-		switch (message.type) {
-			case DownstreamDbWorkerMessageType.NotConnecting:
-				signalNeverConnecting()
-				break
-			case DownstreamDbWorkerMessageType.Ready: {
-				try {
-					// Migrate and pass
-					const db = drizzle(
-						async (...input) => {
-							return (await navigator.locks.request(
-								`ground0::dbop_${dbName}`,
-								() => {
-									dbWorker.postMessage({
-										type: UpstreamDbWorkerMessageType.ExecOne,
-										params: input
-									} satisfies UpstreamDbWorkerMessage)
-									return lockedThenable
-								}
-							)) as (DownstreamDbWorkerMessage & {
-								type: DownstreamDbWorkerMessageType.SingleSuccessfulExecResult
-							})['result']
-						},
-						async (...input) => {
-							return (await navigator.locks.request(
-								`ground0::dbop_${dbName}`,
-								() => {
-									dbWorker.postMessage({
-										type: UpstreamDbWorkerMessageType.ExecBatch,
-										params: input
-									} satisfies UpstreamDbWorkerMessage)
-									return lockedThenable
-								}
-							)) as (DownstreamDbWorkerMessage & {
-								type: DownstreamDbWorkerMessageType.BatchSuccessfulExecResult
-							})['result']
+				case DownstreamDbWorkerMessageType.SingleSuccessfulExecResult:
+				case DownstreamDbWorkerMessageType.BatchSuccessfulExecResult:
+					;(
+						this.thenableQueue as Set<
+							[
+								AsyncSuccessfulWorkerResultHandler<typeof message.type>,
+								() => unknown
+							]
+						>
+					).forEach((thenable) => {
+						try {
+							thenable[0](message.result)
+						} catch (e) {
+							brandedLog(console.error, e)
 						}
-					)
-
-					migrate(db, migrations).then(
-						() => {
-							brandedLog(console.debug, 'db is now migrated, syncing resources')
-							syncResources({
-								db: {
-									status: DbResourceStatus.ConnectedAndMigrated,
-									instance: db
-								}
-							})
-						},
-						(e) => {
-							brandedLog(
-								console.error,
-								'A migration error occurred while wrapping the nested worker:',
-								e
-							)
-							signalNeverConnecting()
+					})
+					this.thenableQueue.clear()
+					break
+				case DownstreamDbWorkerMessageType.SingleFailedExecResult:
+				case DownstreamDbWorkerMessageType.BatchFailedExecResult:
+					this.thenableQueue.forEach((thenable) => {
+						try {
+							thenable[1]()
+						} catch (e) {
+							brandedLog(console.error, e)
 						}
-					)
-				} catch (e) {
-					brandedLog(
-						console.error,
-						'An error occurred while wrapping the nested worker:',
-						e
-					)
-					signalNeverConnecting()
-				}
-				break
+					})
+					this.thenableQueue.clear()
+					break
 			}
-			case DownstreamDbWorkerMessageType.SingleSuccessfulExecResult:
-			case DownstreamDbWorkerMessageType.BatchSuccessfulExecResult:
-				;(
-					thenableQueue as Set<
-						[
-							AsyncSuccessfulWorkerResultHandler<typeof message.type>,
-							() => unknown
-						]
-					>
-				).forEach((thenable) => {
-					try {
-						thenable[0](message.result)
-					} catch (e) {
-						brandedLog(console.error, e)
-					}
-				})
-				thenableQueue.clear()
-				break
-			case DownstreamDbWorkerMessageType.SingleFailedExecResult:
-			case DownstreamDbWorkerMessageType.BatchFailedExecResult:
-				thenableQueue.forEach((thenable) => {
-					try {
-						thenable[1]()
-					} catch (e) {
-						brandedLog(console.error, e)
-					}
-				})
-				thenableQueue.clear()
-				break
 		}
 	}
 }
