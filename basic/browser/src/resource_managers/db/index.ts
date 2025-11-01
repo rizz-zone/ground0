@@ -79,10 +79,11 @@ export class DbThinClient {
 	private readonly db = drizzle(
 		(...input) =>
 			this.opLocked(() => {
-				this.port?.postMessage({
+				this.currentHotMessage = {
 					type: UpstreamDbWorkerMessageType.ExecOne,
 					params: input
-				} satisfies UpstreamDbWorkerMessage)
+				}
+				this.port?.postMessage(this.currentHotMessage)
 				return this.lockedThenable
 			}) as Promise<
 				(DownstreamDbWorkerMessage & {
@@ -91,10 +92,11 @@ export class DbThinClient {
 			>,
 		(...input) =>
 			this.opLocked(() => {
-				this.port?.postMessage({
+				this.currentHotMessage = {
 					type: UpstreamDbWorkerMessageType.ExecBatch,
 					params: input
-				} satisfies UpstreamDbWorkerMessage)
+				}
+				this.port?.postMessage(this.currentHotMessage)
 				return this.lockedThenable
 			}) as Promise<
 				(DownstreamDbWorkerMessage & {
@@ -128,7 +130,7 @@ export class DbThinClient {
 				case DownstreamDbWorkerMessageType.Ready: {
 					clearTimeout(this.neverConnectingTimeout)
 					try {
-						migrate(db, this.migrations).then(
+						migrate(this.db, this.migrations).then(
 							() => {
 								brandedLog(
 									console.debug,
@@ -137,8 +139,10 @@ export class DbThinClient {
 								if (this.status === DbResourceStatus.Disconnected)
 									this.syncDbResource({
 										status: DbResourceStatus.ConnectedAndMigrated,
-										instance: db
+										instance: this.db
 									})
+								if (this.currentHotMessage)
+									this.port?.postMessage(this.currentHotMessage)
 							},
 							(e) => {
 								brandedLog(
