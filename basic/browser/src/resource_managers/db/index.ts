@@ -58,6 +58,51 @@ export class DbThinClient {
 		40 * 1000
 	)
 
+	private readonly thenableQueue = new Set<
+		[SomeAsyncSuccessfulWorkerResultHandler, () => unknown]
+	>()
+	private readonly lockedThenable = {
+		then: (
+			handler: SomeAsyncSuccessfulWorkerResultHandler,
+			onRejection: () => unknown
+		) => this.thenableQueue.add([handler, onRejection])
+	}
+	private currentHotMessage?: UpstreamDbWorkerMessage & {
+		type:
+			| UpstreamDbWorkerMessageType.ExecOne
+			| UpstreamDbWorkerMessageType.ExecBatch
+	}
+
+	private readonly opLocked = <T extends (...args: unknown[]) => unknown>(
+		callback: Parameters<typeof navigator.locks.request>[2] & T
+	) => navigator.locks.request(`ground0::dbop_${this.dbName}`, callback)
+	private readonly db = drizzle(
+		(...input) =>
+			this.opLocked(() => {
+				this.port?.postMessage({
+					type: UpstreamDbWorkerMessageType.ExecOne,
+					params: input
+				} satisfies UpstreamDbWorkerMessage)
+				return this.lockedThenable
+			}) as Promise<
+				(DownstreamDbWorkerMessage & {
+					type: DownstreamDbWorkerMessageType.SingleSuccessfulExecResult
+				})['result']
+			>,
+		(...input) =>
+			this.opLocked(() => {
+				this.port?.postMessage({
+					type: UpstreamDbWorkerMessageType.ExecBatch,
+					params: input
+				} satisfies UpstreamDbWorkerMessage)
+				return this.lockedThenable
+			}) as Promise<
+				(DownstreamDbWorkerMessage & {
+					type: DownstreamDbWorkerMessageType.BatchSuccessfulExecResult
+				})['result']
+			>
+	)
+
 	public newPort(port: MessagePort) {
 		// Cleanup and replacement
 		this.port?.close()
@@ -81,50 +126,19 @@ export class DbThinClient {
 					this.port = undefined
 					break
 				case DownstreamDbWorkerMessageType.Ready: {
-					const opLocked<T> = (callback: Parameters<(typeof navigator.locks.request)>[2]) => navigator.locks.request(`ground0::dbop_${this.dbName}`, callback)
-
+					clearTimeout(this.neverConnectingTimeout)
 					try {
-						// Migrate and pass
-						const db = drizzle(
-							async (...input) => {
-								return (await navigator.locks.request(
-									`ground0::dbop_${dbName}`,
-									() => {
-										dbWorker.postMessage({
-											type: UpstreamDbWorkerMessageType.ExecOne,
-											params: input
-										} satisfies UpstreamDbWorkerMessage)
-										return lockedThenable
-									}
-								)) as (DownstreamDbWorkerMessage & {
-									type: DownstreamDbWorkerMessageType.SingleSuccessfulExecResult
-								})['result']
-							},
-							async (...input) => {
-								return (await navigator.locks.request(
-									`ground0::dbop_${dbName}`,
-									() => {
-										dbWorker.postMessage({
-											type: UpstreamDbWorkerMessageType.ExecBatch,
-											params: input
-										} satisfies UpstreamDbWorkerMessage)
-										return lockedThenable
-									}
-								)) as (DownstreamDbWorkerMessage & {
-									type: DownstreamDbWorkerMessageType.BatchSuccessfulExecResult
-								})['result']
-							}
-						)
-	
-						migrate(db, migrations).then(
+						migrate(db, this.migrations).then(
 							() => {
-								brandedLog(console.debug, 'db is now migrated, syncing resources')
-								syncResources({
-									db: {
+								brandedLog(
+									console.debug,
+									'db is now migrated, syncing resources'
+								)
+								if (this.status === DbResourceStatus.Disconnected)
+									this.syncDbResource({
 										status: DbResourceStatus.ConnectedAndMigrated,
 										instance: db
-									}
-								})
+									})
 							},
 							(e) => {
 								brandedLog(
@@ -132,7 +146,6 @@ export class DbThinClient {
 									'A migration error occurred while wrapping the nested worker:',
 									e
 								)
-								signalNeverConnecting()
 							}
 						)
 					} catch (e) {
@@ -141,7 +154,6 @@ export class DbThinClient {
 							'An error occurred while wrapping the nested worker:',
 							e
 						)
-						signalNeverConnecting()
 					}
 					break
 				}
