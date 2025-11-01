@@ -26,6 +26,21 @@ type SomeAsyncSuccessfulWorkerResultHandler =
 	| AsyncSuccessfulWorkerResultHandler<DownstreamDbWorkerMessageType.SingleSuccessfulExecResult>
 	| AsyncSuccessfulWorkerResultHandler<DownstreamDbWorkerMessageType.BatchSuccessfulExecResult>
 
+export class DbThinClient {
+	private port?: MessagePort
+	private syncResources: (modifications: Partial<ResourceBundle>) => void
+	private dbName: string
+	private migrations: GeneratedMigrationSchema
+
+	constructor()
+
+	public newPort(port: MessagePort) {
+		if (!port) {
+		}
+		this.port = port
+	}
+}
+
 export async function connectDb({
 	syncResources,
 	dbName,

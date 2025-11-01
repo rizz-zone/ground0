@@ -32,7 +32,6 @@ export class WorkerLocalFirst<
 
 	public constructor({
 		wsUrl,
-		dbName,
 		engineDef,
 		localHandlers,
 		initialMemoryModel,
