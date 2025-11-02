@@ -28,13 +28,17 @@ export class BrowserLocalFirst<
 	private readonly worker: Worker | SharedWorker
 	private downstreamGateOpen = true
 	private submitWorkerMessage(
-		message: UpstreamWorkerMessage<TransitionSchema>
+		message: UpstreamWorkerMessage<TransitionSchema>,
+		transferables?: Transferable[]
 	) {
+		const params = [message, transferables] as Parameters<
+			MessagePort['postMessage']
+		>
 		if (isShared(this.worker)) {
-			this.worker.port.postMessage(message)
+			this.worker.port.postMessage(...params)
 			return
 		}
-		this.worker.postMessage(message)
+		this.worker.postMessage(...params)
 	}
 
 	constructor({
@@ -89,10 +93,13 @@ export class BrowserLocalFirst<
 			dbWorker.onmessage = ({
 				data: message
 			}: MessageEvent<DownstreamDbWorkerInitMessage>) =>
-				this.submitWorkerMessage({
-					type: UpstreamWorkerMessageType.DbWorkerPrepared,
-					port: message.port
-				})
+				this.submitWorkerMessage(
+					{
+						type: UpstreamWorkerMessageType.DbWorkerPrepared,
+						port: message.port
+					},
+					[message.port]
+				)
 		} else {
 			worker.onmessage = onmessage
 			worker.onmessageerror = () => logMessageError('Dedicated')
