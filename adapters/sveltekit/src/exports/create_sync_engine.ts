@@ -4,18 +4,23 @@ import type { PathValue } from '@/types/path_stores/values/PathValue'
 import { BrowserLocalFirst } from '@ground0/browser'
 import {
 	type DownstreamWorkerMessage,
-	DownstreamWorkerMessageType
+	DownstreamWorkerMessageType,
+	TransformationAction
 } from '@ground0/browser/adapter_extras'
 import type { Transition } from '@ground0/shared'
 import { onDestroy } from 'svelte'
 import { readonly, type Readable } from 'svelte/store'
 import { MemoryModelStore } from '@/stores/memory_model'
 import { PathStoreTree } from '@/stores/path_store_tree'
+import { deleteProperty, setProperty } from 'dot-prop'
 
-class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
+class ReactiveSyncEngine<
+	AppTransition extends Transition,
+	MemoryModel extends object
+> {
 	private editableMemoryModel = new MemoryModelStore<MemoryModel>()
 	public memoryModel = readonly(this.editableMemoryModel)
-	private browserLocalFirst?: BrowserLocalFirst<T, MemoryModel>
+	private browserLocalFirst?: BrowserLocalFirst<AppTransition, MemoryModel>
 
 	constructor({
 		workerUrl,
@@ -98,6 +103,7 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 		switch (message.type) {
 			case DownstreamWorkerMessageType.InitMemoryModel:
 				this.editableMemoryModel.currentValue = message.memoryModel
+				this.editableMemoryModel.updateSubscribers()
 				this.storeTree.pushUpdateThroughPath(
 					[],
 					this.editableMemoryModel.currentValue as Parameters<
@@ -105,15 +111,37 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 					>[1]
 				)
 				return
-			case DownstreamWorkerMessageType.Transformation:
+			case DownstreamWorkerMessageType.Transformation: {
+				if (!this.editableMemoryModel.currentValue) return
+
+				const { transformation } = message
+				switch (transformation.action) {
+					case TransformationAction.Set:
+						setProperty(
+							this.editableMemoryModel.currentValue,
+							transformation.path,
+							transformation.newValue
+						)
+						break
+					case TransformationAction.Delete:
+						deleteProperty(
+							this.editableMemoryModel.currentValue,
+							transformation.path
+						)
+				}
+
+				this.editableMemoryModel.updateSubscribers()
+				this.storeTree.pushUpdateThroughPath(
+					transformation.path,
+					this.editableMemoryModel.currentValue as Parameters<
+						PathStoreTree['pushUpdateThroughPath']
+					>[1]
+				)
+			}
 		}
 	}
-	public transition(
-		...params: Parameters<
-			NonNullable<typeof this.browserLocalFirst>['transition']
-		>
-	) {
-		return this.browserLocalFirst?.transition(...params)
+	public transition(transition: AppTransition) {
+		return this.browserLocalFirst?.transition(transition)
 	}
 
 	[Symbol.dispose]() {

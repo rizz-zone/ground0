@@ -19,6 +19,11 @@ workerEntrypoint<MemoryModel, AppTransition>({
 			revertMemoryModel: ({ memoryModel }) => {
 				memoryModel.counter--
 			}
+		},
+		[TransitionAction.LocalIncrement]: {
+			editMemoryModel: ({ memoryModel }) => {
+				memoryModel.counter++
+			}
 		}
 	},
 	wsUrl: '',

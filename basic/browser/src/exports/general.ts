@@ -43,11 +43,12 @@ export function workerEntrypoint<
 		engineDef,
 		localHandlers,
 		initialMemoryModel,
-		announceTransformation: (transformation) =>
+		announceTransformation: (transformation) => {
 			broadcastMessage({
 				type: DownstreamWorkerMessageType.Transformation,
 				transformation
 			})
+		}
 	})
 
 	function onmessage(

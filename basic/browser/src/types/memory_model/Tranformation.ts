@@ -3,10 +3,10 @@ import type { TransformationAction } from './TransformationAction'
 export type Transformation =
 	| {
 			action: TransformationAction.Set
-			path: PropertyKey[]
+			path: readonly (string | number)[]
 			newValue: unknown
 	  }
 	| {
 			action: TransformationAction.Delete
-			path: PropertyKey[]
+			path: readonly (string | number)[]
 	  }

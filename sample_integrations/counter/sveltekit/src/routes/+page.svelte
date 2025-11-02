@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { engine } from '$lib/sync_engine'
+	import { TransitionAction } from '$lib/sync_engine/types'
+	import { TransitionImpact } from 'ground0'
 
 	const { memoryModel } = engine
 	const derivedMemoryModel = $derived.by(() => {
@@ -23,3 +25,4 @@
 </p>
 <code>{derivedMemoryModel}</code>
 <code>{$pathStore}</code>
+<button onclick={() => engine.transition({ action: TransitionAction.LocalIncrement, impact: TransitionImpact.LocalOnly })}>Increment locally</button>

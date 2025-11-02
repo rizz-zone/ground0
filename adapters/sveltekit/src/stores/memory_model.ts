@@ -4,15 +4,10 @@ export class MemoryModelStore<MemoryModel extends object> {
 		(newValue: MemoryModel | undefined) => unknown
 	>()
 
-	private _currentValue: MemoryModel | undefined = undefined
-
-	public get currentValue(): MemoryModel | undefined {
-		return this._currentValue
-	}
-	public set currentValue(value: MemoryModel | undefined) {
-		this._currentValue = value
+	public currentValue: MemoryModel | undefined = undefined
+	public updateSubscribers() {
 		for (const subscriber of this.subscribers.values()) {
-			subscriber(value)
+			subscriber(this.currentValue)
 		}
 	}
 

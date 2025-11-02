@@ -74,7 +74,7 @@ function newReactiveProxy<Schema extends object>({
 			targetPath.push(prop)
 			announceTransformation({
 				action: TransformationAction.Set,
-				path: targetPath,
+				path: targetPath as readonly (string | number)[],
 				newValue
 			})
 			return true
@@ -86,7 +86,7 @@ function newReactiveProxy<Schema extends object>({
 			targetPath.push(prop)
 			announceTransformation({
 				action: TransformationAction.Delete,
-				path: targetPath
+				path: targetPath as readonly (string | number)[]
 			})
 			return true
 		},
@@ -134,7 +134,6 @@ function newReactiveProxy<Schema extends object>({
 			)
 		}
 	}
-	// TODO: Announce the initial state of the memory model
 
 	return proxy
 }
