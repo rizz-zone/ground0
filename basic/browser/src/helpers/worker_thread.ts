@@ -17,7 +17,7 @@ import SuperJSON from 'superjson'
 import type { TransitionRunner } from '@/runners/base'
 import { runners } from '@/runners/all'
 import type { OptimisticPushTransitionRunner } from '@/runners/specialised/optimistic_push'
-import { connectDb } from '@/resource_managers/db'
+import { DbThinClient } from '@/resource_managers/db'
 import { connectWs } from '@/resource_managers/ws'
 import { brandedLog } from '@/common/branded_log'
 
@@ -29,9 +29,11 @@ export class WorkerLocalFirst<
 	private readonly engineDef: SyncEngineDefinition<TransitionSchema>
 	private readonly localHandlers: LocalHandlers<MemoryModel, TransitionSchema>
 	public readonly memoryModel: MemoryModel
+	private readonly dbThinClient?: DbThinClient
 
 	public constructor({
 		wsUrl,
+		dbName,
 		engineDef,
 		localHandlers,
 		initialMemoryModel,
@@ -61,15 +63,12 @@ export class WorkerLocalFirst<
 			announceTransformation
 		)
 
-		// TODO: Insert new db logic
-		/*if (shared)
-			connectDb({
-				pullWasmBinary,
+		if (shared)
+			this.dbThinClient = new DbThinClient({
 				syncResources: this.syncResources.bind(this),
 				dbName,
 				migrations: engineDef.db.migrations
 			})
-		*/
 		connectWs({
 			wsUrl,
 			currentVersion: engineDef.version.current,
@@ -196,5 +195,8 @@ export class WorkerLocalFirst<
 			})
 		)
 		this.nextTransitionId++
+	}
+	public newPort(...params: Parameters<DbThinClient['newPort']>) {
+		this.dbThinClient?.newPort(...params)
 	}
 }

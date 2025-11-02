@@ -51,10 +51,9 @@ export function workerEntrypoint<
 	})
 
 	function onmessage(
-		event: MessageEvent<UpstreamWorkerMessage<T>>,
+		{ data: message }: MessageEvent<UpstreamWorkerMessage<T>>,
 		port?: MessagePort
 	) {
-		const message = event.data
 		switch (message.type) {
 			case UpstreamWorkerMessageType.Transition:
 				workerLocalFirst.transition(message.data)
@@ -67,6 +66,9 @@ export function workerEntrypoint<
 			}
 			case UpstreamWorkerMessageType.DebugLog:
 				brandedLog(console.debug, message.message)
+				return
+			case UpstreamWorkerMessageType.DbWorkerPrepared:
+				workerLocalFirst.newPort(message.port)
 				return
 		}
 	}
