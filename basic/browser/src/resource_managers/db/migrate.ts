@@ -1,3 +1,4 @@
+import { brandedLog } from '@/common/branded_log'
 import type { GeneratedMigrationSchema } from '@ground0/shared'
 import { sql } from 'drizzle-orm'
 import type { BatchItem } from 'drizzle-orm/batch'
@@ -25,14 +26,15 @@ export async function migrate(
 			typeof dbMigrations[0] !== 'undefined' &&
 			entry.when <= Number(dbMigrations[0][2])
 		) {
-			console.debug(
+			brandedLog(
+				console.debug,
 				'Skipping migration',
 				entry.idx,
 				'because it is already applied'
 			)
 			continue
 		}
-		console.debug('Attempting to apply', entry.idx)
+		brandedLog(console.debug, 'Attempting to apply', entry.idx)
 
 		// Get the migration. Drizzle migrations are 4 digits long
 		const migrationMemberName: `m${string}` = `m${(entry.tag as string).split('_')[0]}`
@@ -68,7 +70,7 @@ export async function migrate(
 		]
 
 		// Do it
-		console.debug(individualCommands)
+		brandedLog(console.debug, individualCommands)
 		await db.batch(
 			individualCommands as unknown as readonly [
 				BatchItem<'sqlite'>,
