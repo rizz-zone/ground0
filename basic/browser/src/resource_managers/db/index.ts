@@ -28,6 +28,7 @@ type SomeAsyncSuccessfulWorkerResultHandler =
 
 export class DbThinClient {
 	private port?: MessagePort
+	private portReady = false
 	private syncDbResource: (newDb: ResourceBundle['db']) => void
 	private migrations
 	private dbName
@@ -129,43 +130,47 @@ export class DbThinClient {
 					break
 				case DownstreamDbWorkerMessageType.Ready: {
 					clearTimeout(this.neverConnectingTimeout)
-					try {
-						migrate(this.db, this.migrations).then(
-							() => {
-								brandedLog(
-									console.debug,
-									'db is now migrated, syncing resources'
-								)
-								if (this.status === DbResourceStatus.Disconnected)
+					if (this.status === DbResourceStatus.Disconnected)
+						try {
+							migrate(this.db, this.migrations).then(
+								() => {
+									brandedLog(
+										console.debug,
+										'db is now migrated, syncing resources'
+									)
 									this.syncDbResource({
 										status: DbResourceStatus.ConnectedAndMigrated,
 										instance: this.db
 									})
-
-								// Request the current blocking tx if one
-								// exists
-								if (this.currentHotMessage)
-									port.postMessage(this.currentHotMessage)
-							},
-							(e) => {
-								brandedLog(
-									console.error,
-									'A migration error occurred while wrapping the nested worker:',
-									e
-								)
-							}
-						)
-					} catch (e) {
-						brandedLog(
-							console.error,
-							'An error occurred while wrapping the nested worker:',
-							e
-						)
+								},
+								(e) => {
+									brandedLog(
+										console.error,
+										'A migration error occurred while wrapping the nested worker:',
+										e
+									)
+								}
+							)
+						} catch (e) {
+							brandedLog(
+								console.error,
+								'An error occurred while wrapping the nested worker:',
+								e
+							)
+						}
+					else {
+						brandedLog(console.debug, 'Swapping workers!')
+						// Request the current blocking tx if one exists
+						if (this.currentHotMessage) {
+							port.postMessage(this.currentHotMessage)
+							brandedLog(console.debug, 'Retrying queued message')
+						}
 					}
 					break
 				}
 				case DownstreamDbWorkerMessageType.SingleSuccessfulExecResult:
 				case DownstreamDbWorkerMessageType.BatchSuccessfulExecResult:
+					this.currentHotMessage = undefined
 					;(
 						this.thenableQueue as Set<
 							[
@@ -184,6 +189,7 @@ export class DbThinClient {
 					break
 				case DownstreamDbWorkerMessageType.SingleFailedExecResult:
 				case DownstreamDbWorkerMessageType.BatchFailedExecResult:
+					this.currentHotMessage = undefined
 					this.thenableQueue.forEach((thenable) => {
 						try {
 							thenable[1]()
