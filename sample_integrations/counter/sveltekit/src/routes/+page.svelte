@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { engine } from "$lib/sync_engine"
+	import { engine } from '$lib/sync_engine'
 
-	const { memoryModel, path } = engine
+	const { memoryModel } = engine
 	const derivedMemoryModel = $derived.by(() => {
 		try {
 			return JSON.stringify($memoryModel)
@@ -10,9 +10,10 @@
 		}
 	})
 
-	// const pathStore = path('counter')
+	const pathStore = engine.path('counter')
 
 	$inspect($memoryModel)
+	$inspect($pathStore)
 </script>
 
 <h1>Welcome to SvelteKit</h1>
@@ -21,4 +22,4 @@
 	documentation
 </p>
 <code>{derivedMemoryModel}</code>
-<!--<code>{$pathStore}</code>-->
+<code>{$pathStore}</code>
