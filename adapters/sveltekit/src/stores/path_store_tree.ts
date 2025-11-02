@@ -100,6 +100,40 @@ export class PathStoreTree {
 			previous = item
 		}
 	}
+
+	private updateAllNestedStores(
+		treeNode: TreeAgent,
+		value: unknown,
+		update: boolean
+	): void {
+		// Update all current node's subscribers
+		if (update)
+			for (const fn of treeNode[stores].values()) {
+				try {
+					fn(value as PathValue<never, never> | undefined)
+				} catch {
+					// empty
+				}
+			}
+		// Then recursively update all children
+		for (const key of Object.keys(treeNode)) {
+			// Only look at object children that could represent path nodes (not symbols like 'stores' or 'members')
+			if (
+				typeof key === 'string' &&
+				typeof treeNode[key] === 'object' &&
+				key !== members.toString() &&
+				key !== stores.toString()
+			) {
+				// For the value: if value is an object and has key, pass it, otherwise pass undefined
+				const nextValue =
+					typeof value === 'object' && value !== null && key in value
+						? (value as { [k: string]: unknown })[key]
+						: undefined
+				this.updateAllNestedStores(treeNode[key], nextValue, true)
+			}
+		}
+	}
+
 	public pushUpdateThroughPath(
 		path: ArbitraryPath,
 		latestMemoryModel: { [key: string | number]: unknown }
@@ -132,6 +166,15 @@ export class PathStoreTree {
 			}
 			previousTree = thisTree
 			previousOriginal = thisOriginal
+		}
+		// Now that we're at the final segment, recurse from this point down to
+		// guarantee anything else that may have been impacted is updated.
+		if (typeof previousTree === 'object' && previousTree !== null) {
+			this.updateAllNestedStores(
+				previousTree as TreeAgent,
+				previousOriginal,
+				false
+			)
 		}
 	}
 }
