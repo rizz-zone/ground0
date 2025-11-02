@@ -98,6 +98,12 @@ class ReactiveSyncEngine<T extends Transition, MemoryModel extends object> {
 		switch (message.type) {
 			case DownstreamWorkerMessageType.InitMemoryModel:
 				this.editableMemoryModel.currentValue = message.memoryModel
+				this.storeTree.pushUpdateThroughPath(
+					[],
+					this.editableMemoryModel.currentValue as Parameters<
+						PathStoreTree['pushUpdateThroughPath']
+					>[1]
+				)
 				return
 			case DownstreamWorkerMessageType.Transformation:
 		}

@@ -101,7 +101,7 @@ export class PathStoreTree {
 		}
 	}
 	public pushUpdateThroughPath(
-		path: PopulatedArbitraryPath,
+		path: ArbitraryPath,
 		latestMemoryModel: { [key: string | number]: unknown }
 	): void {
 		let previousOriginal: unknown = latestMemoryModel
