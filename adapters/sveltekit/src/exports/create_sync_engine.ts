@@ -178,4 +178,4 @@ export function createSyncEngine<
 			? never
 			: ReactiveSyncEngine<T, MemoryModel>
 }
-export { ReactiveSyncEngine }
+export type { ReactiveSyncEngine }
