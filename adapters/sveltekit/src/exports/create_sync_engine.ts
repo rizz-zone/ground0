@@ -165,15 +165,17 @@ export function createSyncEngine<
 	MemoryModel extends object = never
 >(
 	...params: ConstructorParameters<typeof ReactiveSyncEngine>
-): T extends never
+): [T] extends [never]
 	? never
-	: MemoryModel extends never
+	: [MemoryModel] extends [never]
 		? never
 		: ReactiveSyncEngine<T, MemoryModel> {
-	return new ReactiveSyncEngine<T, MemoryModel>(...params) as T extends never
+	return new ReactiveSyncEngine<T, MemoryModel>(...params) as [T] extends [
+		never
+	]
 		? never
-		: MemoryModel extends never
+		: [MemoryModel] extends [never]
 			? never
 			: ReactiveSyncEngine<T, MemoryModel>
 }
-export type { ReactiveSyncEngine }
+export { ReactiveSyncEngine }

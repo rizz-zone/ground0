@@ -1,4 +1,4 @@
-import type { AppTransition, MemoryModel } from '$lib/sync_engine/types'
+import { type AppTransition, type MemoryModel } from '$lib/sync_engine/types'
 import { createSyncEngine } from '@ground0/adapter-svelte'
 import { wasmUrl } from 'ground0/wasm'
 import { fetchWasmFromUrl } from 'ground0'
