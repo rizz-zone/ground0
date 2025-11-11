@@ -1,0 +1,21 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "ground0-sample-counter-durable-object",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-11-11",
+	"workers_dev": false,
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "SYNC_ENGINE_DO",
+				"class_name": "SyncEngineDO"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["SyncEngineDO"]
+		}
+	]
+}

@@ -13,3 +13,13 @@ export class SyncEngineDO extends SyncEngineBackend<AppTransition> {
 		}
 	}
 }
+
+export default {
+	async fetch(request, env, _ctx): Promise<Response> {
+		if (new URL(request.url).pathname !== '/ws')
+			return new Response(null, { status: 404 })
+		const id = env.SYNC_ENGINE_DO.idFromName('counter')
+		const stub = env.SYNC_ENGINE_DO.get(id)
+		return stub.fetch(request)
+	}
+} satisfies ExportedHandler<Env>

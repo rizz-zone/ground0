@@ -6,19 +6,20 @@
 	"scripts": {
 		"test": "vitest run --coverage",
 		"test:watch": "vitest watch --coverage",
-		"build": "tsdown",
-		"dev": "tsdown --watch --no-clean",
+		"build": "wrangler build",
+		"dev": "wrangler dev",
 		"check-types": "tsc",
 		"lint": "eslint ."
 	},
 	"packageManager": "pnpm@10.18.3",
 	"devDependencies": {
-		"@ground0/sample-counter-shared": "workspace:*",
 		"drizzle-kit": "catalog:dev-common",
-		"typescript": "^5.9.2"
+		"typescript": "^5.9.2",
+		"wrangler": "^4.46.0"
 	},
 	"dependencies": {
 		"@ground0/durable-object": "workspace:*",
+		"@ground0/sample-counter-shared": "workspace:*",
 		"drizzle-orm": "catalog:core-common",
 		"ground0": "workspace:*",
 		"zod": "^4.1.12"

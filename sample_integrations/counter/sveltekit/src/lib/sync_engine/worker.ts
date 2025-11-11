@@ -1,14 +1,17 @@
 import { type MemoryModel } from './MemoryModel'
 import { workerEntrypoint } from 'ground0/worker'
-import { wasmUrl } from 'ground0/wasm'
 import {
 	engineDef,
 	TransitionAction,
 	type AppTransition
 } from '@ground0/sample-counter-shared'
 
-console.log(wasmUrl)
-console.log('onconnect' in self ? 'shared' : 'dedicated')
+let wsUrl: string
+try {
+	wsUrl = __WS_URL__
+} catch {
+	wsUrl = (await import('$env/static/public')).PUBLIC_WS_URL
+}
 
 workerEntrypoint<MemoryModel, AppTransition>({
 	engineDef,
@@ -30,6 +33,6 @@ workerEntrypoint<MemoryModel, AppTransition>({
 			}
 		}
 	},
-	wsUrl: '',
+	wsUrl,
 	dbName: 'counter'
 })
