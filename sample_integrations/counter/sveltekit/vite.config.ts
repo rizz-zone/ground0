@@ -16,8 +16,11 @@ import 'dotenv/config'
 // an import call (that should not normally be hit). Fun.
 const dev = process.argv.includes('dev')
 export default defineConfig({
+	// @ts-expect-error SvelteKit is definitely a Vite plugin and this is lies
 	plugins: [sveltekit(), sqlRaw(), devtoolsJson()],
 	worker: {
+		// @ts-expect-error SvelteKit continues to definitely be a Vite plugin
+		// and this is still lies
 		plugins: () => [...(dev ? [sveltekit()] : []), sqlRaw()],
 		format: 'es',
 		rollupOptions: dev ? undefined : { external: ['$env/static/public'] }
