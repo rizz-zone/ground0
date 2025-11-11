@@ -9,10 +9,17 @@ catalogs:
     drizzle-orm:
       specifier: ^0.44.6
       version: 0.44.6
+    superjson:
+      specifier: ^2.2.2
+      version: 2.2.2
   dev-common:
     drizzle-kit:
       specifier: ^0.31.4
       version: 0.31.5
+  validators:
+    zod:
+      specifier: ^4.1.12
+      version: 4.1.12
 
 importers:
 
@@ -209,6 +216,53 @@ importers:
         specifier: ^5.8.3
         version: 5.9.3
 
+  sample_integrations/counter/_durable-object:
+    dependencies:
+      '@ground0/durable-object':
+        specifier: workspace:*
+        version: link:../../../basic/durable-object
+      drizzle-orm:
+        specifier: catalog:core-common
+        version: 0.44.6(@cloudflare/workers-types@4.20251011.0)
+      ground0:
+        specifier: workspace:*
+        version: link:../../../basic/ground0
+      zod:
+        specifier: ^4.1.12
+        version: 4.1.12
+    devDependencies:
+      '@ground0/sample-counter-shared':
+        specifier: workspace:*
+        version: link:../_shared
+      drizzle-kit:
+        specifier: catalog:dev-common
+        version: 0.31.5
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+
+  sample_integrations/counter/_shared:
+    dependencies:
+      drizzle-orm:
+        specifier: catalog:core-common
+        version: 0.44.6(@cloudflare/workers-types@4.20251011.0)
+      ground0:
+        specifier: workspace:*
+        version: link:../../../basic/ground0
+      zod:
+        specifier: ^4.1.12
+        version: 4.1.12
+    devDependencies:
+      drizzle-kit:
+        specifier: catalog:dev-common
+        version: 0.31.5
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+      vite-plugin-sql-raw:
+        specifier: workspace:*
+        version: link:../../../extras/vite-plugin-sql-raw
+
   sample_integrations/counter/sveltekit:
     dependencies:
       '@ground0/adapter-svelte':
@@ -224,6 +278,9 @@ importers:
         specifier: ^4.1.12
         version: 4.1.12
     devDependencies:
+      '@ground0/sample-counter-shared':
+        specifier: workspace:*
+        version: link:../_shared
       '@sveltejs/adapter-node':
         specifier: ^5.4.0
         version: 5.4.0(@sveltejs/kit@2.48.0(@sveltejs/vite-plugin-svelte@6.2.1(svelte@5.42.2)(vite@7.1.12(jiti@2.6.1)))(svelte@5.42.2)(vite@7.1.12(jiti@2.6.1)))

@@ -20,8 +20,3 @@ const sourceSchema = z.discriminatedUnion('action', [
 ])
 export const appTransitionSchema = createTransitionSchema(sourceSchema)
 export type AppTransition = z.infer<typeof sourceSchema>
-
-// Memory model shape
-export type MemoryModel = {
-	counter: number
-}

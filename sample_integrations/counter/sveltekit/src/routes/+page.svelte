@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { engine } from '$lib/sync_engine'
-	import { TransitionAction } from '$lib/sync_engine/types'
+	import { TransitionAction } from '@ground0/sample-counter-shared'
 	import { TransitionImpact } from 'ground0'
 
 	const { memoryModel } = engine

@@ -1,0 +1,30 @@
+{
+	"name": "@ground0/sample-counter-shared",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"build": "tsdown",
+		"dev": "tsdown --watch --no-clean",
+		"check-types": "tsc",
+		"lint": "eslint ."
+	},
+	"packageManager": "pnpm@10.18.3",
+	"devDependencies": {
+		"drizzle-kit": "catalog:dev-common",
+		"typescript": "^5.9.2",
+		"vite-plugin-sql-raw": "workspace:*"
+	},
+	"dependencies": {
+		"drizzle-orm": "catalog:core-common",
+		"ground0": "workspace:*",
+		"zod": "^4.1.12"
+	},
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": "./dist/index.js",
+		"./package.json": "./package.json"
+	}
+}

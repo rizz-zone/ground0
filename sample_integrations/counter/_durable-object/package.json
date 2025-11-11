@@ -1,0 +1,26 @@
+{
+	"name": "@ground0/sample-counter-durable-object",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"test": "vitest run --coverage",
+		"test:watch": "vitest watch --coverage",
+		"build": "tsdown",
+		"dev": "tsdown --watch --no-clean",
+		"check-types": "tsc",
+		"lint": "eslint ."
+	},
+	"packageManager": "pnpm@10.18.3",
+	"devDependencies": {
+		"@ground0/sample-counter-shared": "workspace:*",
+		"drizzle-kit": "catalog:dev-common",
+		"typescript": "^5.9.2"
+	},
+	"dependencies": {
+		"@ground0/durable-object": "workspace:*",
+		"drizzle-orm": "catalog:core-common",
+		"ground0": "workspace:*",
+		"zod": "^4.1.12"
+	}
+}

@@ -1,7 +1,11 @@
-import { TransitionAction, type AppTransition, type MemoryModel } from './types'
+import { type MemoryModel } from './MemoryModel'
 import { workerEntrypoint } from 'ground0/worker'
 import { wasmUrl } from 'ground0/wasm'
-import { engineDef } from './defs'
+import {
+	engineDef,
+	TransitionAction,
+	type AppTransition
+} from '@ground0/sample-counter-shared'
 
 console.log(wasmUrl)
 console.log('onconnect' in self ? 'shared' : 'dedicated')

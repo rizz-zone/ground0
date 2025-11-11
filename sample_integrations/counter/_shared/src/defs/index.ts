@@ -1,6 +1,6 @@
 import type { SyncEngineDefinition } from 'ground0'
 import { appTransitionSchema, type AppTransition } from './types'
-import migrations from './db/generated/migrations.js'
+import migrations from '@/db/generated/migrations.js'
 
 export const engineDef = {
 	version: {
