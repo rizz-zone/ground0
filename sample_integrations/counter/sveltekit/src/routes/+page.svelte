@@ -25,5 +25,17 @@
 </p>
 <code>{derivedMemoryModel}</code>
 <code>{$pathStore}</code>
-<button onclick={() => engine.transition({ action: TransitionAction.LocalIncrement, impact: TransitionImpact.LocalOnly })}>Increment locally</button>
-<button onclick={() => engine.transition({ action: TransitionAction.Increment, impact: TransitionImpact.OptimisticPush })}>Increment globally 💀</button>
+<button
+	onclick={() =>
+		engine.transition({
+			action: TransitionAction.LocalIncrement,
+			impact: TransitionImpact.LocalOnly
+		})}>Increment locally</button
+>
+<button
+	onclick={() =>
+		engine.transition({
+			action: TransitionAction.Increment,
+			impact: TransitionImpact.OptimisticPush
+		})}>Increment globally 💀</button
+>
