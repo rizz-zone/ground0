@@ -1,4 +1,4 @@
-import { SyncEngineBackend } from '@ground0/durable-object'
+import { SyncEngineBackend } from 'ground0/durable_object'
 import {
 	engineDef,
 	TransitionAction,

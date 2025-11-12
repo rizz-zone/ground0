@@ -18,7 +18,6 @@
 		"wrangler": "^4.46.0"
 	},
 	"dependencies": {
-		"@ground0/durable-object": "workspace:*",
 		"@ground0/sample-counter-shared": "workspace:*",
 		"drizzle-orm": "catalog:core-common",
 		"ground0": "workspace:*",

@@ -202,7 +202,10 @@ export abstract class SyncEngineBackend<
 					!((
 						_: object,
 						issues: ReadonlyArray<StandardSchemaV1.Issue> | undefined
-					): _ is T => Boolean(issues))(data, issues)
+					): _ is T => typeof issues === 'undefined' || issues.length <= 0)(
+						data,
+						issues
+					)
 				) {
 					if (this.logInvalidTransitions) {
 						console.error('Invalid transition sent:\n', data)
