@@ -18,7 +18,6 @@ const dev = process.argv.includes('dev')
 export default defineConfig({
 	plugins: [sveltekit(), sqlRaw(), devtoolsJson()],
 	worker: {
-		// and this is still lies
 		plugins: () => [...(dev ? [sveltekit()] : []), sqlRaw()],
 		format: 'es',
 		rollupOptions: dev ? undefined : { external: ['$env/static/public'] }
