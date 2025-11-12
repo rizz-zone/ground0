@@ -9,7 +9,7 @@ export class SyncEngineDO extends SyncEngineBackend<AppTransition> {
 	protected override engineDef = engineDef
 	protected override backendHandlers = {
 		[TransitionAction.Increment]: {
-			confirm: () => true
+			confirm: () => Math.random() >= 0.5
 		}
 	}
 }
