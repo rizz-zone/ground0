@@ -10,7 +10,6 @@ export default defineConfig({
 	plugins: [sveltekit(), sqlRaw(), devtoolsJson()],
 	worker: {
 		plugins: () => [sqlRaw()],
-		format: 'es'
 	},
 	define: {
 		__WS_URL__: `'${process.env.PUBLIC_WS_URL as string}'`
