@@ -11,7 +11,8 @@ import {
 	TransitionImpact,
 	type DownstreamWsMessage,
 	DownstreamWsMessageAction,
-	type UUID
+	type UUID,
+	type BackendHandlerParams
 } from '@ground0/shared'
 import { isUpstreamWsMessage } from '@ground0/shared/zod'
 import SuperJSON from 'superjson'
@@ -25,6 +26,7 @@ import { migrate } from 'drizzle-orm/durable-sqlite/migrator'
 import type { StandardSchemaV1 } from '@standard-schema/spec'
 import { sql } from 'drizzle-orm'
 import { sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { EnhancedQueryLogger } from 'drizzle-query-logger'
 
 function send(ws: WebSocket, json: DownstreamWsMessage) {
 	if (ws.readyState === WebSocket.OPEN) ws.send(SuperJSON.stringify(json))
@@ -35,21 +37,22 @@ const connectionsTable = sqliteTable('__ground0_connections', {
 })
 
 export abstract class SyncEngineBackend<
-	T extends Transition
+	AppTransition extends Transition
 > extends DurableObject {
 	// Handling and general definition
 	/**
 	 * The `SyncEngineDefinition` that is shared between the client and the server.
 	 */
-	protected abstract engineDef: SyncEngineDefinition<T>
+	protected abstract engineDef: SyncEngineDefinition<AppTransition>
 	/**
 	 * `BackendHandlers` for transitions that run code specific to the Durable Object.
 	 */
-	protected abstract backendHandlers: BackendHandlers<T>
+	protected abstract backendHandlers: BackendHandlers<AppTransition>
 
 	// Configuration options
 	protected readonly disconnectOnInvalidTransition: boolean = false
 	protected readonly logInvalidTransitions: boolean = true
+	protected readonly drizzleVerbose: boolean = false
 
 	/**
 	 * A function to:
@@ -85,9 +88,32 @@ export abstract class SyncEngineBackend<
 	protected db: DrizzleSqliteDODatabase<Record<string, unknown>>
 	private initialisedSockets: UUID[] = []
 
-	constructor(ctx: DurableObjectState, env: Env) {
+	constructor(
+		ctx: DurableObjectState,
+		env: Env,
+		options?: {
+			/**
+			 * Whether to disconnect when a client sends an invalid transition.
+			 * @default false
+			 */
+			disconnectOnInvalidTransition?: boolean
+			/**
+			 * Whether to log transitions that do not match the app's transition schema.
+			 * @default true
+			 */
+			logInvalidTransitions?: boolean
+			/**
+			 * Whether Drizzle should log debug messages, such as logging every query that is made.
+			 * @default false
+			 */
+			drizzleVerbose?: boolean
+		}
+	) {
 		super(ctx, env)
-		this.db = drizzle(ctx.storage, { logger: false })
+		if (options) Object.assign(this, options)
+		this.db = drizzle(ctx.storage, {
+			logger: this.drizzleVerbose ? new EnhancedQueryLogger() : false
+		})
 
 		// We need Istanbul to ignore this because it's hard to test
 		// constructors, and we test that this works by ensuring that a pair is
@@ -202,10 +228,8 @@ export abstract class SyncEngineBackend<
 					!((
 						_: object,
 						issues: ReadonlyArray<StandardSchemaV1.Issue> | undefined
-					): _ is T => typeof issues === 'undefined' || issues.length <= 0)(
-						data,
-						issues
-					)
+					): _ is AppTransition =>
+						typeof issues === 'undefined' || issues.length <= 0)(data, issues)
 				) {
 					if (this.logInvalidTransitions) {
 						console.error('Invalid transition sent:\n', data)
@@ -225,24 +249,26 @@ export abstract class SyncEngineBackend<
 	}
 
 	private async processTransition(
-		transition: T,
+		transition: AppTransition,
 		transitionId: number,
 		ws: WebSocket
 	) {
 		switch (transition.impact) {
 			case TransitionImpact.OptimisticPush: {
 				const handler =
-					this.backendHandlers[transition.action as keyof BackendHandlers<T>]
+					this.backendHandlers[
+						transition.action as keyof BackendHandlers<AppTransition>
+					]
 				if (!handler) {
 					console.error(`No handler found for action: ${transition.action}`)
 					return
 				}
 
 				const confirmed = await handler.confirm({
+					db: this.db as BackendHandlerParams<AppTransition>['db'],
 					data: transition.data,
 					rawSocket: ws,
 					connectionId: 'not yet implemented', // TODO: Participate in IDs
-					transition: (_: Transition) => undefined,
 					transitionId
 				})
 				send(ws, {

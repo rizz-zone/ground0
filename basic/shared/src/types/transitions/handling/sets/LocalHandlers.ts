@@ -1,67 +1,70 @@
 import type { IgnoredReturn } from '@/types/common/IgnoredReturn'
 import type { Transition } from '@/types/transitions/Transition'
 import type { TransitionImpact } from '@/types/transitions/TransitionImpact'
-import type { DbHandlerParams } from '@/types/transitions/handling/functions/DbHandlerParams'
-import type { MemoryHandlerParams } from '@/types/transitions/handling/functions/MemoryHandlerParams'
+import type { DbHandlerParams } from '@/types/transitions/handling/functions/frontend/DbHandlerParams'
+import type { MemoryHandlerParams } from '@/types/transitions/handling/functions/frontend/MemoryHandlerParams'
 
-type LocalOnlyHandlers<MemoryModel extends object, T extends Transition> =
+type LocalOnlyHandlers<
+	MemoryModel extends object,
+	AppTransition extends Transition
+> =
 	| {
-			editDb: (params: DbHandlerParams<T>) => IgnoredReturn
+			editDb: (params: DbHandlerParams<AppTransition>) => IgnoredReturn
 	  }
 	| {
 			editMemoryModel: (
-				params: MemoryHandlerParams<MemoryModel, T>
+				params: MemoryHandlerParams<MemoryModel, AppTransition>
 			) => IgnoredReturn
 	  }
 	| {
 			editMemoryModel: (
-				params: MemoryHandlerParams<MemoryModel, T>
+				params: MemoryHandlerParams<MemoryModel, AppTransition>
 			) => IgnoredReturn
-			editDb: (params: DbHandlerParams<T>) => IgnoredReturn
+			editDb: (params: DbHandlerParams<AppTransition>) => IgnoredReturn
 	  }
 
 type OptimisticPushHandlers<
 	MemoryModel extends object,
-	T extends Transition
+	AppTransition extends Transition
 > =
 	| {
 			editMemoryModel: (
-				params: MemoryHandlerParams<MemoryModel, T>
+				params: MemoryHandlerParams<MemoryModel, AppTransition>
 			) => IgnoredReturn
 			revertMemoryModel: (
-				params: MemoryHandlerParams<MemoryModel, T>
+				params: MemoryHandlerParams<MemoryModel, AppTransition>
 			) => IgnoredReturn
 	  }
 	| {
-			editDb: (params: DbHandlerParams<T>) => IgnoredReturn
-			revertDb: (params: DbHandlerParams<T>) => IgnoredReturn
+			editDb: (params: DbHandlerParams<AppTransition>) => IgnoredReturn
+			revertDb: (params: DbHandlerParams<AppTransition>) => IgnoredReturn
 	  }
 	| {
 			editMemoryModel: (
-				params: MemoryHandlerParams<MemoryModel, T>
+				params: MemoryHandlerParams<MemoryModel, AppTransition>
 			) => IgnoredReturn
 			revertMemoryModel: (
-				params: MemoryHandlerParams<MemoryModel, T>
+				params: MemoryHandlerParams<MemoryModel, AppTransition>
 			) => IgnoredReturn
-			editDb: (params: DbHandlerParams<T>) => IgnoredReturn
-			revertDb: (params: DbHandlerParams<T>) => IgnoredReturn
+			editDb: (params: DbHandlerParams<AppTransition>) => IgnoredReturn
+			revertDb: (params: DbHandlerParams<AppTransition>) => IgnoredReturn
 	  }
 
 type HandlersForTransition<
 	MemoryModel extends object,
-	T extends Transition
-> = T extends { impact: TransitionImpact.LocalOnly }
-	? LocalOnlyHandlers<MemoryModel, T>
-	: T extends { impact: TransitionImpact.OptimisticPush }
-	? OptimisticPushHandlers<MemoryModel, T>
-	: never
+	AppTransition extends Transition
+> = AppTransition extends { impact: TransitionImpact.LocalOnly }
+	? LocalOnlyHandlers<MemoryModel, AppTransition>
+	: AppTransition extends { impact: TransitionImpact.OptimisticPush }
+		? OptimisticPushHandlers<MemoryModel, AppTransition>
+		: never
 
 export type LocalHandlers<
 	MemoryModel extends object,
-	T extends Transition
+	AppTransition extends Transition
 > = {
-	[K in T['action']]?: HandlersForTransition<
+	[K in AppTransition['action']]?: HandlersForTransition<
 		MemoryModel,
-		Extract<T, { action: K }>
+		Extract<AppTransition, { action: K }>
 	>
 }
