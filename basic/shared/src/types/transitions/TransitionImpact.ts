@@ -1,4 +1,6 @@
 export enum TransitionImpact {
 	LocalOnly,
-	OptimisticPush
+	OptimisticPush,
+	WsOnlyNudge,
+	UnreliableWsOnlyNudge
 }
