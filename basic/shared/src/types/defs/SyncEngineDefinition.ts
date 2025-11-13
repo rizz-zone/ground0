@@ -1,6 +1,6 @@
 import type { Transition } from '@/types/transitions/Transition'
 import type { TransitionSchema } from '@/types/transitions/TransitionSchema'
-import type { GeneratedMigrationSchema } from './transitions/handling/GeneratedMigrationSchema'
+import type { GeneratedMigrationSchema } from './GeneratedMigrationSchema'
 import type { SharedHandlers } from '../transitions/handling/sets/SharedHandlers'
 
 export type SyncEngineDefinition<T extends Transition> = {
