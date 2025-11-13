@@ -1,4 +1,4 @@
-import type { SyncEngineDefinition } from '@/types/SyncEngineDefinition'
+import type { SyncEngineDefinition } from '@/types/defs/SyncEngineDefinition'
 import { testingTransitionSchema, type TestingTransition } from '../transitions'
 import migrations from './drizzle/migrations'
 

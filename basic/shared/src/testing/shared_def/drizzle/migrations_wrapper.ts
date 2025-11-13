@@ -1,4 +1,4 @@
-import type { GeneratedMigrationSchema } from '../../../types/transitions/handling/GeneratedMigrationSchema'
+import type { GeneratedMigrationSchema } from '../../../types/defs/GeneratedMigrationSchema.js'
 // Import the JS module and assert its type for TS consumers
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
