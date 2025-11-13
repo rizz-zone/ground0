@@ -1,4 +1,9 @@
-import type { UpdateSchema } from '@/zod/updates/Update'
-import type { z } from 'zod/mini'
+import type { UpdateImpact } from "./UpdateImpact";
 
-export type Update = z.infer<typeof UpdateSchema>
+export type Update = {
+    action: string | number;
+    impact: UpdateImpact;
+    data?: {
+        [x: string]: unknown;
+    } | undefined;
+}
