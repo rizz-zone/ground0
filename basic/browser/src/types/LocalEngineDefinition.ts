@@ -1,7 +1,7 @@
 import type {
 	Transition,
 	SyncEngineDefinition,
-	LocalHandlers
+	LocalTransitionHandlers
 } from '@ground0/shared'
 
 export type LocalEngineDefinition<
@@ -9,7 +9,7 @@ export type LocalEngineDefinition<
 	T extends Transition
 > = {
 	engineDef: SyncEngineDefinition<T>
-	localHandlers: LocalHandlers<MemoryModel, T>
+	localHandlers: LocalTransitionHandlers<MemoryModel, T>
 	initialMemoryModel: MemoryModel
 	wsUrl: string
 	dbName: string

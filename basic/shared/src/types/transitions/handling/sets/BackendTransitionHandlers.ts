@@ -1,6 +1,6 @@
 import type { Transition } from '@/types/transitions/Transition'
 import type { TransitionImpact } from '@/types/transitions/TransitionImpact'
-import type { RequiredTransitionActionsForImpact } from '@/types/transitions/handling/RequiredActionsForImpact'
+import type { RequiredTransitionActionsForImpact } from '@/types/transitions/handling/RequiredTransitionActionsForImpact'
 import type { BackendHandlerParams } from '../functions/backend/BackendHandlerParams'
 
 type OptimisticPushHandlers<AppTransition extends Transition> = {
@@ -16,7 +16,7 @@ type HandlersForTransition<AppTransition extends Transition> =
 		? OptimisticPushHandlers<AppTransition>
 		: never
 
-export type BackendHandlers<AppTransition extends Transition> = {
+export type BackendTransitionHandlers<AppTransition extends Transition> = {
 	[K in RequiredTransitionActionsForImpact<
 		AppTransition,
 		TransitionImpact.OptimisticPush

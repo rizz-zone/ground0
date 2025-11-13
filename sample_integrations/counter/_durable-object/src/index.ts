@@ -1,4 +1,4 @@
-import { type BackendHandlers, SyncEngineBackend } from 'ground0/durable_object'
+import { type BackendTransitionHandlers, SyncEngineBackend } from 'ground0/durable_object'
 import { type DurableObject } from 'cloudflare:workers'
 import {
 	dbSchema,
@@ -30,7 +30,7 @@ export class SyncEngineDO extends SyncEngineBackend<AppTransition> {
 				return true
 			}
 		}
-	} satisfies BackendHandlers<AppTransition>
+	} satisfies BackendTransitionHandlers<AppTransition>
 
 	constructor(...args: ConstructorParameters<typeof DurableObject>) {
 		super(args[0], args[1] as Env, { drizzleVerbose: true })

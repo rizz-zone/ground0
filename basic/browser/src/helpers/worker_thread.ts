@@ -4,7 +4,7 @@ import {
 	DownstreamWsMessageAction,
 	TransitionImpact,
 	type DownstreamWsMessage,
-	type LocalHandlers,
+	type LocalTransitionHandlers,
 	type SyncEngineDefinition,
 	type Transition
 } from '@ground0/shared'
@@ -27,7 +27,7 @@ export class WorkerLocalFirst<
 > {
 	private readonly resourceBundle: ResourceBundle
 	private readonly engineDef: SyncEngineDefinition<TransitionSchema>
-	private readonly localHandlers: LocalHandlers<MemoryModel, TransitionSchema>
+	private readonly localHandlers: LocalTransitionHandlers<MemoryModel, TransitionSchema>
 	public readonly memoryModel: MemoryModel
 	private readonly dbThinClient?: DbThinClient
 
@@ -42,7 +42,7 @@ export class WorkerLocalFirst<
 		wsUrl: string
 		dbName: string
 		engineDef: SyncEngineDefinition<TransitionSchema>
-		localHandlers: LocalHandlers<MemoryModel, TransitionSchema>
+		localHandlers: LocalTransitionHandlers<MemoryModel, TransitionSchema>
 		initialMemoryModel: MemoryModel
 		announceTransformation: (transformation: Transformation) => unknown
 	}) {

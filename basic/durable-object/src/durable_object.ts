@@ -7,7 +7,7 @@ import {
 	type SyncEngineDefinition,
 	type UpstreamWsMessage,
 	WsCloseCode,
-	type BackendHandlers,
+	type BackendTransitionHandlers,
 	TransitionImpact,
 	type DownstreamWsMessage,
 	DownstreamWsMessageAction,
@@ -47,7 +47,7 @@ export abstract class SyncEngineBackend<
 	/**
 	 * `BackendHandlers` for transitions that run code specific to the Durable Object.
 	 */
-	protected abstract backendHandlers: BackendHandlers<AppTransition>
+	protected abstract backendHandlers: BackendTransitionHandlers<AppTransition>
 
 	// Configuration options
 	protected readonly disconnectOnInvalidTransition: boolean = false
@@ -257,7 +257,7 @@ export abstract class SyncEngineBackend<
 			case TransitionImpact.OptimisticPush: {
 				const handler =
 					this.backendHandlers[
-						transition.action as keyof BackendHandlers<AppTransition>
+						transition.action as keyof BackendTransitionHandlers<AppTransition>
 					]
 				if (!handler) {
 					console.error(`No handler found for action: ${transition.action}`)

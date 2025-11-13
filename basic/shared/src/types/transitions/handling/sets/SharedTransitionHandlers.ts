@@ -1,7 +1,7 @@
 import type { Transition } from '@/types/transitions/Transition'
 // import type { TransitionImpact } from '../../TransitionImpact'
-import type { RequiredTransitionActionsForImpact } from '../RequiredActionsForImpact'
+import type { RequiredTransitionActionsForImpact } from '../RequiredTransitionActionsForImpact'
 
-export type SharedHandlers<AppTransition extends Transition> = {
+export type SharedTransitionHandlers<AppTransition extends Transition> = {
 	[K in RequiredTransitionActionsForImpact<AppTransition, never>]: never
 }

@@ -1,7 +1,7 @@
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import { WsResourceStatus } from '@/types/status/WsResourceStatus'
 import {
-	type LocalHandlers,
+	type LocalTransitionHandlers,
 	type Transition,
 	type TransitionImpact,
 	DATABASE_CHANGED_STATUS_FROM_CONNECTING_OR_NEVER_CONNECTING,
@@ -18,10 +18,10 @@ export type Ingredients<
 	id: number
 	transition: Transition & { impact: Impact }
 	markComplete: () => unknown
-	localHandler: LocalHandlers<
+	localHandler: LocalTransitionHandlers<
 		MemoryModel,
 		Transition & { impact: Impact }
-	>[keyof LocalHandlers<MemoryModel, Transition & { impact: Impact }>]
+	>[keyof LocalTransitionHandlers<MemoryModel, Transition & { impact: Impact }>]
 }
 
 export abstract class TransitionRunner<

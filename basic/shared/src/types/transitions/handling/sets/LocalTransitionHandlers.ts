@@ -59,7 +59,7 @@ type HandlersForTransition<
 		? OptimisticPushHandlers<MemoryModel, AppTransition>
 		: never
 
-export type LocalHandlers<
+export type LocalTransitionHandlers<
 	MemoryModel extends object,
 	AppTransition extends Transition
 > = {
