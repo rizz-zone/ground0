@@ -1,6 +1,6 @@
 import type { Transition } from '@/types/transitions/Transition'
 
-export type RequiredActionsForImpact<
+export type RequiredTransitionActionsForImpact<
 	T extends Transition,
 	RequiredImpact
 > = Extract<T, { impact: RequiredImpact }>['action']
