@@ -12,7 +12,7 @@ import {
 	type UpstreamWorkerMessage
 } from '@/types/internal_messages/UpstreamWorkerMessage'
 import type { Unwrappable } from '@/types/memory_model/Unwrappable'
-import { NoPortsError, type Transition } from '@ground0/shared'
+import { NoPortsError, type Transition, type Update } from '@ground0/shared'
 
 const ctx = self as unknown as
 	| SharedWorkerGlobalScope
@@ -20,14 +20,15 @@ const ctx = self as unknown as
 
 export function workerEntrypoint<
 	MemoryModel extends object,
-	T extends Transition
+	AppTransition extends Transition,
+	AppUpdate extends Update
 >({
 	engineDef,
 	localHandlers,
 	initialMemoryModel,
 	wsUrl,
 	dbName
-}: LocalEngineDefinition<MemoryModel, T>) {
+}: LocalEngineDefinition<MemoryModel, AppTransition, AppUpdate>) {
 	const shared = 'onconnect' in ctx
 	const ports: MessagePort[] = []
 
@@ -52,7 +53,7 @@ export function workerEntrypoint<
 	})
 
 	function onmessage(
-		{ data: message }: MessageEvent<UpstreamWorkerMessage<T>>,
+		{ data: message }: MessageEvent<UpstreamWorkerMessage<AppTransition>>,
 		port?: MessagePort
 	) {
 		switch (message.type) {

@@ -5,8 +5,8 @@ import {
 	TransitionImpact,
 	type DownstreamWsMessage,
 	type LocalTransitionHandlers,
-	type SyncEngineDefinition,
-	type Transition
+	type Transition,
+	type Update
 } from '@ground0/shared'
 import type { Transformation } from '@/types/memory_model/Tranformation'
 import type { ResourceBundle } from '@/types/status/ResourceBundle'
@@ -20,16 +20,30 @@ import type { OptimisticPushTransitionRunner } from '@/runners/specialised/optim
 import { DbThinClient } from '@/resource_managers/db'
 import { connectWs } from '@/resource_managers/ws'
 import { brandedLog } from '@/common/branded_log'
+import type { LocalEngineDefinition } from '@/types/LocalEngineDefinition'
 
 export class WorkerLocalFirst<
 	MemoryModel extends object,
-	TransitionSchema extends Transition
+	AppTransition extends Transition,
+	AppUpdate extends Update
 > {
 	private readonly resourceBundle: ResourceBundle
-	private readonly engineDef: SyncEngineDefinition<TransitionSchema>
-	private readonly localHandlers: LocalTransitionHandlers<MemoryModel, TransitionSchema>
+	private readonly localHandlers: LocalTransitionHandlers<
+		MemoryModel,
+		AppTransition
+	>
 	public readonly memoryModel: MemoryModel
 	private readonly dbThinClient?: DbThinClient
+	private readonly autoTransitions?: Omit<
+		NonNullable<
+			LocalEngineDefinition<
+				MemoryModel,
+				AppTransition,
+				AppUpdate
+			>['autoTransitions']
+		>,
+		'onInit'
+	>
 
 	public constructor({
 		wsUrl,
@@ -37,13 +51,9 @@ export class WorkerLocalFirst<
 		engineDef,
 		localHandlers,
 		initialMemoryModel,
+		autoTransitions,
 		announceTransformation
-	}: {
-		wsUrl: string
-		dbName: string
-		engineDef: SyncEngineDefinition<TransitionSchema>
-		localHandlers: LocalTransitionHandlers<MemoryModel, TransitionSchema>
-		initialMemoryModel: MemoryModel
+	}: LocalEngineDefinition<MemoryModel, AppTransition, AppUpdate> & {
 		announceTransformation: (transformation: Transformation) => unknown
 	}) {
 		const shared = 'onconnect' in self
@@ -56,7 +66,6 @@ export class WorkerLocalFirst<
 			}
 		}
 
-		this.engineDef = engineDef
 		this.localHandlers = localHandlers
 		this.memoryModel = createMemoryModel(
 			initialMemoryModel,
@@ -75,17 +84,70 @@ export class WorkerLocalFirst<
 			syncResources: this.syncResources.bind(this),
 			handleMessage: this.handleMessage.bind(this)
 		})
+
+		if (autoTransitions) {
+			const { onInit, onDbConnect, onWsConnect } = autoTransitions
+			if (onDbConnect || onWsConnect) {
+				this.autoTransitions = {
+					onDbConnect,
+					onWsConnect
+				}
+			}
+			if (onInit) {
+				queueMicrotask(() => {
+					for (const transitionObj of Array.isArray(onInit) ? onInit : [onInit])
+						this.transition(transitionObj)
+				})
+			}
+		}
 	}
 
+	private wsConnectedBefore = false
 	private syncResources(modifications: Partial<ResourceBundle>) {
 		let somethingChanged = false
 		if (modifications.db) {
 			this.resourceBundle.db = modifications.db
 			somethingChanged = true
+
+			if (modifications.db.status === DbResourceStatus.ConnectedAndMigrated)
+				queueMicrotask(() => {
+					if (this.autoTransitions && this.autoTransitions.onDbConnect) {
+						const { onDbConnect } = this.autoTransitions
+						for (const transitionObj of Array.isArray(onDbConnect)
+							? onDbConnect
+							: [onDbConnect])
+							this.transition(transitionObj)
+					}
+				})
 		}
 		if (modifications.ws) {
 			this.resourceBundle.ws = modifications.ws
 			somethingChanged = true
+
+			if (modifications.ws.status === WsResourceStatus.Connected) {
+				const currentWsConnectedBefore = this.wsConnectedBefore
+				this.wsConnectedBefore = true
+				queueMicrotask(() => {
+					if (this.autoTransitions && this.autoTransitions.onWsConnect) {
+						const { onWsConnect } = this.autoTransitions
+						for (const propertyAndAddedCondition of [
+							{ property: 'once', addedCondition: currentWsConnectedBefore },
+							{ property: 'everyTime', addedCondition: true }
+						] satisfies {
+							property: keyof typeof onWsConnect
+							addedCondition: boolean
+						}[]) {
+							const transitions =
+								onWsConnect[propertyAndAddedCondition['property']]
+							if (propertyAndAddedCondition.addedCondition && transitions)
+								for (const transitionObj of Array.isArray(transitions)
+									? transitions
+									: [transitions])
+									this.transition(transitionObj)
+						}
+					}
+				})
+			}
 		}
 		if (somethingChanged)
 			for (const runner of this.transitionRunners.values())
@@ -161,11 +223,7 @@ export class WorkerLocalFirst<
 		}[keyof typeof TransitionImpact]
 	>()
 	private nextTransitionId = 0
-	public transition(
-		transition: NonNullable<
-			(typeof this.engineDef.transitions.schema)['types']
-		>['input']
-	) {
+	public transition(transition: AppTransition) {
 		if (
 			!Object.values(TransitionImpact)
 				.filter((k) => typeof k === 'number')
@@ -185,9 +243,9 @@ export class WorkerLocalFirst<
 				resources: this.resourceBundle,
 				memoryModel: this.memoryModel,
 				id,
-				// @ts-expect-error TS can't narrow the type down as narrowly as it wants to, and there's no convenient way to make it
 				transition,
-				// @ts-expect-error TS can't narrow the type down as narrowly as it wants to, and there's no convenient way to make it
+				// @ts-expect-error TS can't narrow the type down as narrowly
+				// as it wants to, and there's no convenient way to make it
 				localHandler: this.localHandlers[transition.action],
 				markComplete: () => {
 					this.transitionRunners.delete(id)

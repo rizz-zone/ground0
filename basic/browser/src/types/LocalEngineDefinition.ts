@@ -1,16 +1,26 @@
 import type {
 	Transition,
 	SyncEngineDefinition,
-	LocalTransitionHandlers
+	LocalTransitionHandlers,
+	Update
 } from '@ground0/shared'
 
 export type LocalEngineDefinition<
 	MemoryModel extends object,
-	T extends Transition
+	AppTransition extends Transition,
+	AppUpdate extends Update
 > = {
-	engineDef: SyncEngineDefinition<T>
-	localHandlers: LocalTransitionHandlers<MemoryModel, T>
+	engineDef: SyncEngineDefinition<AppTransition, AppUpdate>
+	localHandlers: LocalTransitionHandlers<MemoryModel, AppTransition>
 	initialMemoryModel: MemoryModel
 	wsUrl: string
 	dbName: string
+	autoTransitions?: {
+		onInit?: AppTransition | AppTransition[]
+		onDbConnect?: AppTransition | AppTransition[]
+		onWsConnect?: {
+			once?: AppTransition | AppTransition[]
+			everyTime?: AppTransition | AppTransition[]
+		}
+	}
 }
