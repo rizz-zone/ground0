@@ -1,4 +1,14 @@
-import type { DownstreamWsMessageSchema } from '@/zod/ws/DownstreamWsMessage'
-import type { z } from 'zod/mini'
+import type { Update } from '../updates/Update'
+import type { DownstreamWsMessageAction } from './DownstreamWsMessageAction'
 
-export type DownstreamWsMessage = z.infer<typeof DownstreamWsMessageSchema>
+export type DownstreamWsMessage =
+	| {
+			action:
+				| DownstreamWsMessageAction.OptimisticResolve
+				| DownstreamWsMessageAction.OptimisticCancel
+			id: number
+	  }
+	| {
+			action: DownstreamWsMessageAction.Update
+			data: Update
+	  }

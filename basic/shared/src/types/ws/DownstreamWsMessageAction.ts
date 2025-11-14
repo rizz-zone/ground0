@@ -1,4 +1,5 @@
 export enum DownstreamWsMessageAction {
 	OptimisticResolve,
-	OptimisticCancel
+	OptimisticCancel,
+	Update
 }
