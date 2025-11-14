@@ -12,7 +12,9 @@ import {
 	type DownstreamWsMessage,
 	DownstreamWsMessageAction,
 	type UUID,
-	type BackendHandlerParams
+	type BackendHandlerParams,
+	type Update,
+	type TransitionSchema
 } from '@ground0/shared'
 import { isUpstreamWsMessage } from '@ground0/shared/zod'
 import SuperJSON from 'superjson'
@@ -37,13 +39,18 @@ const connectionsTable = sqliteTable('__ground0_connections', {
 })
 
 export abstract class SyncEngineBackend<
-	AppTransition extends Transition
+	AppTransition extends Transition,
+	AppUpdate extends Update
 > extends DurableObject {
 	// Handling and general definition
 	/**
 	 * The `SyncEngineDefinition` that is shared between the client and the server.
 	 */
-	protected abstract engineDef: SyncEngineDefinition<AppTransition>
+	protected abstract engineDef: SyncEngineDefinition<AppTransition, AppUpdate>
+	/**
+	 *
+	 */
+	protected abstract appTransitionSchema: TransitionSchema<AppTransition>
 	/**
 	 * `BackendHandlers` for transitions that run code specific to the Durable Object.
 	 */
@@ -222,8 +229,7 @@ export abstract class SyncEngineBackend<
 				const data = decoded.data
 
 				// Only allow the transition if it meets the consumer's schema
-				const issues = (await this.engineDef.transitions.schema.validate(data))
-					.issues
+				const issues = (await this.appTransitionSchema.validate(data)).issues
 				if (
 					!((
 						_: object,
