@@ -10,13 +10,15 @@
 		"lint": "eslint ."
 	},
 	"packageManager": "pnpm@10.18.3",
+	"peerDependencies": {
+		"drizzle-orm": "catalog:core-common"
+	},
 	"devDependencies": {
 		"drizzle-kit": "catalog:dev-common",
 		"typescript": "^5.9.2",
 		"vite-plugin-sql-raw": "workspace:*"
 	},
 	"dependencies": {
-		"drizzle-orm": "catalog:core-common",
 		"ground0": "workspace:*",
 		"zod": "^4.1.12"
 	},

@@ -7,7 +7,8 @@
   "sideEffects": false,
   "packageManager": "pnpm@10.18.3",
   "peerDependencies": {
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "drizzle-orm": "catalog:core-common"
   },
   "devDependencies": {
     "@types/semver": "^7.7.0",
@@ -33,7 +34,6 @@
     "@standard-schema/spec": "^1.0.0",
     "zod": "catalog:validators",
     "semver": "^7.7.2",
-    "@cloudflare/workers-types": "^4.20250801.0",
-    "drizzle-orm": "catalog:core-common"
+    "@cloudflare/workers-types": "^4.20250801.0"
   }
 }
