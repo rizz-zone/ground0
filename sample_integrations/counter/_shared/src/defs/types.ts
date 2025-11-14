@@ -1,10 +1,19 @@
-import { createTransitionSchema, TransitionImpact } from 'ground0'
+import {
+	createTransitionSchema,
+	TransitionImpact,
+	UpdateImpact,
+	type Update
+} from 'ground0'
 import z from 'zod'
 
-// Action enum
+// Action enums
 export enum TransitionAction {
 	Increment,
 	LocalIncrement
+}
+export enum UpdateAction {
+	InitialValue,
+	Increment
 }
 
 // Transition schema
@@ -20,3 +29,19 @@ const sourceSchema = z.discriminatedUnion('action', [
 ])
 export const appTransitionSchema = createTransitionSchema(sourceSchema)
 export type AppTransition = z.infer<typeof sourceSchema>
+
+// Updates
+export type AppUpdate = Update &
+	(
+		| {
+				action: UpdateAction.InitialValue
+				impact: UpdateImpact.Unreliable
+				data: {
+					value: number
+				}
+		  }
+		| {
+				action: UpdateAction.Increment
+				impact: UpdateImpact.Unreliable
+		  }
+	)

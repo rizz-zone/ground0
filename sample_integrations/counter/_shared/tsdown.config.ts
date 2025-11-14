@@ -9,7 +9,8 @@ export default defineConfig({
 	platform: 'neutral',
 	sourcemap: true,
 	entry: {
-		index: 'src/index.ts'
+		index: 'src/index.ts',
+		schema: 'src/schema.ts'
 	},
 	plugins: [sqlRaw()]
 })

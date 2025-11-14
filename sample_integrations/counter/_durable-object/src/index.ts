@@ -1,15 +1,21 @@
-import { type BackendTransitionHandlers, SyncEngineBackend } from 'ground0/durable_object'
+import {
+	type BackendTransitionHandlers,
+	SyncEngineBackend
+} from 'ground0/durable_object'
 import { type DurableObject } from 'cloudflare:workers'
 import {
 	dbSchema,
 	engineDef,
 	TransitionAction,
-	type AppTransition
+	type AppTransition,
+	type AppUpdate
 } from '@ground0/sample-counter-shared'
+import { appTransitionSchema } from '@ground0/sample-counter-shared/schema'
 import { sql } from 'drizzle-orm'
 
-export class SyncEngineDO extends SyncEngineBackend<AppTransition> {
+export class SyncEngineDO extends SyncEngineBackend<AppTransition, AppUpdate> {
 	protected override engineDef = engineDef
+	protected override appTransitionSchema = appTransitionSchema
 	protected override backendHandlers = {
 		[TransitionAction.Increment]: {
 			confirm: async ({ db }) => {

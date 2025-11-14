@@ -1,5 +1,5 @@
 import type { SyncEngineDefinition } from 'ground0'
-import { appTransitionSchema, type AppTransition } from './types'
+import { type AppTransition, type AppUpdate } from './types'
 import migrations from '@/db/generated/migrations.js'
 
 export const engineDef = {
@@ -7,10 +7,9 @@ export const engineDef = {
 		current: '0.0.1'
 	},
 	transitions: {
-		schema: appTransitionSchema,
 		sharedHandlers: {}
 	},
 	db: {
 		migrations
 	}
-} satisfies SyncEngineDefinition<AppTransition>
+} satisfies SyncEngineDefinition<AppTransition, AppUpdate>
