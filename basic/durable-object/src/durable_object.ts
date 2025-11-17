@@ -44,17 +44,28 @@ export abstract class SyncEngineBackend<
 > extends DurableObject {
 	// Handling and general definition
 	/**
-	 * The `SyncEngineDefinition` that is shared between the client and the server.
+	 * The `SyncEngineDefinition` that is shared between the client and the
+	 * server.
 	 */
 	protected abstract engineDef: SyncEngineDefinition<AppTransition, AppUpdate>
 	/**
-	 *
+	 * The transition schema that transitions should be validated against.
 	 */
 	protected abstract appTransitionSchema: TransitionSchema<AppTransition>
 	/**
-	 * `BackendHandlers` for transitions that run code specific to the Durable Object.
+	 * `BackendHandlers` for transitions that run code specific to the Durable
+	 * Object.
 	 */
 	protected abstract backendHandlers: BackendTransitionHandlers<AppTransition>
+	/**
+	 * Functions to automatically run on certain events, like a ws connecting.
+	 * This can be used in a similar way to autoTransitions on the client
+	 * &mdash; for example, you can make an update that is always sent down to
+	 * fresh clients.
+	 */
+	protected abstract autoruns?: {
+		onConnect: ((ws: WebSocket) => unknown) | ((ws: WebSocket) => unknown)[]
+	}
 
 	// Configuration options
 	protected readonly disconnectOnInvalidTransition: boolean = false
