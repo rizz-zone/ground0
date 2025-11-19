@@ -63,8 +63,8 @@ export abstract class SyncEngineBackend<
 	 * &mdash; for example, you can make an update that is always sent down to
 	 * fresh clients.
 	 */
-	protected abstract autoruns?: {
-		onConnect: ((ws: WebSocket) => unknown) | ((ws: WebSocket) => unknown)[]
+	protected autoruns?: {
+		onConnect?: ((ws: WebSocket) => unknown) | ((ws: WebSocket) => unknown)[]
 	}
 
 	// Configuration options
@@ -227,12 +227,23 @@ export abstract class SyncEngineBackend<
 				)
 					return ws.close(WsCloseCode.Incompatible)
 
-				// Allow traffic to start going to the socket if it's not
-				// allowed already. If it is allowed already, close it.
+				// Get ID
 				const id = this.ctx.getTags(ws)[0]
 				if (!id) return ws.close(WsCloseCode.NoTagsApplied)
-				await this.db.insert(connectionsTable).values({ id }).run()
+
+				if (this.autoruns && this.autoruns.onConnect)
+					for (const fn of Array.isArray(this.autoruns.onConnect)
+						? this.autoruns.onConnect
+						: [this.autoruns.onConnect])
+						try {
+							await fn(ws)
+						} catch (e) {
+							console.error(e)
+						}
+
+				// We can now start sending events to this socket
 				this.initialisedSockets.push(id as UUID)
+				await this.db.insert(connectionsTable).values({ id }).run()
 
 				break
 			}
