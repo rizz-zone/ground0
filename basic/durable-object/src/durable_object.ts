@@ -308,4 +308,44 @@ export abstract class SyncEngineBackend<
 			}
 		}
 	}
+
+	protected update(
+		update: AppUpdate,
+		opts?:
+			| { target?: UUID | UUID[] }
+			| { doNotTarget?: UUID | UUID[]; requireConnectionInitComplete?: boolean }
+	) {
+		const updateString = SuperJSON.stringify(update)
+		for (const ws of this.ctx.getWebSockets()) {
+			if (ws.readyState !== WebSocket.OPEN) continue
+			const id = this.ctx.getTags(ws)[0] as UUID | undefined
+			if (typeof id !== 'string') continue
+
+			preScreening: if (opts) {
+				if ('target' in opts && typeof opts.target !== 'undefined') {
+					const { target } = opts
+					if ((Array.isArray(target) ? target : [target]).includes(id))
+						break preScreening
+					continue
+				}
+				if ('doNotTarget' in opts && typeof opts.doNotTarget !== 'undefined') {
+					const { doNotTarget } = opts
+					if (
+						(Array.isArray(doNotTarget) ? doNotTarget : [doNotTarget]).includes(
+							id
+						)
+					)
+						continue
+				}
+				if (
+					'requireConnectionInitComplete' in opts &&
+					typeof opts.requireConnectionInitComplete !== 'undefined' &&
+					!this.initialisedSockets.includes(id)
+				)
+					continue
+			}
+
+			ws.send(updateString)
+		}
+	}
 }
