@@ -29,6 +29,7 @@ import type { StandardSchemaV1 } from '@standard-schema/spec'
 import { sql } from 'drizzle-orm'
 import { sqliteTable, text } from 'drizzle-orm/sqlite-core'
 import { EnhancedQueryLogger } from 'drizzle-query-logger'
+import type { BackendAutoruns } from './types/BackendAutoruns'
 
 function send(ws: WebSocket, json: DownstreamWsMessage) {
 	if (ws.readyState === WebSocket.OPEN) ws.send(SuperJSON.stringify(json))
@@ -59,13 +60,10 @@ export abstract class SyncEngineBackend<
 	protected abstract backendHandlers: BackendTransitionHandlers<AppTransition>
 	/**
 	 * Functions to automatically run on certain events, like a ws connecting.
-	 * This can be used in a similar way to autoTransitions on the client
-	 * &mdash; for example, you can make an update that is always sent down to
-	 * fresh clients.
+	 * This can be used in a similar way to autoTransitions on the client, such
+	 * as in an initial sync process.
 	 */
-	protected autoruns?: {
-		onConnect?: ((ws: WebSocket) => unknown) | ((ws: WebSocket) => unknown)[]
-	}
+	protected autoruns?: BackendAutoruns
 
 	// Configuration options
 	protected readonly disconnectOnInvalidTransition: boolean = false
@@ -228,7 +226,7 @@ export abstract class SyncEngineBackend<
 					return ws.close(WsCloseCode.Incompatible)
 
 				// Get ID
-				const id = this.ctx.getTags(ws)[0]
+				const id = this.ctx.getTags(ws)[0] as UUID | undefined
 				if (!id) return ws.close(WsCloseCode.NoTagsApplied)
 
 				if (this.autoruns && this.autoruns.onConnect)
@@ -236,13 +234,13 @@ export abstract class SyncEngineBackend<
 						? this.autoruns.onConnect
 						: [this.autoruns.onConnect])
 						try {
-							await fn(ws)
+							await fn(id)
 						} catch (e) {
 							console.error(e)
 						}
 
 				// We can now start sending events to this socket
-				this.initialisedSockets.push(id as UUID)
+				this.initialisedSockets.push(id)
 				await this.db.insert(connectionsTable).values({ id }).run()
 
 				break
@@ -281,6 +279,9 @@ export abstract class SyncEngineBackend<
 		transitionId: number,
 		ws: WebSocket
 	) {
+		const connectionId = this.ctx.getTags(ws)[0] as UUID | undefined
+		if (!connectionId) return
+
 		switch (transition.impact) {
 			case TransitionImpact.OptimisticPush: {
 				const handler =
@@ -295,8 +296,7 @@ export abstract class SyncEngineBackend<
 				const confirmed = await handler.confirm({
 					db: this.db as BackendHandlerParams<AppTransition>['db'],
 					data: transition.data,
-					rawSocket: ws,
-					connectionId: 'not yet implemented', // TODO: Participate in IDs
+					connectionId,
 					transitionId
 				})
 				send(ws, {
@@ -315,7 +315,10 @@ export abstract class SyncEngineBackend<
 			| { target?: UUID | UUID[] }
 			| { doNotTarget?: UUID | UUID[]; requireConnectionInitComplete?: boolean }
 	) {
-		const updateString = SuperJSON.stringify(update)
+		const mesageString = SuperJSON.stringify({
+			action: DownstreamWsMessageAction.Update,
+			data: update
+		} satisfies DownstreamWsMessage)
 		for (const ws of this.ctx.getWebSockets()) {
 			if (ws.readyState !== WebSocket.OPEN) continue
 			const id = this.ctx.getTags(ws)[0] as UUID | undefined
@@ -338,14 +341,14 @@ export abstract class SyncEngineBackend<
 						continue
 				}
 				if (
-					'requireConnectionInitComplete' in opts &&
-					typeof opts.requireConnectionInitComplete !== 'undefined' &&
-					!this.initialisedSockets.includes(id)
+					!('requireConnectionInitComplete' in opts) ||
+					(typeof opts.requireConnectionInitComplete !== 'undefined' &&
+						!this.initialisedSockets.includes(id))
 				)
 					continue
 			}
 
-			ws.send(updateString)
+			ws.send(mesageString)
 		}
 	}
 }

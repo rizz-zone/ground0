@@ -203,7 +203,11 @@ export class WorkerLocalFirst<
 					decoded.action === DownstreamWsMessageAction.OptimisticResolve
 				)
 			}
+			case DownstreamWsMessageAction.Update:
+				// TODO: Handle updates
+				return
 			default:
+				decoded satisfies never
 				brandedLog(
 					console.warn,
 					'The server sent a ws message that was decoded, but could not be matched to an action:',

@@ -1,5 +1,6 @@
 import {
 	type BackendTransitionHandlers,
+	type BackendAutoruns,
 	SyncEngineBackend
 } from 'ground0/durable_object'
 import { type DurableObject } from 'cloudflare:workers'
@@ -7,18 +8,35 @@ import {
 	dbSchema,
 	engineDef,
 	TransitionAction,
+	UpdateAction,
 	type AppTransition,
 	type AppUpdate
 } from '@ground0/sample-counter-shared'
 import { appTransitionSchema } from '@ground0/sample-counter-shared/schema'
-import { sql } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
+import { UpdateImpact } from 'ground0'
 
 export class SyncEngineDO extends SyncEngineBackend<AppTransition, AppUpdate> {
 	protected override engineDef = engineDef
 	protected override appTransitionSchema = appTransitionSchema
+
+	private currentCount = 0
+
+	protected override autoruns = {
+		onConnect: async (id) => {
+			this.update(
+				{
+					action: UpdateAction.InitialValue,
+					impact: UpdateImpact.Unreliable,
+					data: { value: this.currentCount }
+				},
+				{ target: id }
+			)
+		}
+	} satisfies BackendAutoruns
 	protected override backendHandlers = {
 		[TransitionAction.Increment]: {
-			confirm: async ({ db }) => {
+			confirm: async ({ db, connectionId }) => {
 				if (Math.random() >= 0.5) return false
 				try {
 					await db
@@ -33,6 +51,10 @@ export class SyncEngineDO extends SyncEngineBackend<AppTransition, AppUpdate> {
 					console.error('Error while incrementing:', e)
 					return false
 				}
+				this.update(
+					{ action: UpdateAction.Increment, impact: UpdateImpact.Unreliable },
+					{ doNotTarget: connectionId }
+				)
 				return true
 			}
 		}
@@ -40,6 +62,16 @@ export class SyncEngineDO extends SyncEngineBackend<AppTransition, AppUpdate> {
 
 	constructor(...args: ConstructorParameters<typeof DurableObject>) {
 		super(args[0], args[1] as Env, { drizzleVerbose: true })
+		this.ctx.blockConcurrencyWhile(async () => {
+			const result = await this.db
+				.select({ value: dbSchema.counter.value })
+				.from(dbSchema.counter)
+				.where(eq(dbSchema.counter.id, 0))
+				.limit(1)
+				.get()
+			if (!result) return
+			this.currentCount = result.value
+		})
 	}
 }
 
