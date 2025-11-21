@@ -1,4 +1,3 @@
-import type { IgnoredReturn } from '@/types/common/IgnoredReturn'
 import type { Transition } from '@/types/transitions/Transition'
 import type { TransitionImpact } from '@/types/transitions/TransitionImpact'
 import type { DbHandlerParams } from '@/types/transitions/handling/functions/frontend/DbHandlerParams'
@@ -9,18 +8,18 @@ type LocalOnlyHandlers<
 	AppTransition extends Transition
 > =
 	| {
-			editDb: (params: DbHandlerParams<AppTransition>) => IgnoredReturn
+			editDb: (params: DbHandlerParams<AppTransition>) => unknown
 	  }
 	| {
 			editMemoryModel: (
 				params: MemoryHandlerParams<MemoryModel, AppTransition>
-			) => IgnoredReturn
+			) => unknown
 	  }
 	| {
 			editMemoryModel: (
 				params: MemoryHandlerParams<MemoryModel, AppTransition>
-			) => IgnoredReturn
-			editDb: (params: DbHandlerParams<AppTransition>) => IgnoredReturn
+			) => unknown
+			editDb: (params: DbHandlerParams<AppTransition>) => unknown
 	  }
 
 type OptimisticPushHandlers<
@@ -30,24 +29,24 @@ type OptimisticPushHandlers<
 	| {
 			editMemoryModel: (
 				params: MemoryHandlerParams<MemoryModel, AppTransition>
-			) => IgnoredReturn
+			) => unknown
 			revertMemoryModel: (
 				params: MemoryHandlerParams<MemoryModel, AppTransition>
-			) => IgnoredReturn
+			) => unknown
 	  }
 	| {
-			editDb: (params: DbHandlerParams<AppTransition>) => IgnoredReturn
-			revertDb: (params: DbHandlerParams<AppTransition>) => IgnoredReturn
+			editDb: (params: DbHandlerParams<AppTransition>) => unknown
+			revertDb: (params: DbHandlerParams<AppTransition>) => unknown
 	  }
 	| {
 			editMemoryModel: (
 				params: MemoryHandlerParams<MemoryModel, AppTransition>
-			) => IgnoredReturn
+			) => unknown
 			revertMemoryModel: (
 				params: MemoryHandlerParams<MemoryModel, AppTransition>
-			) => IgnoredReturn
-			editDb: (params: DbHandlerParams<AppTransition>) => IgnoredReturn
-			revertDb: (params: DbHandlerParams<AppTransition>) => IgnoredReturn
+			) => unknown
+			editDb: (params: DbHandlerParams<AppTransition>) => unknown
+			revertDb: (params: DbHandlerParams<AppTransition>) => unknown
 	  }
 
 type HandlersForTransition<
