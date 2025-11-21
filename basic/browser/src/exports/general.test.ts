@@ -99,7 +99,7 @@ describe('always', () => {
 		expect(call.wsUrl).toBe(minimumInput.wsUrl)
 		expect(call.dbName).toBe(minimumInput.dbName)
 		expect(call.engineDef).toBe(minimumInput.engineDef)
-		expect(call.localHandlers).toBe(minimumInput.localHandlers)
+		expect(call.localTransitionHandlers).toBe(minimumInput.localHandlers)
 		expect(call.announceTransformation).toBeTypeOf('function')
 		expect(call.pullWasmBinary).toBe(minimumInput.pullWasmBinary)
 	})

@@ -11,6 +11,7 @@ export * from './types/transitions/handling/functions/backend/BackendHandlerPara
 export * from './types/transitions/handling/functions/frontend/DbHandlerParams'
 export * from './types/transitions/handling/functions/frontend/MemoryHandlerParams'
 export * from './types/updates/Update'
+export * from './types/updates/UpdateHandlers'
 export * from './types/updates/UpdateImpact'
 export * from './types/defs/SyncEngineDefinition'
 export * from './types/transitions/Transition'

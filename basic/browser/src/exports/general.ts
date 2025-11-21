@@ -24,7 +24,8 @@ export function workerEntrypoint<
 	AppUpdate extends Update
 >({
 	engineDef,
-	localHandlers,
+	localTransitionHandlers,
+	updateHandlers,
 	initialMemoryModel,
 	wsUrl,
 	dbName
@@ -42,7 +43,8 @@ export function workerEntrypoint<
 		wsUrl,
 		dbName,
 		engineDef,
-		localHandlers,
+		localTransitionHandlers,
+		updateHandlers,
 		initialMemoryModel,
 		announceTransformation: (transformation) => {
 			broadcastMessage({

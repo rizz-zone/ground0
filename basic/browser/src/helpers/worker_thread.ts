@@ -6,7 +6,8 @@ import {
 	type DownstreamWsMessage,
 	type LocalTransitionHandlers,
 	type Transition,
-	type Update
+	type Update,
+	type UpdateHandlers
 } from '@ground0/shared'
 import type { Transformation } from '@/types/memory_model/Tranformation'
 import type { ResourceBundle } from '@/types/status/ResourceBundle'
@@ -28,9 +29,14 @@ export class WorkerLocalFirst<
 	AppUpdate extends Update
 > {
 	private readonly resourceBundle: ResourceBundle
-	private readonly localHandlers: LocalTransitionHandlers<
+	private readonly localTransitionHandlers: LocalTransitionHandlers<
 		MemoryModel,
 		AppTransition
+	>
+	private readonly updateHandlers: UpdateHandlers<
+		MemoryModel,
+		AppTransition,
+		AppUpdate
 	>
 	public readonly memoryModel: MemoryModel
 	private readonly dbThinClient?: DbThinClient
@@ -49,7 +55,8 @@ export class WorkerLocalFirst<
 		wsUrl,
 		dbName,
 		engineDef,
-		localHandlers,
+		localTransitionHandlers,
+		updateHandlers,
 		initialMemoryModel,
 		autoTransitions,
 		announceTransformation
@@ -66,7 +73,8 @@ export class WorkerLocalFirst<
 			}
 		}
 
-		this.localHandlers = localHandlers
+		this.localTransitionHandlers = localTransitionHandlers
+		this.updateHandlers = updateHandlers
 		this.memoryModel = createMemoryModel(
 			initialMemoryModel,
 			announceTransformation
@@ -204,7 +212,13 @@ export class WorkerLocalFirst<
 				)
 			}
 			case DownstreamWsMessageAction.Update:
-				// TODO: Handle updates
+				// @ts-expect-error TS can't narrow the type down as narrowly
+				// as it wants to, and there's no convenient way to make it
+				this.updateHandlers[decoded.data.action]({
+					data: decoded.data.data,
+					memoryModel: this.memoryModel,
+					transition: this.transition.bind(this)
+				})
 				return
 			default:
 				decoded satisfies never
@@ -250,7 +264,7 @@ export class WorkerLocalFirst<
 				transition,
 				// @ts-expect-error TS can't narrow the type down as narrowly
 				// as it wants to, and there's no convenient way to make it
-				localHandler: this.localHandlers[transition.action],
+				localHandler: this.localTransitionHandlers[transition.action],
 				markComplete: () => {
 					this.transitionRunners.delete(id)
 				}

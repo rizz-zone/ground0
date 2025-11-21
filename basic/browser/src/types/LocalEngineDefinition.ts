@@ -2,7 +2,8 @@ import type {
 	Transition,
 	SyncEngineDefinition,
 	LocalTransitionHandlers,
-	Update
+	Update,
+	UpdateHandlers
 } from '@ground0/shared'
 
 export type LocalEngineDefinition<
@@ -11,7 +12,8 @@ export type LocalEngineDefinition<
 	AppUpdate extends Update
 > = {
 	engineDef: SyncEngineDefinition<AppTransition, AppUpdate>
-	localHandlers: LocalTransitionHandlers<MemoryModel, AppTransition>
+	localTransitionHandlers: LocalTransitionHandlers<MemoryModel, AppTransition>
+	updateHandlers: UpdateHandlers<MemoryModel, AppTransition, AppUpdate>
 	initialMemoryModel: MemoryModel
 	wsUrl: string
 	dbName: string

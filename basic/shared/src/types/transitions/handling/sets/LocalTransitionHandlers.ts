@@ -62,7 +62,7 @@ export type LocalTransitionHandlers<
 	MemoryModel extends object,
 	AppTransition extends Transition
 > = {
-	[K in AppTransition['action']]?: HandlersForTransition<
+	[K in AppTransition['action']]: HandlersForTransition<
 		MemoryModel,
 		Extract<AppTransition, { action: K }>
 	>

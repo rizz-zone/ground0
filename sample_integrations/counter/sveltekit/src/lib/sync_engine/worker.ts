@@ -3,7 +3,9 @@ import { workerEntrypoint } from 'ground0/worker'
 import {
 	engineDef,
 	TransitionAction,
-	type AppTransition
+	UpdateAction,
+	type AppTransition,
+	type AppUpdate
 } from '@ground0/sample-counter-shared'
 
 let wsUrl: string
@@ -13,12 +15,12 @@ try {
 	wsUrl = 'ws://localhost:8787/ws'
 }
 
-workerEntrypoint<MemoryModel, AppTransition>({
+workerEntrypoint<MemoryModel, AppTransition, AppUpdate>({
 	engineDef,
 	initialMemoryModel: {
 		counter: 0
 	},
-	localHandlers: {
+	localTransitionHandlers: {
 		[TransitionAction.Increment]: {
 			editMemoryModel: ({ memoryModel }) => {
 				memoryModel.counter++
@@ -31,6 +33,14 @@ workerEntrypoint<MemoryModel, AppTransition>({
 			editMemoryModel: ({ memoryModel }) => {
 				memoryModel.counter++
 			}
+		}
+	},
+	updateHandlers: {
+		[UpdateAction.InitialValue]: ({ memoryModel, data }) => {
+			memoryModel.counter = data.value
+		},
+		[UpdateAction.Increment]: ({ memoryModel }) => {
+			memoryModel.counter++
 		}
 	},
 	wsUrl,
