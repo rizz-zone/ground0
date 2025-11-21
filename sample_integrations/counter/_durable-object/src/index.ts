@@ -47,6 +47,7 @@ export class SyncEngineDO extends SyncEngineBackend<AppTransition, AppUpdate> {
 							set: { value: sql`${dbSchema.counter.value} + 1` }
 						})
 						.execute()
+					this.currentCount++
 				} catch (e) {
 					console.error('Error while incrementing:', e)
 					return false
