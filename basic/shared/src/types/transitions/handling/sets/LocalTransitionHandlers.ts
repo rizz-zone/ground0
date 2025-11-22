@@ -8,7 +8,7 @@ type LocalOnlyHandlers<
 	AppTransition extends Transition
 > =
 	| {
-			editDb: (params: DbHandlerParams<AppTransition>) => unknown
+			editDb: (params: DbHandlerParams<MemoryModel, AppTransition>) => unknown
 	  }
 	| {
 			editMemoryModel: (
@@ -19,7 +19,7 @@ type LocalOnlyHandlers<
 			editMemoryModel: (
 				params: MemoryHandlerParams<MemoryModel, AppTransition>
 			) => unknown
-			editDb: (params: DbHandlerParams<AppTransition>) => unknown
+			editDb: (params: DbHandlerParams<MemoryModel, AppTransition>) => unknown
 	  }
 
 type OptimisticPushHandlers<
@@ -35,8 +35,8 @@ type OptimisticPushHandlers<
 			) => unknown
 	  }
 	| {
-			editDb: (params: DbHandlerParams<AppTransition>) => unknown
-			revertDb: (params: DbHandlerParams<AppTransition>) => unknown
+			editDb: (params: DbHandlerParams<MemoryModel, AppTransition>) => unknown
+			revertDb: (params: DbHandlerParams<MemoryModel, AppTransition>) => unknown
 	  }
 	| {
 			editMemoryModel: (
@@ -45,8 +45,8 @@ type OptimisticPushHandlers<
 			revertMemoryModel: (
 				params: MemoryHandlerParams<MemoryModel, AppTransition>
 			) => unknown
-			editDb: (params: DbHandlerParams<AppTransition>) => unknown
-			revertDb: (params: DbHandlerParams<AppTransition>) => unknown
+			editDb: (params: DbHandlerParams<MemoryModel, AppTransition>) => unknown
+			revertDb: (params: DbHandlerParams<MemoryModel, AppTransition>) => unknown
 	  }
 
 type HandlersForTransition<

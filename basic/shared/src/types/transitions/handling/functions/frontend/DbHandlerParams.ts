@@ -1,7 +1,10 @@
 import type { Transition } from '@/types/transitions/Transition'
-import type { BaseHandlerParams } from '../BaseHandlerParams'
 import type { LocalDatabase } from '@/types/LocalDatabase'
+import type { MemoryHandlerParams } from './MemoryHandlerParams'
 
-export type DbHandlerParams<AppTransition extends Transition> = {
+export type DbHandlerParams<
+	MemoryModel extends object,
+	AppTransition extends Transition
+> = {
 	db: LocalDatabase
-} & BaseHandlerParams<AppTransition>
+} & MemoryHandlerParams<MemoryModel, AppTransition>

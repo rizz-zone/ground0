@@ -9,7 +9,8 @@ import z from 'zod'
 // Action enums
 export enum TransitionAction {
 	Increment,
-	LocalIncrement
+	LocalIncrement,
+	SyncFromLocalDbIfNoRemoteSync
 }
 export enum UpdateAction {
 	InitialValue,
@@ -24,6 +25,10 @@ const sourceSchema = z.discriminatedUnion('action', [
 	}),
 	z.object({
 		action: z.literal(TransitionAction.LocalIncrement),
+		impact: z.literal(TransitionImpact.LocalOnly)
+	}),
+	z.object({
+		action: z.literal(TransitionAction.SyncFromLocalDbIfNoRemoteSync),
 		impact: z.literal(TransitionImpact.LocalOnly)
 	})
 ])
