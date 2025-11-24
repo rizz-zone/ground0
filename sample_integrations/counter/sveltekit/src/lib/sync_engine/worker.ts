@@ -50,12 +50,30 @@ workerEntrypoint<MemoryModel, AppTransition, AppUpdate>({
 				if (memoryModel.syncedFromRemote || !dbResult) return
 				memoryModel.counter = dbResult.value
 			}
+		},
+		[TransitionAction.SaveApprovedRemoteValueToDb]: {
+			editDb: async ({ data, db }) => {
+				console.log('transitioning')
+				await db
+					.insert(dbSchema.counter)
+					.values(data)
+					.onConflictDoUpdate({ target: dbSchema.counter.id, set: data })
+					.execute()
+			},
+			editMemoryModel: () => {
+				console.log('well this happens at least')
+			}
 		}
 	},
 	updateHandlers: {
-		[UpdateAction.InitialValue]: ({ memoryModel, data }) => {
+		[UpdateAction.InitialValue]: ({ memoryModel, data, transition }) => {
 			memoryModel.counter = data.value
 			memoryModel.syncedFromRemote = true
+			transition({
+				action: TransitionAction.SaveApprovedRemoteValueToDb,
+				impact: TransitionImpact.LocalOnly,
+				data
+			})
 		},
 		[UpdateAction.Increment]: ({ memoryModel }) => {
 			memoryModel.counter++

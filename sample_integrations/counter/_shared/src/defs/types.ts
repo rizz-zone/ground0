@@ -10,7 +10,8 @@ import z from 'zod'
 export enum TransitionAction {
 	Increment,
 	LocalIncrement,
-	SyncFromLocalDbIfNoRemoteSync
+	SyncFromLocalDbIfNoRemoteSync,
+	SaveApprovedRemoteValueToDb
 }
 export enum UpdateAction {
 	InitialValue,
@@ -30,6 +31,13 @@ const sourceSchema = z.discriminatedUnion('action', [
 	z.object({
 		action: z.literal(TransitionAction.SyncFromLocalDbIfNoRemoteSync),
 		impact: z.literal(TransitionImpact.LocalOnly)
+	}),
+	z.object({
+		action: z.literal(TransitionAction.SaveApprovedRemoteValueToDb),
+		impact: z.literal(TransitionImpact.LocalOnly),
+		data: z.object({
+			value: z.int()
+		})
 	})
 ])
 export const appTransitionSchema = createTransitionSchema(sourceSchema)
