@@ -20,7 +20,10 @@ import type { ResourceBundle } from '@/types/status/ResourceBundle'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import SuperJSON from 'superjson'
 import type { OptimisticPushTransitionRunner } from '@/runners/specialised/optimistic_push'
-import type { Ingredients, TransitionRunner } from '@/runners/base'
+import type {
+	TransitionRunnerInputIngredients,
+	TransitionRunner
+} from '@/runners/base'
 
 type OriginalConnectDb = (typeof import('@/resource_managers/db'))['connectDb']
 let connectDbImpl: OriginalConnectDb
@@ -533,7 +536,9 @@ describe('always', () => {
 				workerLocalFirst.transition({ impact, action: 'shift_foo_bar' })
 
 				const call = (runners[impact] as ReturnType<typeof vi.fn>).mock
-					.lastCall as undefined | [Ingredients<object, TransitionImpact>]
+					.lastCall as
+					| undefined
+					| [TransitionRunnerInputIngredients<object, TransitionImpact>]
 				if (!call) return skip()
 
 				expect(call[0].markComplete).toBeTypeOf('function')

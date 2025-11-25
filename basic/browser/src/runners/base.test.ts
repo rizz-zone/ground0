@@ -1,5 +1,10 @@
-import { InternalStateError, type TransitionImpact } from '@ground0/shared'
-import { TransitionRunner, type Ingredients } from './base'
+import {
+	InternalStateError,
+	type LocalTransitionHandlers,
+	type Transition,
+	type TransitionImpact
+} from '@ground0/shared'
+import { TransitionRunner, type TransitionRunnerInputIngredients } from './base'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import { WsResourceStatus } from '@/types/status/WsResourceStatus'
@@ -12,7 +17,8 @@ const onWsConnected = vi.fn()
 // TransitionRunner is abstract *and* a generic, so we need to extend it
 class NotVeryUsefulRunner extends TransitionRunner<
 	Record<string, never>,
-	TransitionImpact
+	TransitionImpact,
+	Transition & { impact: TransitionImpact }
 > {
 	public override onDbConnected(): void {
 		onDbConnected()
@@ -25,7 +31,11 @@ class NotVeryUsefulRunner extends TransitionRunner<
 	}
 
 	public constructor(
-		ingredients: Ingredients<Record<string, never>, TransitionImpact>
+		ingredients: TransitionRunnerInputIngredients<
+			Record<string, never>,
+			TransitionImpact,
+			Transition & { impact: TransitionImpact }
+		>
 	) {
 		super(ingredients)
 	}
@@ -37,11 +47,18 @@ const bareMinimumIngredients = {
 		db: { status: DbResourceStatus.Disconnected },
 		ws: { status: WsResourceStatus.Disconnected }
 	},
-	id: {},
-	transition: {},
-	markComplete: {},
-	localHandler: {}
-} as Ingredients<Record<string, never>, TransitionImpact>
+	id: 0,
+	transition: { action: 'anything', impact: TransitionImpact.LocalOnly },
+	markComplete: () => {},
+	localHandler: {} as LocalTransitionHandlers<
+		Record<string, never>,
+		Transition & { impact: TransitionImpact }
+	>['anything']
+} as TransitionRunnerInputIngredients<
+	Record<string, never>,
+	TransitionImpact,
+	Transition & { impact: TransitionImpact }
+>
 
 describe('constructor', () => {
 	test('sets the things that always have to be set', () => {
@@ -72,7 +89,11 @@ describe('constructor', () => {
 					db: { status: DbResourceStatus.Disconnected },
 					ws: { status: WsResourceStatus.Connected, instance }
 				}
-			} as Ingredients<Record<string, never>, TransitionImpact>)
+			} as TransitionRunnerInputIngredients<
+				Record<string, never>,
+				TransitionImpact,
+				Transition & { impact: TransitionImpact }
+			>)
 			// @ts-expect-error We need to see the private stuff
 			expect(runnerInstance.resources.db.instance).toBeUndefined()
 			// @ts-expect-error We need to see the private stuff
@@ -86,7 +107,11 @@ describe('constructor', () => {
 					db: { status: DbResourceStatus.ConnectedAndMigrated, instance },
 					ws: { status: WsResourceStatus.Disconnected }
 				}
-			} as Ingredients<Record<string, never>, TransitionImpact>)
+			} as TransitionRunnerInputIngredients<
+				Record<string, never>,
+				TransitionImpact,
+				Transition & { impact: TransitionImpact }
+			>)
 			// @ts-expect-error We need to see the private stuff
 			expect(runnerInstance.resources.db.instance).toBe(instance)
 			// @ts-expect-error We need to see the private stuff
@@ -103,7 +128,11 @@ describe('constructor', () => {
 					},
 					ws: { status: WsResourceStatus.Connected, instance: instances[1] }
 				}
-			} as Ingredients<Record<string, never>, TransitionImpact>)
+			} as TransitionRunnerInputIngredients<
+				Record<string, never>,
+				TransitionImpact,
+				Transition & { impact: TransitionImpact }
+			>)
 			// @ts-expect-error We need to see the private stuff
 			expect(runnerInstance.resources.db.instance).toBe(instances[0])
 			// @ts-expect-error We need to see the private stuff
@@ -232,7 +261,10 @@ test('markComplete sends transition complete event', () => {
 	const ingredientsWithActor = {
 		...bareMinimumIngredients,
 		markComplete: fn
-	} as unknown as Ingredients<Record<string, never>, TransitionImpact>
+	} as unknown as TransitionRunnerInputIngredients<
+		Record<string, never>,
+		TransitionImpact
+	>
 	const runnerInstance = new NotVeryUsefulRunner(ingredientsWithActor)
 	expect(fn).not.toHaveBeenCalled()
 
@@ -247,7 +279,10 @@ test('markComplete only sends event once', () => {
 	const ingredientsWithActor = {
 		...bareMinimumIngredients,
 		markComplete: fn
-	} as unknown as Ingredients<Record<string, never>, TransitionImpact>
+	} as unknown as TransitionRunnerInputIngredients<
+		Record<string, never>,
+		TransitionImpact
+	>
 	const runnerInstance = new NotVeryUsefulRunner(ingredientsWithActor)
 	expect(fn).not.toHaveBeenCalled()
 

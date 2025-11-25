@@ -119,13 +119,12 @@ export class WorkerLocalFirst<
 
 			if (modifications.db.status === DbResourceStatus.ConnectedAndMigrated)
 				queueMicrotask(() => {
-					if (this.autoTransitions && this.autoTransitions.onDbConnect) {
-						const { onDbConnect } = this.autoTransitions
-						for (const transitionObj of Array.isArray(onDbConnect)
-							? onDbConnect
-							: [onDbConnect])
-							this.transition(transitionObj)
-					}
+					if (!this.autoTransitions || !this.autoTransitions.onDbConnect) return
+					const { onDbConnect } = this.autoTransitions
+					for (const transitionObj of Array.isArray(onDbConnect)
+						? onDbConnect
+						: [onDbConnect])
+						this.transition(transitionObj)
 				})
 		}
 		if (modifications.ws) {
@@ -199,7 +198,10 @@ export class WorkerLocalFirst<
 			case DownstreamWsMessageAction.OptimisticCancel:
 			case DownstreamWsMessageAction.OptimisticResolve: {
 				const runner = this.transitionRunners.get(decoded.id) as
-					| OptimisticPushTransitionRunner<MemoryModel>
+					| OptimisticPushTransitionRunner<
+							MemoryModel,
+							AppTransition & { impact: TransitionImpact.OptimisticPush }
+					  >
 					| undefined
 
 				// It's unlikely but we might not have the runner anymore
@@ -234,10 +236,16 @@ export class WorkerLocalFirst<
 	private readonly transitionRunners = new Map<
 		number,
 		{
-			[K in keyof typeof TransitionImpact]: TransitionRunner<
-				MemoryModel,
-				(typeof TransitionImpact)[K]
-			>
+			[K in keyof typeof TransitionImpact]: Extract<
+				AppTransition,
+				{ impact: (typeof TransitionImpact)[K] }
+			> extends never
+				? never
+				: TransitionRunner<
+						MemoryModel,
+						(typeof TransitionImpact)[K],
+						Extract<AppTransition, { impact: (typeof TransitionImpact)[K] }>
+					>
 		}[keyof typeof TransitionImpact]
 	>()
 	private nextTransitionId = 0
@@ -262,9 +270,10 @@ export class WorkerLocalFirst<
 				memoryModel: this.memoryModel,
 				id,
 				transition,
-				// @ts-expect-error TS can't narrow the type down as narrowly
-				// as it wants to, and there's no convenient way to make it
-				localHandler: this.localTransitionHandlers[transition.action],
+				localHandler:
+					this.localTransitionHandlers[
+						transition.action as AppTransition['action']
+					],
 				markComplete: () => {
 					this.transitionRunners.delete(id)
 				}

@@ -4,9 +4,10 @@ import {
 	TransitionImpact,
 	UpstreamWsMessageAction,
 	type LocalDatabase,
+	type Transition,
 	type UpstreamWsMessage
 } from '@ground0/shared'
-import type { Ingredients } from '../base'
+import type { TransitionRunnerInputIngredients } from '../base'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { createActor } from 'xstate'
 import { OptimisticPushTransitionRunner } from './optimistic_push'
@@ -25,8 +26,12 @@ const bareMinimumIngredients = {
 	transition: {
 		action: 'transition4',
 		impact: TransitionImpact.OptimisticPush
-	}
-} as Ingredients<Record<string, never>, TransitionImpact.OptimisticPush>
+	} as const
+} as TransitionRunnerInputIngredients<
+	Record<string, never>,
+	TransitionImpact.OptimisticPush,
+	Transition & { impact: TransitionImpact.OptimisticPush }
+>
 
 vi.mock('xstate', { spy: true })
 afterEach(vi.clearAllMocks)
@@ -37,9 +42,10 @@ beforeEach(() => vi.useFakeTimers())
 afterEach(() => vi.useRealTimers())
 
 test('constructor creates one instance of the machine, starts it, and inits it', () => {
-	const ingredients: Ingredients<
+	const ingredients: TransitionRunnerInputIngredients<
 		Record<string, never>,
-		TransitionImpact.OptimisticPush
+		TransitionImpact.OptimisticPush,
+		Transition & { impact: TransitionImpact.OptimisticPush }
 	> = {
 		...bareMinimumIngredients
 	}
@@ -354,7 +360,11 @@ async function runExecutionTest({
 					}
 				: {})
 		}
-	} as Ingredients<Record<string, never>, TransitionImpact.OptimisticPush>)
+	} as TransitionRunnerInputIngredients<
+		Record<string, never>,
+		TransitionImpact.OptimisticPush,
+		Transition & { impact: TransitionImpact.OptimisticPush }
+	>)
 	const markComplete = vi.fn()
 	// @ts-expect-error We do this to know whether it's completed
 	runner.markComplete = markComplete

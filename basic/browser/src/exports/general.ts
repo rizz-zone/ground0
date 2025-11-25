@@ -22,14 +22,7 @@ export function workerEntrypoint<
 	MemoryModel extends object,
 	AppTransition extends Transition,
 	AppUpdate extends Update
->({
-	engineDef,
-	localTransitionHandlers,
-	updateHandlers,
-	initialMemoryModel,
-	wsUrl,
-	dbName
-}: LocalEngineDefinition<MemoryModel, AppTransition, AppUpdate>) {
+>(params: LocalEngineDefinition<MemoryModel, AppTransition, AppUpdate>) {
 	const shared = 'onconnect' in ctx
 	const ports: MessagePort[] = []
 
@@ -40,12 +33,7 @@ export function workerEntrypoint<
 
 	// Establish a WorkerLocalFirst
 	const workerLocalFirst = new WorkerLocalFirst({
-		wsUrl,
-		dbName,
-		engineDef,
-		localTransitionHandlers,
-		updateHandlers,
-		initialMemoryModel,
+		...params,
 		announceTransformation: (transformation) => {
 			broadcastMessage({
 				type: DownstreamWorkerMessageType.Transformation,

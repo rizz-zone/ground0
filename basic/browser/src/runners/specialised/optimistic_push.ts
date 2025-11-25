@@ -4,10 +4,14 @@ import {
 	minimallyIdentifiedErrorLog,
 	nonexistentHandlerFnRequired,
 	UpstreamWsMessageAction,
+	type Transition,
 	type TransitionImpact,
 	type UpstreamWsMessage
 } from '@ground0/shared'
-import { TransitionRunner, type Ingredients } from '../base'
+import {
+	TransitionRunner,
+	type TransitionRunnerInputIngredients
+} from '../base'
 import {
 	createActor,
 	setup,
@@ -21,8 +25,15 @@ import SuperJSON from 'superjson'
 // Optimistic transitions do something with the db and/or memory model
 // immediately, and revert if the server says they should.
 export class OptimisticPushTransitionRunner<
-	MemoryModel extends object
-> extends TransitionRunner<MemoryModel, TransitionImpact.OptimisticPush> {
+	MemoryModel extends object,
+	AppTransition extends Transition & {
+		impact: TransitionImpact.OptimisticPush
+	}
+> extends TransitionRunner<
+	MemoryModel,
+	TransitionImpact.OptimisticPush,
+	AppTransition
+> {
 	private readonly machine = setup({
 		types: {
 			events: {} as
@@ -78,7 +89,8 @@ export class OptimisticPushTransitionRunner<
 					Promise.resolve(
 						this.localHandler.editDb({
 							data: this.transitionObj.data,
-							db: this.resources.db.instance
+							db: this.resources.db.instance,
+							memoryModel: this.memoryModel
 						})
 					).then(onSucceed, onFail)
 				} catch {
@@ -118,7 +130,8 @@ export class OptimisticPushTransitionRunner<
 					Promise.resolve(
 						this.localHandler.revertDb({
 							data: this.transitionObj.data,
-							db: this.resources.db.instance
+							db: this.resources.db.instance,
+							memoryModel: this.memoryModel
 						})
 					).then(onSucceed, onFail)
 				} catch {
@@ -365,7 +378,11 @@ export class OptimisticPushTransitionRunner<
 	private readonly machineActorRef: ActorRefFrom<typeof this.machine>
 
 	public constructor(
-		ingredients: Ingredients<MemoryModel, TransitionImpact.OptimisticPush>
+		ingredients: TransitionRunnerInputIngredients<
+			MemoryModel,
+			TransitionImpact.OptimisticPush,
+			AppTransition
+		>
 	) {
 		super(ingredients)
 		this.machineActorRef = createActor(this.machine)

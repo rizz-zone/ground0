@@ -9,24 +9,26 @@ import {
 } from '@ground0/shared'
 import type { ResourceBundle } from '@/types/status/ResourceBundle'
 
-export type Ingredients<
+export type TransitionRunnerInputIngredients<
 	MemoryModel extends object,
-	Impact extends TransitionImpact
+	Impact extends TransitionImpact,
+	AppTransition extends Transition & { impact: Impact }
 > = {
 	memoryModel: MemoryModel
 	resources: ResourceBundle
 	id: number
-	transition: Transition & { impact: Impact }
+	transition: AppTransition
 	markComplete: () => unknown
 	localHandler: LocalTransitionHandlers<
 		MemoryModel,
-		Transition & { impact: Impact }
-	>[keyof LocalTransitionHandlers<MemoryModel, Transition & { impact: Impact }>]
+		AppTransition
+	>[AppTransition['action']]
 }
 
 export abstract class TransitionRunner<
 	MemoryModel extends object,
-	Impact extends TransitionImpact
+	Impact extends TransitionImpact,
+	AppTransition extends Transition & { impact: Impact }
 > {
 	protected resources: ResourceBundle
 
@@ -79,15 +81,22 @@ export abstract class TransitionRunner<
 	}
 
 	protected readonly id: number
-	protected readonly transitionObj: Transition & { impact: Impact }
-	protected readonly localHandler: Ingredients<
+	protected readonly transitionObj: AppTransition
+	protected readonly localHandler: TransitionRunnerInputIngredients<
 		MemoryModel,
-		Impact
+		Impact,
+		AppTransition
 	>['localHandler']
 	protected readonly memoryModel: MemoryModel
 	protected previouslyCompleted = false
 
-	protected constructor(ingredients: Ingredients<MemoryModel, Impact>) {
+	protected constructor(
+		ingredients: TransitionRunnerInputIngredients<
+			MemoryModel,
+			Impact,
+			AppTransition
+		>
+	) {
 		this.localHandler = ingredients.localHandler
 		this.memoryModel = ingredients.memoryModel
 		this.sourceMarkComplete = ingredients.markComplete

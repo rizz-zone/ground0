@@ -40,28 +40,28 @@ workerEntrypoint<MemoryModel, AppTransition, AppUpdate>({
 		},
 		[TransitionAction.SyncFromLocalDbIfNoRemoteSync]: {
 			editDb: async ({ memoryModel, db }) => {
-				if (memoryModel.syncedFromRemote) return
-				const dbResult = await db
-					.select({ value: dbSchema.counter.value })
-					.from(dbSchema.counter)
-					.where(eq(dbSchema.counter.id, 0))
-					.limit(1)
-					.get()
-				if (memoryModel.syncedFromRemote || !dbResult) return
-				memoryModel.counter = dbResult.value
+				try {
+					if (memoryModel.syncedFromRemote) return
+					const dbResult = await db
+						.select({ value: dbSchema.counter.value })
+						.from(dbSchema.counter)
+						.where(eq(dbSchema.counter.id, 0))
+						.limit(1)
+						.get()
+					if (memoryModel.syncedFromRemote || !dbResult) return
+					memoryModel.counter = dbResult.value
+				} catch (e) {
+					console.error(e)
+				}
 			}
 		},
 		[TransitionAction.SaveApprovedRemoteValueToDb]: {
 			editDb: async ({ data, db }) => {
-				console.log('transitioning')
 				await db
 					.insert(dbSchema.counter)
 					.values(data)
 					.onConflictDoUpdate({ target: dbSchema.counter.id, set: data })
 					.execute()
-			},
-			editMemoryModel: () => {
-				console.log('well this happens at least')
 			}
 		}
 	},

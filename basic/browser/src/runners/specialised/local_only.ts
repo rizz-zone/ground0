@@ -1,13 +1,22 @@
 import {
 	minimallyIdentifiedErrorLog,
+	type Transition,
 	type TransitionImpact
 } from '@ground0/shared'
-import { TransitionRunner, type Ingredients } from '../base'
+import {
+	TransitionRunner,
+	type TransitionRunnerInputIngredients
+} from '../base'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 
 export class LocalOnlyTransitionRunner<
-	MemoryModel extends object
-> extends TransitionRunner<MemoryModel, TransitionImpact.LocalOnly> {
+	MemoryModel extends object,
+	AppTransition extends Transition & { impact: TransitionImpact.LocalOnly }
+> extends TransitionRunner<
+	MemoryModel,
+	TransitionImpact.LocalOnly,
+	AppTransition
+> {
 	private completeElements = {
 		memoryModel: false,
 		db: false
@@ -25,7 +34,11 @@ export class LocalOnlyTransitionRunner<
 	}
 
 	public constructor(
-		ingredients: Ingredients<MemoryModel, TransitionImpact.LocalOnly>
+		ingredients: TransitionRunnerInputIngredients<
+			MemoryModel,
+			TransitionImpact.LocalOnly,
+			AppTransition
+		>
 	) {
 		super(ingredients)
 
@@ -68,7 +81,8 @@ export class LocalOnlyTransitionRunner<
 			Promise.resolve(
 				this.localHandler.editDb({
 					db: this.resources.db.instance,
-					data: this.transitionObj.data
+					data: this.transitionObj.data,
+					memoryModel: this.memoryModel
 				})
 			).then(onSucceed, onFail)
 		} catch {
