@@ -24,7 +24,11 @@ export const UpstreamWsMessageSchema = discriminatedUnion('action', [
 		action: literal(UpstreamWsMessageAction.Transition),
 		id: int().check(gte(0)),
 		data: extend(TransitionSchema, {
-			impact: union([literal(TransitionImpact.OptimisticPush)])
+			impact: union([
+				literal(TransitionImpact.OptimisticPush),
+				literal(TransitionImpact.UnreliableWsOnlyNudge),
+				literal(TransitionImpact.WsOnlyNudge)
+			])
 		})
 	})
 ])
