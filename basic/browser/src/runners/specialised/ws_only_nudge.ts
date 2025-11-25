@@ -1,5 +1,16 @@
-import type { Transition, TransitionImpact } from '@ground0/shared'
-import { TransitionRunner } from '../base'
+import {
+	UpstreamWsMessageAction,
+	type Transition,
+	type TransitionImpact,
+	type UpstreamWsMessage
+} from '@ground0/shared'
+import {
+	TransitionRunner,
+	type TransitionRunnerInputIngredients
+} from '../base'
+import { WsResourceStatus } from '@/types/status/WsResourceStatus'
+import type { ResourceBundle } from '@/types/status/ResourceBundle'
+import SuperJSON from 'superjson'
 
 export class WsOnlyNudgeTransitionRunner<
 	MemoryModel extends object,
@@ -8,6 +19,41 @@ export class WsOnlyNudgeTransitionRunner<
 	}
 > extends TransitionRunner<
 	MemoryModel,
-	TransitionImpact.WsOnlyNudge,
+	AppTransition['impact'],
 	AppTransition
-> {}
+> {
+	// This transition runner does not operate on the db
+	protected override onDbConnected() {}
+	protected override onDbConfirmedNeverConnecting() {}
+	protected override onWsConnected() {
+		;(
+			this.resources.ws as ResourceBundle['ws'] & {
+				status: WsResourceStatus.Connected
+			}
+		).instance.send(
+			SuperJSON.stringify({
+				action: UpstreamWsMessageAction.Transition,
+				id: this.id,
+				data: this.transitionObj
+			} satisfies UpstreamWsMessage)
+		)
+	}
+	public constructor(
+		ingredients: TransitionRunnerInputIngredients<
+			MemoryModel,
+			AppTransition['impact'],
+			AppTransition
+		>
+	) {
+		super(ingredients)
+		if (this.resources.ws.status === WsResourceStatus.Connected)
+			this.onWsConnected()
+	}
+
+	// Because the Durable Object backend needs to actually acknowledge that it
+	// processed the transition, acknowledgeAcknowledgement can be used once
+	// the info about this has been returned.
+	public acknowledgeAcknowledgement() {
+		this.markComplete()
+	}
+}

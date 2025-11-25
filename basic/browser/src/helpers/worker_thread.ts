@@ -15,7 +15,10 @@ import { WsResourceStatus } from '@/types/status/WsResourceStatus'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import { createMemoryModel } from './memory_model'
 import SuperJSON from 'superjson'
-import type { TransitionRunner } from '@/runners/base'
+import type {
+	TransitionRunner,
+	TransitionRunnerInputIngredients
+} from '@/runners/base'
 import { runners } from '@/runners/all'
 import type { OptimisticPushTransitionRunner } from '@/runners/specialised/optimistic_push'
 import { DbThinClient } from '@/resource_managers/db'
@@ -235,18 +238,7 @@ export class WorkerLocalFirst<
 
 	private readonly transitionRunners = new Map<
 		number,
-		{
-			[K in keyof typeof TransitionImpact]: Extract<
-				AppTransition,
-				{ impact: (typeof TransitionImpact)[K] }
-			> extends never
-				? never
-				: TransitionRunner<
-						MemoryModel,
-						(typeof TransitionImpact)[K],
-						Extract<AppTransition, { impact: (typeof TransitionImpact)[K] }>
-					>
-		}[keyof typeof TransitionImpact]
+		TransitionRunner<MemoryModel, TransitionImpact, AppTransition>
 	>()
 	private nextTransitionId = 0
 	public transition(transition: AppTransition) {
@@ -265,7 +257,13 @@ export class WorkerLocalFirst<
 		const id = this.nextTransitionId
 		this.transitionRunners.set(
 			id,
-			new runners[transition.impact]({
+			new (runners[transition.impact] as unknown as new (
+				args: TransitionRunnerInputIngredients<
+					MemoryModel,
+					TransitionImpact,
+					AppTransition
+				>
+			) => TransitionRunner<MemoryModel, TransitionImpact, AppTransition>)({
 				resources: this.resourceBundle,
 				memoryModel: this.memoryModel,
 				id,

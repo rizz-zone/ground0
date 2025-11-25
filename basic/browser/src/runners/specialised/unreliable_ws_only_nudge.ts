@@ -19,13 +19,12 @@ export class UnreliableWsOnlyNudgeTransitionRunner<
 	}
 > extends TransitionRunner<
 	MemoryModel,
-	TransitionImpact.UnreliableWsOnlyNudge,
+	AppTransition['impact'],
 	AppTransition
 > {
 	// This transition runner does not operate on the db
 	protected override onDbConnected() {}
 	protected override onDbConfirmedNeverConnecting() {}
-
 	protected override onWsConnected() {
 		;(
 			this.resources.ws as ResourceBundle['ws'] & {
@@ -43,7 +42,7 @@ export class UnreliableWsOnlyNudgeTransitionRunner<
 	public constructor(
 		ingredients: TransitionRunnerInputIngredients<
 			MemoryModel,
-			TransitionImpact.UnreliableWsOnlyNudge,
+			AppTransition['impact'],
 			AppTransition
 		>
 	) {
