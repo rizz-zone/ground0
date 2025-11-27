@@ -14,7 +14,9 @@ import {
 	type UUID,
 	type BackendHandlerParams,
 	type Update,
-	type TransitionSchema
+	type TransitionSchema,
+	type OptimisticPushHandlers,
+	type SomeWsOnlyNudgeHandlers
 } from '@ground0/shared'
 import { isUpstreamWsMessage } from '@ground0/shared/zod'
 import SuperJSON from 'superjson'
@@ -282,30 +284,48 @@ export abstract class SyncEngineBackend<
 		const connectionId = this.ctx.getTags(ws)[0] as UUID | undefined
 		if (!connectionId) return
 
+		const handler =
+			this.backendHandlers[
+				transition.action as keyof BackendTransitionHandlers<AppTransition>
+			]
+		if (!handler) {
+			console.error(`No handler found for action: ${transition.action}`)
+			return
+		}
+
+		const fairlyUniversalParams = {
+			db: this.db as BackendHandlerParams<AppTransition>['db'],
+			data: transition.data,
+			connectionId,
+			transitionId
+		}
+
 		switch (transition.impact) {
 			case TransitionImpact.OptimisticPush: {
-				const handler =
-					this.backendHandlers[
-						transition.action as keyof BackendTransitionHandlers<AppTransition>
-					]
-				if (!handler) {
-					console.error(`No handler found for action: ${transition.action}`)
-					return
-				}
-
-				const confirmed = await handler.confirm({
-					db: this.db as BackendHandlerParams<AppTransition>['db'],
-					data: transition.data,
-					connectionId,
-					transitionId
-				})
+				const confirmed = await (
+					handler as OptimisticPushHandlers<AppTransition>
+				).confirm(fairlyUniversalParams)
 				send(ws, {
 					action: confirmed
 						? DownstreamWsMessageAction.OptimisticResolve
 						: DownstreamWsMessageAction.OptimisticCancel,
 					id: transitionId
 				})
+				break
 			}
+			case TransitionImpact.UnreliableWsOnlyNudge:
+				;(handler as SomeWsOnlyNudgeHandlers<AppTransition>).handle(
+					fairlyUniversalParams
+				)
+				break
+			case TransitionImpact.WsOnlyNudge:
+				send(ws, {
+					action: DownstreamWsMessageAction.AckWsNudge,
+					id: transitionId
+				})
+				;(handler as SomeWsOnlyNudgeHandlers<AppTransition>).handle(
+					fairlyUniversalParams
+				)
 		}
 	}
 

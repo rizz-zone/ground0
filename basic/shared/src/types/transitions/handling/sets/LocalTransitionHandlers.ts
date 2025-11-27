@@ -2,6 +2,7 @@ import type { Transition } from '@/types/transitions/Transition'
 import type { TransitionImpact } from '@/types/transitions/TransitionImpact'
 import type { DbHandlerParams } from '@/types/transitions/handling/functions/frontend/DbHandlerParams'
 import type { MemoryHandlerParams } from '@/types/transitions/handling/functions/frontend/MemoryHandlerParams'
+import type { RequiredTransitionActionsForImpact } from '../RequiredTransitionActionsForImpact'
 
 type LocalOnlyHandlers<
 	MemoryModel extends object,
@@ -62,8 +63,8 @@ export type LocalTransitionHandlers<
 	MemoryModel extends object,
 	AppTransition extends Transition
 > = {
-	[K in AppTransition['action']]: HandlersForTransition<
-		MemoryModel,
-		Extract<AppTransition, { action: K }>
-	>
+	[K in RequiredTransitionActionsForImpact<
+		AppTransition,
+		TransitionImpact.LocalOnly | TransitionImpact.OptimisticPush
+	>]: HandlersForTransition<MemoryModel, Extract<AppTransition, { action: K }>>
 }

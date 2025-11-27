@@ -1,5 +1,6 @@
 export enum DownstreamWsMessageAction {
 	OptimisticResolve,
 	OptimisticCancel,
-	Update
+	Update,
+	AckWsNudge
 }

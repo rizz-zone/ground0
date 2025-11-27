@@ -6,6 +6,7 @@ export type DownstreamWsMessage =
 			action:
 				| DownstreamWsMessageAction.OptimisticResolve
 				| DownstreamWsMessageAction.OptimisticCancel
+				| DownstreamWsMessageAction.AckWsNudge
 			id: number
 	  }
 	| {
