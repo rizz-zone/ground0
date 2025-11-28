@@ -9,12 +9,11 @@ import {
 	afterAll
 } from 'vitest'
 import {
-	defs,
 	DownstreamWsMessageAction,
 	TransitionImpact,
-	type DownstreamWsMessage,
-	type TestingTransition
+	type DownstreamWsMessage
 } from '@ground0/shared'
+import { defs, type TestingTransition } from '@ground0/shared/testing'
 import { WsResourceStatus } from '@/types/status/WsResourceStatus'
 import type { ResourceBundle } from '@/types/status/ResourceBundle'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'

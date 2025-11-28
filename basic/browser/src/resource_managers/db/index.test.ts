@@ -1,7 +1,8 @@
 import { ResourceInitError } from '@/errors'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import type { ResourceBundle } from '@/types/status/ResourceBundle'
-import { defs, type LocalDatabase } from '@ground0/shared'
+import { type LocalDatabase } from '@ground0/shared'
+import { defs } from '@ground0/shared/testing'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
 let getRawSqliteDbImpl: () => unknown
