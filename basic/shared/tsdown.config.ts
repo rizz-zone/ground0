@@ -20,7 +20,8 @@ export default defineConfig({
 	sourcemap: true,
 	entry: {
 		index: 'src/index.ts',
-		zod: 'src/zod.ts'
+		zod: 'src/zod.ts',
+		testing: 'src/testing.ts'
 	},
 	plugins: [sqlRawPlugin]
 })

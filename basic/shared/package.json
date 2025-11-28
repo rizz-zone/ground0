@@ -27,6 +27,7 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": "./dist/index.js",
+    "./testing": "./dist/testing.js",
     "./zod": "./dist/zod.js",
     "./package.json": "./package.json"
   },

@@ -1,5 +1,8 @@
 import type { SyncEngineDefinition } from '@/types/defs/SyncEngineDefinition'
-import { testingTransitionSchema, type TestingTransition } from '../transitions'
+import {
+	testingTransitionSchema,
+	type TestingTransition
+} from '../type_defs/transitions'
 import migrations from './drizzle/migrations'
 
 export const defs: SyncEngineDefinition<TestingTransition> = {
