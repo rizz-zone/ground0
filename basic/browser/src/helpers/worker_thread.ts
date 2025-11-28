@@ -25,6 +25,7 @@ import { DbThinClient } from '@/resource_managers/db'
 import { connectWs } from '@/resource_managers/ws'
 import { brandedLog } from '@/common/branded_log'
 import type { LocalEngineDefinition } from '@/types/LocalEngineDefinition'
+import type { WsOnlyNudgeTransitionRunner } from '@/runners/specialised/ws_only_nudge'
 
 export class WorkerLocalFirst<
 	MemoryModel extends object,
@@ -225,6 +226,19 @@ export class WorkerLocalFirst<
 					transition: this.transition.bind(this)
 				})
 				return
+			case DownstreamWsMessageAction.AckWsNudge: {
+				const runner = this.transitionRunners.get(decoded.id) as
+					| WsOnlyNudgeTransitionRunner<
+							MemoryModel,
+							AppTransition & { impact: TransitionImpact.WsOnlyNudge }
+					  >
+					| undefined
+
+				// It's unlikely but we might not have the runner anymore
+				if (!runner) return
+
+				return runner.acknowledgeAcknowledgement()
+			}
 			default:
 				decoded satisfies never
 				brandedLog(
