@@ -314,18 +314,16 @@ export abstract class SyncEngineBackend<
 				break
 			}
 			case TransitionImpact.UnreliableWsOnlyNudge:
+			case TransitionImpact.WsOnlyNudge:
+				if (transition.impact === TransitionImpact.WsOnlyNudge)
+					send(ws, {
+						action: DownstreamWsMessageAction.AckWsNudge,
+						id: transitionId
+					})
 				;(handler as SomeWsOnlyNudgeHandlers<AppTransition>).handle(
 					fairlyUniversalParams
 				)
 				break
-			case TransitionImpact.WsOnlyNudge:
-				send(ws, {
-					action: DownstreamWsMessageAction.AckWsNudge,
-					id: transitionId
-				})
-				;(handler as SomeWsOnlyNudgeHandlers<AppTransition>).handle(
-					fairlyUniversalParams
-				)
 		}
 	}
 
@@ -335,7 +333,7 @@ export abstract class SyncEngineBackend<
 			| { target?: UUID | UUID[] }
 			| { doNotTarget?: UUID | UUID[]; requireConnectionInitComplete?: boolean }
 	) {
-		const mesageString = SuperJSON.stringify({
+		const messageString = SuperJSON.stringify({
 			action: DownstreamWsMessageAction.Update,
 			data: update
 		} satisfies DownstreamWsMessage)
@@ -368,7 +366,7 @@ export abstract class SyncEngineBackend<
 					continue
 			}
 
-			ws.send(mesageString)
+			ws.send(messageString)
 		}
 	}
 }
