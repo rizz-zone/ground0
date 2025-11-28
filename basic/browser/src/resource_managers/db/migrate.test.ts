@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { sql as _sql } from 'drizzle-orm'
 
 // drizzle generated migrations fixture
-import { migrations } from '@ground0/shared'
+import { migrations } from '@ground0/shared/testing'
 
 import type { SqliteRemoteDatabase } from 'drizzle-orm/sqlite-proxy'
 import { migrate } from './migrate'
