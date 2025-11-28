@@ -1,1 +1,1 @@
-export { dbWorkerEntrypoint } from '@/nested_dedicated_worker'
+export { dbWorkerEntrypoint } from '@/db_worker/index'

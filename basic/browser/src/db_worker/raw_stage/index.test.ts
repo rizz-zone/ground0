@@ -9,7 +9,9 @@ vi.doMock('./create_module', () => ({ createModule }))
 
 let vfsCreateImpl: () => unknown
 const vfsCreate = vi.fn().mockImplementation(() => vfsCreateImpl())
-vi.doMock('./vfs', () => ({ OPFSCoopSyncVFS: { create: vfsCreate } }))
+vi.doMock('wa-sqlite/src/examples/OPFSCoopSyncVFS.js', () => ({
+	OPFSCoopSyncVFS: { create: vfsCreate }
+}))
 
 // Mock wa-sqlite Factory
 const mockFactory = vi.fn()
@@ -19,7 +21,6 @@ const { getRawSqliteDb } = await import('./index')
 
 const mockWasmBinary = new ArrayBuffer(1024)
 const mockDbName = 'test-db'
-const mockPullWasmBinary = vi.fn().mockResolvedValue(mockWasmBinary)
 
 const mockModule = { some: 'module' }
 const mockVfsRegister = vi.fn()
@@ -44,7 +45,7 @@ beforeEach(() => {
 describe('getRawSqliteDb', () => {
 	test('successfully creates database with all steps', async () => {
 		const result = await getRawSqliteDb({
-			pullWasmBinary: mockPullWasmBinary,
+			wasmBinary: mockWasmBinary,
 			dbName: mockDbName
 		})
 
@@ -54,18 +55,18 @@ describe('getRawSqliteDb', () => {
 		})
 	})
 
-	test('calls createModule with pullWasmBinary', async () => {
+	test('calls createModule with wasmBinary', async () => {
 		await getRawSqliteDb({
-			pullWasmBinary: mockPullWasmBinary,
+			wasmBinary: mockWasmBinary,
 			dbName: mockDbName
 		})
 
-		expect(createModule).toHaveBeenCalledExactlyOnceWith(mockPullWasmBinary)
+		expect(createModule).toHaveBeenCalledExactlyOnceWith(mockWasmBinary)
 	})
 
 	test('calls Factory with the created module', async () => {
 		await getRawSqliteDb({
-			pullWasmBinary: mockPullWasmBinary,
+			wasmBinary: mockWasmBinary,
 			dbName: mockDbName
 		})
 
@@ -74,7 +75,7 @@ describe('getRawSqliteDb', () => {
 
 	test('creates VFS with correct parameters', async () => {
 		await getRawSqliteDb({
-			pullWasmBinary: mockPullWasmBinary,
+			wasmBinary: mockWasmBinary,
 			dbName: mockDbName
 		})
 
@@ -83,7 +84,7 @@ describe('getRawSqliteDb', () => {
 
 	test('registers VFS and sets as default', async () => {
 		await getRawSqliteDb({
-			pullWasmBinary: mockPullWasmBinary,
+			wasmBinary: mockWasmBinary,
 			dbName: mockDbName
 		})
 
@@ -92,7 +93,7 @@ describe('getRawSqliteDb', () => {
 
 	test('opens database with correct name', async () => {
 		await getRawSqliteDb({
-			pullWasmBinary: mockPullWasmBinary,
+			wasmBinary: mockWasmBinary,
 			dbName: mockDbName
 		})
 
@@ -108,7 +109,7 @@ describe('getRawSqliteDb', () => {
 
 			await expect(
 				getRawSqliteDb({
-					pullWasmBinary: mockPullWasmBinary,
+					wasmBinary: mockWasmBinary,
 					dbName: mockDbName
 				})
 			).rejects.toThrow(error)
@@ -122,7 +123,7 @@ describe('getRawSqliteDb', () => {
 
 			await expect(
 				getRawSqliteDb({
-					pullWasmBinary: mockPullWasmBinary,
+					wasmBinary: mockWasmBinary,
 					dbName: mockDbName
 				})
 			).rejects.toThrow(error)
@@ -134,7 +135,7 @@ describe('getRawSqliteDb', () => {
 
 			await expect(
 				getRawSqliteDb({
-					pullWasmBinary: mockPullWasmBinary,
+					wasmBinary: mockWasmBinary,
 					dbName: mockDbName
 				})
 			).rejects.toThrow(error)
@@ -148,7 +149,7 @@ describe('getRawSqliteDb', () => {
 
 			await expect(
 				getRawSqliteDb({
-					pullWasmBinary: mockPullWasmBinary,
+					wasmBinary: mockWasmBinary,
 					dbName: mockDbName
 				})
 			).rejects.toThrow(error)
@@ -186,7 +187,7 @@ describe('getRawSqliteDb', () => {
 			})
 
 			await getRawSqliteDb({
-				pullWasmBinary: mockPullWasmBinary,
+				wasmBinary: mockWasmBinary,
 				dbName: mockDbName
 			})
 
@@ -203,23 +204,22 @@ describe('getRawSqliteDb', () => {
 			const customDbName = 'custom-database-name'
 
 			await getRawSqliteDb({
-				pullWasmBinary: mockPullWasmBinary,
+				wasmBinary: mockWasmBinary,
 				dbName: customDbName
 			})
 
 			expect(mockOpenV2).toHaveBeenCalledExactlyOnceWith(customDbName)
 		})
 
-		test('handles different pullWasmBinary functions correctly', async () => {
+		test('handles different wasmBinary values correctly', async () => {
 			const customWasmBinary = new ArrayBuffer(2048)
-			const customPullWasmBinary = vi.fn().mockResolvedValue(customWasmBinary)
 
 			await getRawSqliteDb({
-				pullWasmBinary: customPullWasmBinary,
+				wasmBinary: customWasmBinary,
 				dbName: mockDbName
 			})
 
-			expect(createModule).toHaveBeenCalledExactlyOnceWith(customPullWasmBinary)
+			expect(createModule).toHaveBeenCalledExactlyOnceWith(customWasmBinary)
 		})
 	})
 })
