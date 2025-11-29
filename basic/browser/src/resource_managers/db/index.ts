@@ -28,7 +28,6 @@ type SomeAsyncSuccessfulWorkerResultHandler =
 
 export class DbThinClient {
 	private port?: MessagePort
-	private portReady = false
 	private syncDbResource: (newDb: ResourceBundle['db']) => void
 	private migrations
 	private dbName

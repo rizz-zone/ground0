@@ -1,16 +1,13 @@
 import type { SyncEngineDefinition } from '@/types/defs/SyncEngineDefinition'
-import {
-	testingTransitionSchema,
-	type TestingTransition
-} from '../type_defs/transitions'
+import { type TestingTransition } from '../type_defs/transitions'
 import migrations from './drizzle/migrations'
+import type { TestingUpdate } from '@/testing'
 
-export const defs: SyncEngineDefinition<TestingTransition> = {
+export const defs: SyncEngineDefinition<TestingTransition, TestingUpdate> = {
 	version: {
 		current: '1.0.0'
 	},
 	transitions: {
-		schema: testingTransitionSchema,
 		sharedHandlers: {
 			3: () => {}
 		}

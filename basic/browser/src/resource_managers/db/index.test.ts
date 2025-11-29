@@ -1,190 +1,51 @@
-import { ResourceInitError } from '@/errors'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import type { ResourceBundle } from '@/types/status/ResourceBundle'
-import { type LocalDatabase } from '@ground0/shared'
-import { defs } from '@ground0/shared/testing'
-import { beforeEach, describe, expect, test, vi } from 'vitest'
+import type { LocalDatabase } from '@ground0/shared'
+import { migrations } from '@ground0/shared/testing'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-let getRawSqliteDbImpl: () => unknown
-const getRawSqliteDb = vi.fn().mockImplementation(() => getRawSqliteDbImpl())
-vi.doMock('./raw_stage', () => ({ getRawSqliteDb }))
-let sizeInfoImpl: () => unknown
-const sizeInfo = vi.fn().mockImplementation(() => sizeInfoImpl())
-vi.doMock('./raw_stage/size_info.ts', () => ({ sizeInfo }))
-let setDbHardSizeLimitImpl: () => unknown
-const setDbHardSizeLimit = vi
-	.fn()
-	.mockImplementation(() => setDbHardSizeLimitImpl())
-vi.doMock('./raw_stage/set_size_limit.ts', () => ({ setDbHardSizeLimit }))
+const { DbThinClient } = await import('./index')
 
-let drizzlifyImpl: () => unknown
-const drizzlify = vi.fn().mockImplementation(() => drizzlifyImpl())
-vi.doMock('./drizzle_stage/drizzlify.ts', () => ({ drizzlify }))
-let migrateImpl: () => unknown
-const migrate = vi.fn().mockImplementation(() => migrateImpl())
-vi.doMock('./drizzle_stage/migrate.ts', () => ({ migrate }))
+const syncResources = vi.fn()
+const inputs = {
+	syncResources,
+	migrations,
+	dbName: 'kevin'
+} as const as ConstructorParameters<typeof DbThinClient>[0]
 
-const drizzle = {} as LocalDatabase
+beforeEach(vi.clearAllMocks)
 
-// This silences debug messages. They're not an essential part of the
-// implementation, so we won't use this for testing.
-vi.spyOn(console, 'debug').mockImplementation(() => {})
-
-const { connectDb } = await import('./index')
-
-const minimumInput: Parameters<typeof connectDb>[0] = {
-	syncResources: vi.fn(),
-	pullWasmBinary: vi.fn(),
-	dbName: 'bob',
-	migrations: defs.db.migrations
-}
-
-const sqlite3 = {}
-const db = {}
-
-beforeEach(() => {
-	vi.clearAllMocks()
-	getRawSqliteDbImpl = async () => ({
-		sqlite3,
-		db
+describe('constructor', () => {
+	it('sets this.migrations to provided migrations', () => {
+		const client = new DbThinClient(inputs)
+		// @ts-expect-error For this test, we want to access the private member
+		expect(client.migrations).toBe(migrations)
 	})
-	sizeInfoImpl = async () => ({
-		pageSizeBytes: 1,
-		dbSizeBytes: 2,
-		quotaBytes: 3
+	it('sets this.dbName to provided dbName', () => {
+		const client = new DbThinClient(inputs)
+		// @ts-expect-error For this test, we want to access the private member
+		expect(client.dbName).toBe(inputs.dbName)
 	})
-	setDbHardSizeLimitImpl = async () => ({
-		maxBytes: 3,
-		maxPages: 3
-	})
-
-	drizzlifyImpl = () => drizzle
-	migrateImpl = async () => {}
-})
-
-describe('raw stage', () => {
-	describe('getRawSqliteDb step', () => {
-		test('requests download and decode using provided dbName and pullWasmBinary', () => {
-			getRawSqliteDbImpl = () => new Promise(() => {})
-			connectDb(minimumInput).catch(() => {})
-			expect(getRawSqliteDb).toHaveBeenCalledExactlyOnceWith({
-				dbName: minimumInput.dbName,
-				pullWasmBinary: minimumInput.pullWasmBinary
-			})
-			// It's the job of getRawSqliteDb to call
-			expect(minimumInput.pullWasmBinary).not.toHaveBeenCalled()
-		})
-		test('throws a ResourceInitError and marks as never connecting on fail', async () => {
-			getRawSqliteDbImpl = async () => {
-				throw new Error()
-			}
-			await expect(connectDb(minimumInput)).rejects.toThrow(ResourceInitError)
-			expect(minimumInput.syncResources).toHaveBeenCalledExactlyOnceWith({
-				db: {
-					status: DbResourceStatus.NeverConnecting
-				}
-			} as Partial<ResourceBundle>)
-		})
-	})
-	describe('sizeInfo step', () => {
-		test('requests size using sqlite3 and db', async () => {
-			sizeInfoImpl = () => new Promise(() => {})
-			connectDb(minimumInput)
-			await vi.waitUntil(() => sizeInfo.mock.lastCall, {
-				timeout: 500,
-				interval: 1
-			})
-			expect(sizeInfo).toHaveBeenCalled()
-			expect(sizeInfo).toHaveBeenCalledExactlyOnceWith(sqlite3, db)
-		})
-		test('throws a ResourceInitError and marks as never connecting on fail', async () => {
-			sizeInfoImpl = async () => {
-				throw new Error()
-			}
-			await expect(connectDb(minimumInput)).rejects.toThrow(ResourceInitError)
-			expect(minimumInput.syncResources).toHaveBeenCalledExactlyOnceWith({
-				db: {
-					status: DbResourceStatus.NeverConnecting
-				}
-			} as Partial<ResourceBundle>)
-		})
-	})
-	describe('setDbHardSizeLimit step', () => {
-		test('sets new db size limit using relevant values', async () => {
-			setDbHardSizeLimitImpl = () => new Promise(() => {})
-			connectDb(minimumInput)
-			await vi.waitUntil(() => setDbHardSizeLimit.mock.lastCall, {
-				timeout: 500,
-				interval: 1
-			})
-			expect(setDbHardSizeLimit).toHaveBeenCalled()
-			expect(setDbHardSizeLimit).toHaveBeenCalledExactlyOnceWith({
-				pageSizeBytes: 1,
-				quotaBytes: 3,
-				sqlite3,
-				db
-			})
-		})
-		test('throws a ResourceInitError and marks as never connecting on fail', async () => {
-			setDbHardSizeLimitImpl = async () => {
-				throw new Error()
-			}
-			await expect(connectDb(minimumInput)).rejects.toThrow(ResourceInitError)
-			expect(minimumInput.syncResources).toHaveBeenCalledExactlyOnceWith({
-				db: {
-					status: DbResourceStatus.NeverConnecting
-				}
-			} as Partial<ResourceBundle>)
-		})
-	})
-})
-describe('drizzle stage', () => {
-	describe('drizzlify step', () => {
-		beforeEach(() => {
-			drizzlifyImpl = () => {
-				throw new Error()
-			}
-		})
-		test('gets a drizzle db using sqlite3 and db', async () => {
-			await connectDb(minimumInput).catch(() => {})
-			expect(drizzlify).toHaveBeenCalledExactlyOnceWith(sqlite3, db)
-		})
-		test('throws a ResourceInitError and marks as never connecting on fail', async () => {
-			await expect(connectDb(minimumInput)).rejects.toThrow(ResourceInitError)
-		})
-	})
-	describe('migrate step', () => {
-		test('migrates the drizzle db', async () => {
-			migrateImpl = () => new Promise(() => {})
-			connectDb(minimumInput)
-			await vi.waitUntil(() => migrate.mock.lastCall, {
-				timeout: 500,
-				interval: 1
-			})
-			expect(migrate).toHaveBeenCalled()
-			expect(migrate).toHaveBeenCalledExactlyOnceWith(
-				drizzle,
-				minimumInput.migrations
-			)
-		})
-		test('throws a ResourceInitError and marks as never connecting on fail', async () => {
-			migrateImpl = async () => {
-				throw new Error()
-			}
-			await expect(connectDb(minimumInput)).rejects.toThrow(ResourceInitError)
-		})
-	})
-})
-test('syncs resources on full success', async () => {
-	connectDb(minimumInput)
-	await vi.waitUntil(() => migrate.mock.lastCall, {
-		timeout: 500,
-		interval: 1
-	})
-	expect(minimumInput.syncResources).toHaveBeenCalledExactlyOnceWith({
-		db: {
-			status: DbResourceStatus.ConnectedAndMigrated,
-			instance: drizzle
+	it('sets this.syncDbResource to method that calls syncResources and sets this.status', () => {
+		const client = new DbThinClient(inputs)
+		// @ts-expect-error We are testing the private method
+		const { syncDbResource } = client
+		expect(syncResources).not.toHaveBeenCalled()
+		// @ts-expect-error We are testing with the private value
+		expect(client.status).toBe(DbResourceStatus.Disconnected)
+		for (const [index, syncValue] of Object.entries([
+			{
+				status: DbResourceStatus.ConnectedAndMigrated,
+				instance: {} as LocalDatabase
+			},
+			{ status: DbResourceStatus.NeverConnecting }
+		] satisfies ResourceBundle['db'][])) {
+			syncDbResource(syncValue)
+			expect(syncResources).toHaveBeenNthCalledWith(Number(index) + 1, {
+				db: syncValue
+			} satisfies Partial<ResourceBundle>)
+			// @ts-expect-error We are testing with the private value
+			expect(client.status).toBe(syncValue.status)
 		}
-	} satisfies Partial<ResourceBundle>)
+	})
 })
