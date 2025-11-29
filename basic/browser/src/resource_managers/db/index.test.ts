@@ -129,5 +129,28 @@ describe('newPort', () => {
 			client.newPort(port)
 			expect(port.onmessage).toBeTypeOf('function')
 		})
+		it('gracefully handles when called despite a new port', () => {
+			const client = new DbThinClient(inputs)
+			const port = {} as MessagePort
+			client.newPort(port)
+			expect(port.onmessage).toBeTypeOf('function')
+			// @ts-expect-error This avoids the checks that should normally not
+			// allow a situation like this to happen
+			client.port = {} as MessagePort
+			expect(
+				(port as unknown as { onmessage: () => unknown }).onmessage
+			).not.toThrow()
+		})
+		describe('message handling', () => {
+			let onmessage = () => unknown
+			describe('NeverConnecting', () => {
+				it('Sets port member to undefined', () => {
+					const client = new DbThinClient(inputs)
+					const port = {} as MessagePort
+					client.newPort(port)
+					expect(port.onmessage).toBeTypeOf('function')
+				})
+			})
+		})
 	})
 })
