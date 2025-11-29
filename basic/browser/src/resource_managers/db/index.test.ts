@@ -83,3 +83,51 @@ describe('init', () => {
 		})
 	})
 })
+describe('newPort', () => {
+	it('closes old port if present', () => {
+		const client = new DbThinClient(inputs)
+		const close = vi.fn()
+		// @ts-expect-error We are testing how the class manages this private
+		// value
+		client.port = { close } as unknown as MessagePort
+		expect(close).not.toHaveBeenCalled()
+		client.newPort({} as MessagePort)
+		expect(close).toHaveBeenCalledExactlyOnceWith()
+	})
+	describe('sets port member to new port when it is currently', () => {
+		it('undefined', () => {
+			const client = new DbThinClient(inputs)
+			// @ts-expect-error We are testing how the class manages this private
+			// value
+			expect(client.port).toBeUndefined()
+			const newPort = {} as MessagePort
+			client.newPort(newPort)
+			// @ts-expect-error We are testing how the class manages this private
+			// value
+			expect(client.port).toBe(newPort)
+		})
+		it('an old port', () => {
+			const client = new DbThinClient(inputs)
+			const oldPort = { close: () => {} } as MessagePort
+			// @ts-expect-error We are testing how the class manages this private
+			// value
+			client.port = oldPort
+			// @ts-expect-error We are testing how the class manages this private
+			// value
+			expect(client.port).toBe(oldPort)
+			const newPort = {} as MessagePort
+			client.newPort(newPort)
+			// @ts-expect-error We are testing how the class manages this private
+			// value
+			expect(client.port).toBe(newPort)
+		})
+	})
+	describe('onmessage', () => {
+		it('is set', () => {
+			const client = new DbThinClient(inputs)
+			const port = {} as MessagePort
+			client.newPort(port)
+			expect(port.onmessage).toBeTypeOf('function')
+		})
+	})
+})
