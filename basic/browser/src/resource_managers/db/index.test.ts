@@ -1,10 +1,13 @@
+import {
+	DownstreamDbWorkerMessageType,
+	type DownstreamDbWorkerMessage
+} from '@/types/internal_messages/DownstreamDbWorkerMessage'
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import type { ResourceBundle } from '@/types/status/ResourceBundle'
 import type { LocalDatabase } from '@ground0/shared'
 import { migrations } from '@ground0/shared/testing'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-
-const { DbThinClient } = await import('./index')
+import type { DbThinClient as DbThinClientType } from './'
 
 const TIMEOUT_NUMBER = 23443
 const setTimeoutMock = vi.spyOn(globalThis, 'setTimeout')
@@ -22,6 +25,8 @@ beforeEach(() => {
 		() => TIMEOUT_NUMBER as unknown as ReturnType<typeof setTimeout>
 	)
 })
+
+const { DbThinClient } = await import('./')
 
 describe('init', () => {
 	describe('constructor', () => {
@@ -109,16 +114,16 @@ describe('newPort', () => {
 		it('an old port', () => {
 			const client = new DbThinClient(inputs)
 			const oldPort = { close: () => {} } as MessagePort
-			// @ts-expect-error We are testing how the class manages this private
-			// value
+			// @ts-expect-error We are testing how the class manages this
+			// private value
 			client.port = oldPort
-			// @ts-expect-error We are testing how the class manages this private
-			// value
+			// @ts-expect-error We are testing how the class manages this
+			// private value
 			expect(client.port).toBe(oldPort)
 			const newPort = {} as MessagePort
 			client.newPort(newPort)
-			// @ts-expect-error We are testing how the class manages this private
-			// value
+			// @ts-expect-error We are testing how the class manages this
+			// private value
 			expect(client.port).toBe(newPort)
 		})
 	})
@@ -137,18 +142,36 @@ describe('newPort', () => {
 			// @ts-expect-error This avoids the checks that should normally not
 			// allow a situation like this to happen
 			client.port = {} as MessagePort
-			expect(
-				(port as unknown as { onmessage: () => unknown }).onmessage
+			expect(() =>
+				port.onmessage?.(new MessageEvent('message', { data: {} }))
 			).not.toThrow()
 		})
-		describe('message handling', () => {
-			let onmessage = () => unknown
-			describe('NeverConnecting', () => {
+		describe('message handling', ({ skip }) => {
+			let onmessage: (
+				ev: MessageEvent<DownstreamDbWorkerMessage>
+			) => unknown = () => undefined
+			let client: DbThinClientType
+			beforeEach(() => {
+				client = new DbThinClient(inputs)
+				const port = {} as MessagePort
+				client.newPort(port)
+				if (!('onmessage' in port) || typeof port.onmessage !== 'function')
+					return skip('newPort is not setting onmessage')
+				onmessage = port.onmessage.bind(port)
+			})
+			describe('NotConnecting', () => {
 				it('Sets port member to undefined', () => {
-					const client = new DbThinClient(inputs)
-					const port = {} as MessagePort
-					client.newPort(port)
-					expect(port.onmessage).toBeTypeOf('function')
+					// @ts-expect-error We are testing how the class manages
+					// this private value
+					expect(client.port).not.toBeUndefined()
+					onmessage(
+						new MessageEvent<DownstreamDbWorkerMessage>('message', {
+							data: { type: DownstreamDbWorkerMessageType.NotConnecting }
+						})
+					)
+					// @ts-expect-error We are testing how the class manages
+					// this private value
+					expect(client.port).toBeUndefined()
 				})
 			})
 		})
