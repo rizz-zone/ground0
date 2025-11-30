@@ -13,6 +13,10 @@ const TIMEOUT_NUMBER = 23443
 const setTimeoutMock = vi.spyOn(globalThis, 'setTimeout')
 const clearTimeoutMock = vi.spyOn(globalThis, 'clearTimeout')
 
+const migrateThen = vi.fn()
+const migrate = vi.fn().mockImplementation(() => ({ then: migrateThen }))
+vi.doMock('./migrate', () => ({ migrate }))
+
 const syncResources = vi.fn()
 const inputs = {
 	syncResources,
@@ -190,7 +194,23 @@ describe('newPort', () => {
 				})
 				describe('when status is currently', () => {
 					describe('Disconnected', () => {
-						it('starts a migration', () => {})
+						it('starts a migration', () => {
+							// @ts-expect-error We want to ensure that it is
+							// Disconnected even if the impl changes eventually
+							client.status = DbResourceStatus.Disconnected
+							expect(migrate).not.toHaveBeenCalled()
+							onmessage(
+								new MessageEvent<DownstreamDbWorkerMessage>('message', {
+									data: { type: DownstreamDbWorkerMessageType.Ready }
+								})
+							)
+							expect(migrate).toHaveBeenCalledExactlyOnceWith(
+								// @ts-expect-error We don't mock the drizzle
+								// proxy (though that might be a good idea)
+								client.db,
+								inputs.migrations
+							)
+						})
 					})
 				})
 			})
