@@ -105,6 +105,7 @@ export class DbThinClient {
 			>
 	)
 
+	private startedMigrating = false
 	public newPort(port: MessagePort) {
 		// Cleanup and replacement
 		this.port?.close()
@@ -128,8 +129,11 @@ export class DbThinClient {
 					this.port = undefined
 					break
 				case DownstreamDbWorkerMessageType.Ready: {
-					clearTimeout(this.neverConnectingTimeout)
-					if (this.status === DbResourceStatus.Disconnected)
+					if (
+						this.status === DbResourceStatus.Disconnected &&
+						!this.startedMigrating
+					) {
+						this.startedMigrating = true
 						try {
 							migrate(this.db, this.migrations).then(
 								() => {
@@ -137,6 +141,7 @@ export class DbThinClient {
 										console.debug,
 										'db is now migrated, syncing resources'
 									)
+									clearTimeout(this.neverConnectingTimeout)
 									this.syncDbResource({
 										status: DbResourceStatus.ConnectedAndMigrated,
 										instance: this.db
@@ -157,7 +162,7 @@ export class DbThinClient {
 								e
 							)
 						}
-					else {
+					} else {
 						brandedLog(console.debug, 'Swapping workers!')
 						// Request the current blocking tx if one exists
 						if (this.currentHotMessage) {

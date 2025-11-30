@@ -14,8 +14,11 @@ const setTimeoutMock = vi.spyOn(globalThis, 'setTimeout')
 const clearTimeoutMock = vi.spyOn(globalThis, 'clearTimeout')
 
 const migrateThen = vi.fn()
-const migrate = vi.fn().mockImplementation(() => ({ then: migrateThen }))
+const migrate = vi.fn()
 vi.doMock('./migrate', () => ({ migrate }))
+
+const brandedLog = vi.fn()
+vi.doMock('@/common/branded_log', () => ({ brandedLog }))
 
 const syncResources = vi.fn()
 const inputs = {
@@ -30,6 +33,7 @@ beforeEach(() => {
 		() => TIMEOUT_NUMBER as unknown as ReturnType<typeof setTimeout>
 	)
 	clearTimeoutMock.mockImplementation(() => {})
+	migrate.mockImplementation(() => ({ then: migrateThen }))
 })
 
 const { DbThinClient } = await import('./')
@@ -180,37 +184,117 @@ describe('newPort', () => {
 					expect(client.port).toBeUndefined()
 				})
 			})
-			describe('Ready', () => {
-				it('clears neverConnectingTimeout', () => {
-					expect(clearTimeoutMock).not.toHaveBeenCalled()
-					onmessage(
-						new MessageEvent<DownstreamDbWorkerMessage>('message', {
-							data: { type: DownstreamDbWorkerMessageType.Ready }
+			describe('Ready, when status is currently', () => {
+				describe('Disconnected', () => {
+					beforeEach(() => {
+						// @ts-expect-error We want to ensure that it is
+						// Disconnected even if the impl changes here
+						// eventually for some reason
+						client.status = DbResourceStatus.Disconnected
+					})
+					it('starts a migration', () => {
+						expect(migrate).not.toHaveBeenCalled()
+						onmessage(
+							new MessageEvent<DownstreamDbWorkerMessage>('message', {
+								data: { type: DownstreamDbWorkerMessageType.Ready }
+							})
+						)
+						expect(migrate).toHaveBeenCalledExactlyOnceWith(
+							// @ts-expect-error We don't mock the drizzle
+							// proxy (though that might be a good idea)
+							client.db,
+							inputs.migrations
+						)
+					})
+					it('provides both an onfulfilled and onrejected handler', () => {
+						onmessage(
+							new MessageEvent<DownstreamDbWorkerMessage>('message', {
+								data: { type: DownstreamDbWorkerMessageType.Ready }
+							})
+						)
+						expect(migrateThen).toHaveBeenCalledOnce()
+						const thenCall = migrateThen.mock.lastCall as
+							| Parameters<Promise<never>['then']>
+							| undefined
+						if (!thenCall) expect.fail()
+						expect(thenCall[0]).toBeTypeOf('function')
+						expect(thenCall[1]).toBeTypeOf('function')
+					})
+					it('syncs as connected and clears neverConnectingTimeout once the migration is complete', ({
+						skip
+					}) => {
+						const syncDbResource = vi
+							.spyOn(client, 'syncDbResource' as keyof typeof client)
+							.mockImplementation(() => {})
+						onmessage(
+							new MessageEvent<DownstreamDbWorkerMessage>('message', {
+								data: { type: DownstreamDbWorkerMessageType.Ready }
+							})
+						)
+						const thenCall = migrateThen.mock.lastCall as
+							| Parameters<Promise<void>['then']>
+							| undefined
+						if (!thenCall || typeof thenCall[0] !== 'function') return skip()
+
+						expect(syncDbResource).not.toHaveBeenCalled()
+						expect(clearTimeoutMock).not.toHaveBeenCalled()
+						thenCall[0]()
+						expect(syncDbResource).toHaveBeenCalledExactlyOnceWith({
+							status: DbResourceStatus.ConnectedAndMigrated,
+							// @ts-expect-error We don't mock the drizzle
+							// proxy (though that might be a good idea)
+							instance: client.db
+						} satisfies ResourceBundle['db'])
+						expect(clearTimeoutMock).toHaveBeenCalledExactlyOnceWith(
+							TIMEOUT_NUMBER
+						)
+					})
+					it('calls brandedLog on rejection', ({ skip }) => {
+						onmessage(
+							new MessageEvent<DownstreamDbWorkerMessage>('message', {
+								data: { type: DownstreamDbWorkerMessageType.Ready }
+							})
+						)
+						const thenCall = migrateThen.mock.lastCall as
+							| Parameters<Promise<void>['then']>
+							| undefined
+						if (!thenCall || typeof thenCall[1] !== 'function') return skip()
+
+						const theSecret = crypto.randomUUID()
+						const initialLength = brandedLog.mock.calls.length
+
+						thenCall[1](theSecret)
+
+						expect(initialLength + 1).toBe(brandedLog.mock.calls.length)
+						const brandedLogCall = brandedLog.mock.lastCall
+						expect(brandedLogCall).toBeDefined()
+						if (!brandedLogCall) expect.fail()
+						expect(brandedLogCall).toContain(theSecret)
+					})
+					it('calls brandedLog on error', () => {
+						const error = new Error()
+						migrate.mockImplementation(() => {
+							throw error
 						})
-					)
-					expect(clearTimeoutMock).toHaveBeenCalledExactlyOnceWith(
-						TIMEOUT_NUMBER
-					)
-				})
-				describe('when status is currently', () => {
-					describe('Disconnected', () => {
-						it('starts a migration', () => {
-							// @ts-expect-error We want to ensure that it is
-							// Disconnected even if the impl changes eventually
-							client.status = DbResourceStatus.Disconnected
-							expect(migrate).not.toHaveBeenCalled()
+						onmessage(
+							new MessageEvent<DownstreamDbWorkerMessage>('message', {
+								data: { type: DownstreamDbWorkerMessageType.Ready }
+							})
+						)
+
+						const brandedLogCall = brandedLog.mock.lastCall
+						expect(brandedLogCall).toBeDefined()
+						if (!brandedLogCall) expect.fail()
+						expect(brandedLogCall).toContain(error)
+					})
+					it('will not migrate twice', () => {
+						for (let i = 0; i <= 1; i++)
 							onmessage(
 								new MessageEvent<DownstreamDbWorkerMessage>('message', {
 									data: { type: DownstreamDbWorkerMessageType.Ready }
 								})
 							)
-							expect(migrate).toHaveBeenCalledExactlyOnceWith(
-								// @ts-expect-error We don't mock the drizzle
-								// proxy (though that might be a good idea)
-								client.db,
-								inputs.migrations
-							)
-						})
+						expect(migrate).toHaveBeenCalledOnce()
 					})
 				})
 			})
