@@ -11,6 +11,7 @@ import type { DbThinClient as DbThinClientType } from './'
 
 const TIMEOUT_NUMBER = 23443
 const setTimeoutMock = vi.spyOn(globalThis, 'setTimeout')
+const clearTimeoutMock = vi.spyOn(globalThis, 'clearTimeout')
 
 const syncResources = vi.fn()
 const inputs = {
@@ -24,6 +25,7 @@ beforeEach(() => {
 	setTimeoutMock.mockImplementation(
 		() => TIMEOUT_NUMBER as unknown as ReturnType<typeof setTimeout>
 	)
+	clearTimeoutMock.mockImplementation(() => {})
 })
 
 const { DbThinClient } = await import('./')
@@ -160,7 +162,7 @@ describe('newPort', () => {
 				onmessage = port.onmessage.bind(port)
 			})
 			describe('NotConnecting', () => {
-				it('Sets port member to undefined', () => {
+				it('sets port member to undefined', () => {
 					// @ts-expect-error We are testing how the class manages
 					// this private value
 					expect(client.port).not.toBeUndefined()
@@ -172,6 +174,24 @@ describe('newPort', () => {
 					// @ts-expect-error We are testing how the class manages
 					// this private value
 					expect(client.port).toBeUndefined()
+				})
+			})
+			describe('Ready', () => {
+				it('clears neverConnectingTimeout', () => {
+					expect(clearTimeoutMock).not.toHaveBeenCalled()
+					onmessage(
+						new MessageEvent<DownstreamDbWorkerMessage>('message', {
+							data: { type: DownstreamDbWorkerMessageType.Ready }
+						})
+					)
+					expect(clearTimeoutMock).toHaveBeenCalledExactlyOnceWith(
+						TIMEOUT_NUMBER
+					)
+				})
+				describe('when status is currently', () => {
+					describe('Disconnected', () => {
+						it('starts a migration', () => {})
+					})
 				})
 			})
 		})
