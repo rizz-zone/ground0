@@ -162,7 +162,11 @@ export class DbThinClient {
 						// Request the current blocking tx if one exists
 						if (this.currentHotMessage) {
 							port.postMessage(this.currentHotMessage)
-							brandedLog(console.debug, 'Retrying queued message')
+							brandedLog(
+								console.debug,
+								'Retrying queued message: ',
+								this.currentHotMessage
+							)
 						}
 					}
 					break
