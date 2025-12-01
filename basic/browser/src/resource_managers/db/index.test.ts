@@ -339,6 +339,151 @@ describe('newPort', () => {
 					})
 				})
 			})
+			describe.each([
+				DownstreamDbWorkerMessageType.SingleSuccessfulExecResult,
+				DownstreamDbWorkerMessageType.BatchSuccessfulExecResult
+			] as const)('Successful exec result (%s)', (type) => {
+				it('calls all queued success handlers, clears the queue, and unsets currentHotMessage', () => {
+					const result = { some: 'value' }
+					const success1 = vi.fn()
+					const success2 = vi.fn()
+					const reject1 = vi.fn()
+					const reject2 = vi.fn()
+
+					// @ts-expect-error We are testing the private value
+					const queue: typeof client.thenableQueue = client.thenableQueue
+
+					queue.add([success1 as Parameters<typeof queue.add>[0][0], reject1])
+					queue.add([success2 as Parameters<typeof queue.add>[0][0], reject2])
+
+					// @ts-expect-error We are testing the private value
+					client.currentHotMessage = {
+						type: UpstreamDbWorkerMessageType.ExecOne
+					} as UpstreamDbWorkerMessage
+
+					onmessage(
+						new MessageEvent<DownstreamDbWorkerMessage>('message', {
+							data: {
+								type,
+								// @ts-expect-error We only care that this
+								// is passed through
+								result
+							}
+						})
+					)
+
+					expect(success1).toHaveBeenCalledExactlyOnceWith(result)
+					expect(success2).toHaveBeenCalledExactlyOnceWith(result)
+					expect(reject1).not.toHaveBeenCalled()
+					expect(reject2).not.toHaveBeenCalled()
+
+					expect(queue.size).toBe(0)
+					// @ts-expect-error We are testing the private value
+					expect(client.currentHotMessage).toBeUndefined()
+				})
+				it('logs when a success handler throws', () => {
+					const error = new Error('boom')
+					const success = vi.fn(() => {
+						throw error
+					})
+					const reject = vi.fn()
+
+					// @ts-expect-error We are testing the private value
+					const queue: typeof client.thenableQueue = client.thenableQueue
+
+					queue.add([success as Parameters<typeof queue.add>[0][0], reject])
+
+					const initialLength = brandedLog.mock.calls.length
+
+					onmessage(
+						new MessageEvent<DownstreamDbWorkerMessage>('message', {
+							data: {
+								type,
+								// @ts-expect-error We only care that this
+								// is passed through
+								result: {}
+							}
+						})
+					)
+
+					expect(success).toHaveBeenCalledOnce()
+					expect(reject).not.toHaveBeenCalled()
+					expect(brandedLog.mock.calls.length).toBe(initialLength + 1)
+					const brandedLogCall = brandedLog.mock.lastCall
+					expect(brandedLogCall).toBeDefined()
+					if (!brandedLogCall) expect.fail()
+					expect(brandedLogCall).toContain(error)
+				})
+			})
+			describe.each([
+				DownstreamDbWorkerMessageType.SingleFailedExecResult,
+				DownstreamDbWorkerMessageType.BatchFailedExecResult
+			] as const)('Failed exec result (%s)', (type) => {
+				it('calls all queued rejection handlers, clears the queue, and unsets currentHotMessage', () => {
+					const success1 = vi.fn()
+					const success2 = vi.fn()
+					const reject1 = vi.fn()
+					const reject2 = vi.fn()
+
+					// @ts-expect-error We are testing the private value
+					const queue: typeof client.thenableQueue = client.thenableQueue
+
+					queue.add([success1 as Parameters<typeof queue.add>[0][0], reject1])
+					queue.add([success2 as Parameters<typeof queue.add>[0][0], reject2])
+
+					// @ts-expect-error We are testing the private value
+					client.currentHotMessage = {
+						type: UpstreamDbWorkerMessageType.ExecOne
+					} as UpstreamDbWorkerMessage
+
+					onmessage(
+						new MessageEvent<DownstreamDbWorkerMessage>('message', {
+							data: {
+								type
+							} as DownstreamDbWorkerMessage
+						})
+					)
+
+					expect(success1).not.toHaveBeenCalled()
+					expect(success2).not.toHaveBeenCalled()
+					expect(reject1).toHaveBeenCalledOnce()
+					expect(reject2).toHaveBeenCalledOnce()
+
+					expect(queue.size).toBe(0)
+					// @ts-expect-error We are testing the private value
+					expect(client.currentHotMessage).toBeUndefined()
+				})
+				it('logs when a rejection handler throws', () => {
+					const error = new Error('boom')
+					const success = vi.fn()
+					const reject = vi.fn(() => {
+						throw error
+					})
+
+					// @ts-expect-error We are testing the private value
+					const queue: typeof client.thenableQueue = client.thenableQueue
+
+					queue.add([success as Parameters<typeof queue.add>[0][0], reject])
+
+					const initialLength = brandedLog.mock.calls.length
+
+					onmessage(
+						new MessageEvent<DownstreamDbWorkerMessage>('message', {
+							data: {
+								type
+							} as DownstreamDbWorkerMessage
+						})
+					)
+
+					expect(success).not.toHaveBeenCalled()
+					expect(reject).toHaveBeenCalledOnce()
+					expect(brandedLog.mock.calls.length).toBe(initialLength + 1)
+					const brandedLogCall = brandedLog.mock.lastCall
+					expect(brandedLogCall).toBeDefined()
+					if (!brandedLogCall) expect.fail()
+					expect(brandedLogCall).toContain(error)
+				})
+			})
 		})
 	})
 })
