@@ -8,6 +8,10 @@ import type { LocalDatabase } from '@ground0/shared'
 import { migrations } from '@ground0/shared/testing'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DbThinClient as DbThinClientType } from './'
+import {
+	UpstreamDbWorkerMessageType,
+	type UpstreamDbWorkerMessage
+} from '@/types/internal_messages/UpstreamDbWorkerMessage'
 
 const TIMEOUT_NUMBER = 23443
 const setTimeoutMock = vi.spyOn(globalThis, 'setTimeout')
@@ -299,8 +303,39 @@ describe('newPort', () => {
 					})
 				})
 				describe('ConnectedAndMigrated', () => {
+					beforeEach(() => {
+						// @ts-expect-error We want to ensure that it is
+						// ConnectedAndMigratedwihout having to use the
+						// methods, which are probably a bit less trustworthy
+						client.status = DbResourceStatus.ConnectedAndMigrated
+					})
 					it('posts nothing if there is no currentHotMessage', () => {
-						// TODO: the test
+						// @ts-expect-error We do this just in case it isn't
+						// undefined for some reason
+						client.currentHotMessage = undefined
+						expect(postMessage).not.toHaveBeenCalled()
+						onmessage(
+							new MessageEvent<DownstreamDbWorkerMessage>('message', {
+								data: { type: DownstreamDbWorkerMessageType.Ready }
+							})
+						)
+						expect(postMessage).not.toHaveBeenCalled()
+					})
+					it('posts the currentHotMessage if there is one', () => {
+						const testMessage = {
+							type: UpstreamDbWorkerMessageType.ExecOne,
+							params: ['a', ['b'], 'run'] as [string, string[], 'run']
+						} satisfies UpstreamDbWorkerMessage
+						// @ts-expect-error This is easier / more trustworthy
+						// than using the methods to achieve the same goal
+						client.currentHotMessage = testMessage
+						expect(postMessage).not.toHaveBeenCalled()
+						onmessage(
+							new MessageEvent<DownstreamDbWorkerMessage>('message', {
+								data: { type: DownstreamDbWorkerMessageType.Ready }
+							})
+						)
+						expect(postMessage).toHaveBeenCalledExactlyOnceWith(testMessage)
 					})
 				})
 			})
