@@ -161,9 +161,10 @@ describe('newPort', () => {
 				ev: MessageEvent<DownstreamDbWorkerMessage>
 			) => unknown = () => undefined
 			let client: DbThinClientType
+			const postMessage = vi.fn()
 			beforeEach(() => {
 				client = new DbThinClient(inputs)
-				const port = {} as MessagePort
+				const port = { postMessage } as unknown as MessagePort
 				client.newPort(port)
 				if (!('onmessage' in port) || typeof port.onmessage !== 'function')
 					return skip('newPort is not setting onmessage')
@@ -295,6 +296,11 @@ describe('newPort', () => {
 								})
 							)
 						expect(migrate).toHaveBeenCalledOnce()
+					})
+				})
+				describe('ConnectedAndMigrated', () => {
+					it('posts nothing if there is no currentHotMessage', () => {
+						// TODO: the test
 					})
 				})
 			})

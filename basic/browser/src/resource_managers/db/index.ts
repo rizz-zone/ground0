@@ -129,6 +129,7 @@ export class DbThinClient {
 					this.port = undefined
 					break
 				case DownstreamDbWorkerMessageType.Ready: {
+					if (this.status === DbResourceStatus.NeverConnecting) return
 					if (
 						this.status === DbResourceStatus.Disconnected &&
 						!this.startedMigrating
