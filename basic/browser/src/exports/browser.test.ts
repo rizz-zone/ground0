@@ -28,33 +28,33 @@ beforeEach(() => {
 const BrowserLocalFirst = (await import('./browser')).BrowserLocalFirst
 
 describe('Worker', () => {
-	describe('message posting via .postMessage()', () => {
-		let mockWorker: Worker
-		let mockOnMessage: ReturnType<typeof vi.fn>
-		let inputs: ConstructorParameters<typeof BrowserLocalFirst>[0] & {
-			worker: Worker
+	let mockWorker: Worker
+	let mockOnMessage: ReturnType<typeof vi.fn>
+	let inputs: ConstructorParameters<typeof BrowserLocalFirst>[0] & {
+		worker: Worker
+	}
+
+	beforeEach(() => {
+		mockWorker = {
+			postMessage: vi.fn(),
+			onmessage: null,
+			onmessageerror: null,
+			onerror: null
+		} as unknown as Worker
+		mockOnMessage = vi.fn()
+		inputs = {
+			worker: mockWorker,
+			onMessage: mockOnMessage,
+			pullWasmBinary: async () => new ArrayBuffer()
 		}
+	})
 
-		beforeEach(() => {
-			mockWorker = {
-				postMessage: vi.fn(),
-				onmessage: null,
-				onmessageerror: null,
-				onerror: null
-			} as unknown as Worker
-			mockOnMessage = vi.fn()
-			inputs = {
-				worker: mockWorker,
-				onMessage: mockOnMessage,
-				pullWasmBinary: async () => new ArrayBuffer()
-			}
-		})
-
+	describe('message posting via .postMessage()', () => {
 		it('does not send any message on construction', () => {
 			new BrowserLocalFirst(inputs)
 			expect(mockWorker.postMessage).not.toHaveBeenCalled()
 		})
-		it('sends transitions', () => {
+		it('`sends transitions`', () => {
 			const syncEngine = new BrowserLocalFirst<TestingTransition, object>(
 				inputs
 			)
@@ -63,44 +63,34 @@ describe('Worker', () => {
 				impact: TransitionImpact.LocalOnly
 			})
 
-			expect(mockWorker.postMessage).toHaveBeenLastCalledWith({
-				type: UpstreamWorkerMessageType.Transition,
-				data: {
-					action: 'shift_foo_bar',
-					impact: TransitionImpact.LocalOnly
-				}
-			} satisfies UpstreamWorkerMessage<TestingTransition>)
+			expect(mockWorker.postMessage).toHaveBeenLastCalledWith(
+				{
+					type: UpstreamWorkerMessageType.Transition,
+					data: {
+						action: 'shift_foo_bar',
+						impact: TransitionImpact.LocalOnly
+					}
+				} satisfies UpstreamWorkerMessage<TestingTransition>,
+				undefined
+			)
 		})
 		it('sends Close on dispose', () => {
 			const syncEngine = new BrowserLocalFirst<TestingTransition, object>(
 				inputs
 			)
 			syncEngine[Symbol.dispose]()
-			expect(mockWorker.postMessage).toHaveBeenLastCalledWith({
-				type: UpstreamWorkerMessageType.Close
-			} satisfies UpstreamWorkerMessage<TestingTransition>)
+			expect(mockWorker.postMessage).toHaveBeenLastCalledWith(
+				{
+					type: UpstreamWorkerMessageType.Close
+				} satisfies UpstreamWorkerMessage<TestingTransition>,
+				undefined
+			)
 		})
 	})
 
 	describe('downstream message handling', () => {
-		let mockWorker: Worker
-		let mockOnMessage: ReturnType<typeof vi.fn>
-
-		beforeEach(() => {
-			mockWorker = {
-				postMessage: vi.fn(),
-				onmessage: null,
-				onmessageerror: null,
-				onerror: null
-			} as unknown as Worker
-			mockOnMessage = vi.fn()
-		})
-
 		it('handles InitMemoryModel messages', () => {
-			new BrowserLocalFirst<TestingTransition, { count: number }>(
-				mockWorker,
-				mockOnMessage
-			)
+			new BrowserLocalFirst<TestingTransition, { count: number }>(inputs)
 
 			const initMessage: DownstreamWorkerMessage<{ count: number }> = {
 				type: DownstreamWorkerMessageType.InitMemoryModel,
@@ -114,10 +104,7 @@ describe('Worker', () => {
 		})
 
 		it('handles Transformation messages', () => {
-			new BrowserLocalFirst<TestingTransition, { count: number }>(
-				mockWorker,
-				mockOnMessage
-			)
+			new BrowserLocalFirst<TestingTransition, { count: number }>(inputs)
 
 			const transformationMessage: DownstreamWorkerMessage<{ count: number }> =
 				{
@@ -139,7 +126,7 @@ describe('Worker', () => {
 			const syncEngine = new BrowserLocalFirst<
 				TestingTransition,
 				{ count: number }
-			>(mockWorker, mockOnMessage)
+			>(inputs)
 
 			// Close the gate
 			syncEngine[Symbol.dispose]()
@@ -156,10 +143,7 @@ describe('Worker', () => {
 		})
 
 		it('allows messages when downstreamGateOpen is true', () => {
-			new BrowserLocalFirst<TestingTransition, { count: number }>(
-				mockWorker,
-				mockOnMessage
-			)
+			new BrowserLocalFirst<TestingTransition, { count: number }>(inputs)
 
 			const initMessage: DownstreamWorkerMessage<{ count: number }> = {
 				type: DownstreamWorkerMessageType.InitMemoryModel,
@@ -174,24 +158,8 @@ describe('Worker', () => {
 	})
 
 	describe('error handling', () => {
-		let mockWorker: Worker
-		let mockOnMessage: ReturnType<typeof vi.fn>
-
-		beforeEach(() => {
-			mockWorker = {
-				postMessage: vi.fn(),
-				onmessage: null,
-				onmessageerror: null,
-				onerror: null
-			} as unknown as Worker
-			mockOnMessage = vi.fn()
-		})
-
 		it('handles message errors', () => {
-			new BrowserLocalFirst<TestingTransition, object>(
-				mockWorker,
-				mockOnMessage
-			)
+			new BrowserLocalFirst<TestingTransition, object>(inputs)
 
 			// Simulate message error
 			mockWorker.onmessageerror?.(new MessageEvent('messageerror'))
@@ -200,10 +168,7 @@ describe('Worker', () => {
 		})
 
 		it('handles worker errors', () => {
-			new BrowserLocalFirst<TestingTransition, object>(
-				mockWorker,
-				mockOnMessage
-			)
+			new BrowserLocalFirst<TestingTransition, object>(inputs)
 
 			// Simulate worker error
 			mockWorker.onerror?.(new ErrorEvent('error'))
@@ -217,7 +182,12 @@ describe('SharedWorker', () => {
 		postMessage: Worker['postMessage']
 	}
 	let mockWorker: TestingSharedWorker
+	let mockDbWorker: Worker
 	let mockOnMessage: ReturnType<typeof vi.fn>
+	let baseInputs: ConstructorParameters<typeof BrowserLocalFirst>[0] & {
+		worker: SharedWorker
+	}
+	const wasmBinary = new ArrayBuffer()
 
 	beforeEach(() => {
 		mockWorker = {
@@ -229,53 +199,66 @@ describe('SharedWorker', () => {
 			postMessage: vi.fn(),
 			onerror: null
 		} as unknown as TestingSharedWorker
+		mockDbWorker = {
+			postMessage: vi.fn(),
+			onmessage: null,
+			onmessageerror: null,
+			onerror: null
+		} as unknown as Worker
 		mockOnMessage = vi.fn()
+		baseInputs = {
+			worker: mockWorker,
+			onMessage: mockOnMessage,
+			pullWasmBinary: async () => wasmBinary,
+			dbWorker: mockDbWorker
+		}
 	})
 
 	describe('message posting via .port.postMessage()', () => {
 		it('does not send any message on construction', () => {
-			new BrowserLocalFirst(mockWorker, mockOnMessage)
+			new BrowserLocalFirst(baseInputs)
 			expect(mockWorker.port.postMessage).not.toHaveBeenCalled()
 			expect(mockWorker.postMessage).not.toHaveBeenCalled()
 		})
 		it('sends transitions', () => {
 			const syncEngine = new BrowserLocalFirst<TestingTransition, object>(
-				mockWorker,
-				mockOnMessage
+				baseInputs
 			)
 			syncEngine.transition({
 				action: 'shift_foo_bar',
 				impact: TransitionImpact.LocalOnly
 			})
 
-			expect(mockWorker.port.postMessage).toHaveBeenLastCalledWith({
-				type: UpstreamWorkerMessageType.Transition,
-				data: {
-					action: 'shift_foo_bar',
-					impact: TransitionImpact.LocalOnly
-				}
-			} satisfies UpstreamWorkerMessage<TestingTransition>)
+			expect(mockWorker.port.postMessage).toHaveBeenLastCalledWith(
+				{
+					type: UpstreamWorkerMessageType.Transition,
+					data: {
+						action: 'shift_foo_bar',
+						impact: TransitionImpact.LocalOnly
+					}
+				} satisfies UpstreamWorkerMessage<TestingTransition>,
+				undefined
+			)
 			expect(mockWorker.postMessage).not.toBeCalled()
 		})
 		it('sends Close on dispose', () => {
 			const syncEngine = new BrowserLocalFirst<TestingTransition, object>(
-				mockWorker,
-				mockOnMessage
+				baseInputs
 			)
 			syncEngine[Symbol.dispose]()
-			expect(mockWorker.port.postMessage).toHaveBeenLastCalledWith({
-				type: UpstreamWorkerMessageType.Close
-			} satisfies UpstreamWorkerMessage<TestingTransition>)
+			expect(mockWorker.port.postMessage).toHaveBeenLastCalledWith(
+				{
+					type: UpstreamWorkerMessageType.Close
+				} satisfies UpstreamWorkerMessage<TestingTransition>,
+				undefined
+			)
 			expect(mockWorker.postMessage).not.toBeCalled()
 		})
 	})
 
 	describe('downstream message handling', () => {
 		it('handles InitMemoryModel messages via port', () => {
-			new BrowserLocalFirst<TestingTransition, { count: number }>(
-				mockWorker,
-				mockOnMessage
-			)
+			new BrowserLocalFirst<TestingTransition, { count: number }>(baseInputs)
 
 			const initMessage: DownstreamWorkerMessage<{ count: number }> = {
 				type: DownstreamWorkerMessageType.InitMemoryModel,
@@ -289,10 +272,7 @@ describe('SharedWorker', () => {
 		})
 
 		it('handles Transformation messages via port', () => {
-			new BrowserLocalFirst<TestingTransition, { count: number }>(
-				mockWorker,
-				mockOnMessage
-			)
+			new BrowserLocalFirst<TestingTransition, { count: number }>(baseInputs)
 
 			const transformationMessage: DownstreamWorkerMessage<{ count: number }> =
 				{
@@ -315,7 +295,7 @@ describe('SharedWorker', () => {
 			const syncEngine = new BrowserLocalFirst<
 				TestingTransition,
 				{ count: number }
-			>(mockWorker, mockOnMessage)
+			>(baseInputs)
 
 			// Close the gate
 			syncEngine[Symbol.dispose]()
@@ -334,10 +314,7 @@ describe('SharedWorker', () => {
 
 	describe('error handling', () => {
 		it('handles port message errors', () => {
-			new BrowserLocalFirst<TestingTransition, object>(
-				mockWorker,
-				mockOnMessage
-			)
+			new BrowserLocalFirst<TestingTransition, object>(baseInputs)
 
 			// Simulate port message error
 			mockWorker.port.onmessageerror?.(new MessageEvent('messageerror'))
@@ -346,10 +323,7 @@ describe('SharedWorker', () => {
 		})
 
 		it('handles shared worker errors', () => {
-			new BrowserLocalFirst<TestingTransition, object>(
-				mockWorker,
-				mockOnMessage
-			)
+			new BrowserLocalFirst<TestingTransition, object>(baseInputs)
 
 			// Simulate shared worker error
 			mockWorker.onerror?.(new ErrorEvent('error'))
