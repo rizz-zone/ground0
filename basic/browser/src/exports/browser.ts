@@ -43,12 +43,10 @@ export class BrowserLocalFirst<
 
 	constructor({
 		worker,
-		dbWorker,
 		onMessage,
-		pullWasmBinary
-	}: {
-		worker: Worker | SharedWorker
-		dbWorker: Worker
+		pullWasmBinary,
+		...conditional
+	}: ({ worker: Worker } | { worker: SharedWorker; dbWorker: Worker }) & {
 		onMessage: (message: DownstreamWorkerMessage<MemoryModel>) => unknown
 		pullWasmBinary: () => Promise<ArrayBuffer>
 	}) {
@@ -66,6 +64,8 @@ export class BrowserLocalFirst<
 		}
 
 		if (isShared(worker)) {
+			const { dbWorker } = conditional as { dbWorker: Worker }
+
 			worker.port.onmessage = onmessage
 			worker.port.onmessageerror = () => logMessageError('Shared')
 			worker.onerror = () => logError('Shared')
@@ -116,5 +116,6 @@ export class BrowserLocalFirst<
 	[Symbol.dispose]() {
 		this.downstreamGateOpen = false
 		this.submitWorkerMessage({ type: UpstreamWorkerMessageType.Close })
+		// TODO: Do something with the db worker
 	}
 }

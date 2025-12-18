@@ -8,7 +8,8 @@ import {
 	DownstreamWorkerMessageType
 } from '@/types/internal_messages/DownstreamWorkerMessage'
 import { TransformationAction } from '@/types/memory_model/TransformationAction'
-import { type TestingTransition, TransitionImpact } from '@ground0/shared'
+import { TransitionImpact } from '@ground0/shared'
+import type { TestingTransition } from '@ground0/shared/testing'
 
 type OriginalBrandedLog = (typeof import('@/common/branded_log'))['brandedLog']
 let brandedLogImpl: OriginalBrandedLog
@@ -30,6 +31,9 @@ describe('Worker', () => {
 	describe('message posting via .postMessage()', () => {
 		let mockWorker: Worker
 		let mockOnMessage: ReturnType<typeof vi.fn>
+		let inputs: ConstructorParameters<typeof BrowserLocalFirst>[0] & {
+			worker: Worker
+		}
 
 		beforeEach(() => {
 			mockWorker = {
@@ -39,16 +43,20 @@ describe('Worker', () => {
 				onerror: null
 			} as unknown as Worker
 			mockOnMessage = vi.fn()
+			inputs = {
+				worker: mockWorker,
+				onMessage: mockOnMessage,
+				pullWasmBinary: async () => new ArrayBuffer()
+			}
 		})
 
 		it('does not send any message on construction', () => {
-			new BrowserLocalFirst(mockWorker, mockOnMessage)
+			new BrowserLocalFirst(inputs)
 			expect(mockWorker.postMessage).not.toHaveBeenCalled()
 		})
 		it('sends transitions', () => {
 			const syncEngine = new BrowserLocalFirst<TestingTransition, object>(
-				mockWorker,
-				mockOnMessage
+				inputs
 			)
 			syncEngine.transition({
 				action: 'shift_foo_bar',
@@ -65,8 +73,7 @@ describe('Worker', () => {
 		})
 		it('sends Close on dispose', () => {
 			const syncEngine = new BrowserLocalFirst<TestingTransition, object>(
-				mockWorker,
-				mockOnMessage
+				inputs
 			)
 			syncEngine[Symbol.dispose]()
 			expect(mockWorker.postMessage).toHaveBeenLastCalledWith({

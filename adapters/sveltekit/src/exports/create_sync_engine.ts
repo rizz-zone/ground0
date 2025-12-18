@@ -41,8 +41,10 @@ class ReactiveSyncEngine<
 								? new SharedWorker(workerUrl, { type: 'module' })
 								: new Worker(workerUrl, { type: 'module' }),
 						onMessage: this.onMessage.bind(this),
-						dbWorker: new Worker(dbWorkerUrl, { type: 'module' }),
-						pullWasmBinary
+						pullWasmBinary,
+						...('SharedWorker' in GlobalThis
+							? { dbWorker: new Worker(dbWorkerUrl, { type: 'module' }) }
+							: {})
 					})
 				: undefined
 
