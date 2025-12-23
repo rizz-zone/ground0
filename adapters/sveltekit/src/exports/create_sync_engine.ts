@@ -35,17 +35,18 @@ class ReactiveSyncEngine<
 	}) {
 		this.browserLocalFirst =
 			'Worker' in globalThis
-				? new BrowserLocalFirst({
-						worker:
-							'SharedWorker' in globalThis
-								? new SharedWorker(workerUrl, { type: 'module' })
-								: new Worker(workerUrl, { type: 'module' }),
-						onMessage: this.onMessage.bind(this),
-						pullWasmBinary,
-						...('SharedWorker' in GlobalThis
-							? { dbWorker: new Worker(dbWorkerUrl, { type: 'module' }) }
-							: {})
-					})
+				? 'SharedWorker' in globalThis
+					? new BrowserLocalFirst({
+							worker: new SharedWorker(workerUrl, { type: 'module' }),
+							dbWorker: new Worker(dbWorkerUrl, { type: 'module' }),
+							onMessage: this.onMessage.bind(this),
+							pullWasmBinary
+						})
+					: new BrowserLocalFirst({
+							worker: new Worker(workerUrl, { type: 'module' }),
+							onMessage: this.onMessage.bind(this),
+							pullWasmBinary
+						})
 				: undefined
 
 		if (autoDestroy) onDestroy(this[Symbol.dispose].bind(this))
