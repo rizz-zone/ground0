@@ -1,4 +1,3 @@
-export { FalseProperty } from './exports/false_property'
 export {
 	createSyncEngine,
 	type ReactiveSyncEngine
