@@ -38,13 +38,7 @@
 			"cache": false
 		},
 		"check-types": {
-			"dependsOn": [
-				"@ground0/shared#build",
-				"@ground0/browser#build",
-				"@ground0/durable-object#build",
-				"ground0#build",
-				"^check-types"
-			],
+			"dependsOn": ["^build", "^check-types"],
 			"outputs": []
 		}
 	}
