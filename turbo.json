@@ -42,6 +42,7 @@
 				"@ground0/shared#build",
 				"@ground0/browser#build",
 				"@ground0/durable-object#build",
+				"ground0#build",
 				"^check-types"
 			],
 			"outputs": []

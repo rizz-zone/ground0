@@ -30,7 +30,10 @@ const bareMinimumIngredients = {
 } as TransitionRunnerInputIngredients<
 	Record<string, never>,
 	TransitionImpact.OptimisticPush,
-	Transition & { impact: TransitionImpact.OptimisticPush; action: 'transition4' }
+	Transition & {
+		impact: TransitionImpact.OptimisticPush
+		action: 'transition4'
+	}
 >
 
 vi.mock('xstate', { spy: true })
@@ -45,7 +48,10 @@ test('constructor creates one instance of the machine, starts it, and inits it',
 	const ingredients: TransitionRunnerInputIngredients<
 		Record<string, never>,
 		TransitionImpact.OptimisticPush,
-		Transition & { impact: TransitionImpact.OptimisticPush; action: 'transition4' }
+		Transition & {
+			impact: TransitionImpact.OptimisticPush
+			action: 'transition4'
+		}
 	> = {
 		...bareMinimumIngredients
 	}
@@ -363,7 +369,10 @@ async function runExecutionTest({
 	} as TransitionRunnerInputIngredients<
 		Record<string, never>,
 		TransitionImpact.OptimisticPush,
-		Transition & { impact: TransitionImpact.OptimisticPush; action: 'transition4' }
+		Transition & {
+			impact: TransitionImpact.OptimisticPush
+			action: 'transition4'
+		}
 	>)
 	const markComplete = vi.fn()
 	// @ts-expect-error We do this to know whether it's completed
