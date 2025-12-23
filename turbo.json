@@ -15,7 +15,7 @@
 			]
 		},
 		"test": {
-			"dependsOn": ["@ground0/shared#build", "^test"],
+			"dependsOn": ["^build", "^test"],
 			"outputs": ["coverage/**"]
 		},
 		"lint": {
