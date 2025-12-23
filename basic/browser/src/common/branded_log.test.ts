@@ -6,7 +6,7 @@ it('calls the provided function with the brand and arguments', () => {
 	brandedLog(mockLog as typeof console.log, 'test message', { foo: 'bar' })
 
 	expect(mockLog).toHaveBeenCalledWith(
-		'%c[@ground0/adapter-svelte]',
+		'%c[ground0]',
 		'font-weight:bold',
 		'test message',
 		{ foo: 'bar' }
@@ -20,10 +20,6 @@ it('works with different console methods', () => {
 		const mockFn = vi.fn()
 		const msg = `message for ${method}`
 		brandedLog(mockFn, msg)
-		expect(mockFn).toHaveBeenCalledWith(
-			'%c[@ground0/adapter-svelte]',
-			'font-weight:bold',
-			msg
-		)
+		expect(mockFn).toHaveBeenCalledWith('%c[ground0]', 'font-weight:bold', msg)
 	}
 })
