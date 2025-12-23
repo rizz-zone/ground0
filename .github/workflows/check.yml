@@ -136,8 +136,8 @@ jobs:
           name: build-artifacts
           path: |
             .
-            !.git
-            !node_modules
+            !**/.git/**
+            !**/node_modules/**
           retention-days: 1
 
   Check-Types:
