@@ -6,7 +6,12 @@ import type { ArbitraryPath } from '@/types/path_stores/ArbitraryPath'
 vi.mock('dot-prop', { spy: true })
 const getPropertySpy = vi.mocked(getProperty)
 
-beforeEach(vi.clearAllMocks)
+const SymbolSpy = vi.spyOn(globalThis, 'Symbol')
+
+beforeEach(() => {
+	vi.clearAllMocks()
+	SymbolSpy.mockReset()
+})
 
 const thePath: readonly [ArbitraryPath[number], ...ArbitraryPath] = [
 	'foo',
@@ -22,6 +27,21 @@ describe('use', () => {
 	let instance: PathStoreTree
 	beforeEach(() => {
 		instance = new PathStoreTree()
+	})
+	describe('createPathSubscriber', () => {
+		describe('symbol id', () => {
+			it('generates', () => {
+				instance.createPathSubscriber(thePath, () => {}, {})
+				expect(SymbolSpy).toHaveBeenCalledOnce()
+			})
+			it('returns', () => {
+				const ourSymbol = Symbol()
+				SymbolSpy.mockImplementationOnce(() => ourSymbol)
+				expect(instance.createPathSubscriber(thePath, () => {}, {})).toBe(
+					ourSymbol
+				)
+			})
+		})
 	})
 	describe('getPathSubscribers', () => {
 		it('traverses the path with dot-prop', () => {
