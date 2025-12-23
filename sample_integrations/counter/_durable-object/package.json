@@ -13,8 +13,10 @@
 	},
 	"packageManager": "pnpm@10.18.3",
 	"devDependencies": {
+		"@vitest/coverage-v8": "^4.0.16",
 		"drizzle-kit": "catalog:dev-common",
 		"typescript": "^5.9.2",
+		"vitest": "^4.0.16",
 		"wrangler": "^4.46.0"
 	},
 	"dependencies": {

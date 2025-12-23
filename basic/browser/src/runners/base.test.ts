@@ -1,8 +1,8 @@
 import {
 	InternalStateError,
+	TransitionImpact,
 	type LocalTransitionHandlers,
-	type Transition,
-	type TransitionImpact
+	type Transition
 } from '@ground0/shared'
 import { TransitionRunner, type TransitionRunnerInputIngredients } from './base'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
@@ -53,7 +53,7 @@ const bareMinimumIngredients = {
 	localHandler: {} as LocalTransitionHandlers<
 		Record<string, never>,
 		Transition & { impact: TransitionImpact }
-	>['anything']
+	>
 } as TransitionRunnerInputIngredients<
 	Record<string, never>,
 	TransitionImpact,
@@ -263,7 +263,8 @@ test('markComplete sends transition complete event', () => {
 		markComplete: fn
 	} as unknown as TransitionRunnerInputIngredients<
 		Record<string, never>,
-		TransitionImpact
+		TransitionImpact,
+		Transition
 	>
 	const runnerInstance = new NotVeryUsefulRunner(ingredientsWithActor)
 	expect(fn).not.toHaveBeenCalled()
@@ -281,7 +282,8 @@ test('markComplete only sends event once', () => {
 		markComplete: fn
 	} as unknown as TransitionRunnerInputIngredients<
 		Record<string, never>,
-		TransitionImpact
+		TransitionImpact,
+		Transition
 	>
 	const runnerInstance = new NotVeryUsefulRunner(ingredientsWithActor)
 	expect(fn).not.toHaveBeenCalled()

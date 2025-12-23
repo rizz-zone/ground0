@@ -6,6 +6,9 @@ const mockWorkerLocalFirst = vi.fn().mockImplementation(() => ({
 vi.doMock('@/helpers/worker_thread', () => ({
 	WorkerLocalFirst: mockWorkerLocalFirst
 }))
+vi.doMock('@/helpers/deep_unwrap_memory_model', () => ({
+	deepUnwrap: (obj: object) => obj
+}))
 
 import {
 	afterAll,
@@ -18,10 +21,7 @@ import {
 	vi,
 	type Mock
 } from 'vitest'
-import { object, literal, type z } from 'zod'
 import {
-	createTransitionSchema,
-	defs,
 	NoPortsError,
 	TransitionImpact,
 	type Transition
@@ -38,6 +38,7 @@ import {
 } from '@/types/internal_messages/UpstreamWorkerMessage'
 import { TransformationAction } from '@/types/memory_model/TransformationAction'
 import type { Transformation } from '@/types/memory_model/Tranformation'
+import { defs, type TestingUpdate } from '@ground0/shared/testing'
 const { workerEntrypoint } = await import('./general')
 
 const sharedCtx = self as unknown as SharedWorkerGlobalScope
@@ -48,18 +49,18 @@ dedicatedCtx.postMessage = postMessage
 
 afterEach(vi.clearAllMocks)
 
-const OurTransitionSchema = object({
-	action: literal('abc'),
-	impact: literal(TransitionImpact.LocalOnly)
-})
+type OurTransition = {
+	action: 'abc'
+	impact: TransitionImpact.LocalOnly
+}
 
 const minimumInput: LocalEngineDefinition<
 	Record<string, never>,
-	z.infer<typeof OurTransitionSchema>
+	OurTransition,
+	TestingUpdate
 > = {
 	engineDef: {
 		transitions: {
-			schema: createTransitionSchema(OurTransitionSchema),
 			sharedHandlers: {}
 		},
 		version: {
@@ -69,13 +70,16 @@ const minimumInput: LocalEngineDefinition<
 			migrations: defs.db.migrations
 		}
 	},
-	localHandlers: {
+	localTransitionHandlers: {
 		abc: {
 			editDb: () => {}
 		}
 	},
+	updateHandlers: {
+		3: () => {},
+		baz: () => {}
+	},
 	initialMemoryModel: {},
-	pullWasmBinary: async () => new ArrayBuffer(),
 	wsUrl: 'wss://jerry.io/ws',
 	dbName: 'dave'
 }
@@ -99,9 +103,10 @@ describe('always', () => {
 		expect(call.wsUrl).toBe(minimumInput.wsUrl)
 		expect(call.dbName).toBe(minimumInput.dbName)
 		expect(call.engineDef).toBe(minimumInput.engineDef)
-		expect(call.localTransitionHandlers).toBe(minimumInput.localHandlers)
+		expect(call.localTransitionHandlers).toBe(
+			minimumInput.localTransitionHandlers
+		)
 		expect(call.announceTransformation).toBeTypeOf('function')
-		expect(call.pullWasmBinary).toBe(minimumInput.pullWasmBinary)
 	})
 })
 describe('shared worker', () => {
