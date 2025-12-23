@@ -11,29 +11,30 @@ import {
 import {
 	DownstreamWsMessageAction,
 	TransitionImpact,
-	type DownstreamWsMessage
+	type DownstreamWsMessage,
+    type Update
 } from '@ground0/shared'
 import { defs, type TestingTransition } from '@ground0/shared/testing'
-import { WsResourceStatus } from '@/types/status/WsResourceStatus'
-import type { ResourceBundle } from '@/types/status/ResourceBundle'
-import { DbResourceStatus } from '@/types/status/DbResourceStatus'
+import { WsResourceStatus } from '../types/status/WsResourceStatus'
+import type { ResourceBundle } from '../types/status/ResourceBundle'
+import { DbResourceStatus } from '../types/status/DbResourceStatus'
 import SuperJSON from 'superjson'
-import type { OptimisticPushTransitionRunner } from '@/runners/specialised/optimistic_push'
+import type { OptimisticPushTransitionRunner } from '../runners/specialised/optimistic_push'
 import type {
 	TransitionRunnerInputIngredients,
 	TransitionRunner
-} from '@/runners/base'
+} from '../runners/base'
+import type { LocalEngineDefinition } from '../types/LocalEngineDefinition'
+import type { Transformation } from '../types/memory_model/Tranformation'
 
-type OriginalConnectDb = (typeof import('@/resource_managers/db'))['connectDb']
-let connectDbImpl: OriginalConnectDb
-const connectDb = vi
-	.fn()
-	.mockImplementation((...params: Parameters<OriginalConnectDb>) =>
-		connectDbImpl(...params)
-	)
-vi.doMock('@/resource_managers/db', () => ({ connectDb }))
+// Mock DbThinClient
+const newPortMock = vi.fn()
+const DbThinClientMock = vi.fn().mockImplementation(() => ({
+    newPort: newPortMock
+}))
+vi.doMock('@/resource_managers/db', () => ({ DbThinClient: DbThinClientMock }))
 
-type OriginalConnectWs = (typeof import('@/resource_managers/ws'))['connectWs']
+type OriginalConnectWs = (typeof import('../resource_managers/ws'))['connectWs']
 let connectWsImpl: OriginalConnectWs
 const connectWs = vi
 	.fn()
@@ -50,9 +51,9 @@ const createMemoryModel = vi
 	.mockImplementation((...params: Parameters<OriginalCreateMemoryModel>) =>
 		createMemoryModelImpl(...params)
 	)
-vi.doMock('@/helpers/memory_model', () => ({ createMemoryModel }))
+vi.doMock('./memory_model', () => ({ createMemoryModel }))
 
-type OriginalBrandedLog = (typeof import('@/common/branded_log'))['brandedLog']
+type OriginalBrandedLog = (typeof import('../common/branded_log'))['brandedLog']
 let brandedLogImpl: OriginalBrandedLog
 const brandedLog = vi
 	.fn()
@@ -65,34 +66,39 @@ const runners = Object.fromEntries(
 	Object.values(TransitionImpact)
 		.filter((v) => typeof v === 'number')
 		.map((impact, idx) => [impact, vi.fn().mockName(`runner_${impact}_${idx}`)])
-) as unknown as (typeof import('@/runners/all'))['runners']
+) as unknown as (typeof import('../runners/all'))['runners']
 vi.doMock('@/runners/all', () => ({ runners }))
 
 const announceTransformation = vi.fn()
-const pullWasmBinary = vi.fn()
 
 beforeEach(() => {
 	vi.clearAllMocks()
 
-	connectDbImpl = () => new Promise(() => {})
 	connectWsImpl = () => new Promise(() => {})
 	createMemoryModelImpl = () =>
 		({}) as unknown as ReturnType<typeof createMemoryModel>
 	brandedLogImpl = () => {}
+    
+    // Reset DbThinClient mock
+    DbThinClientMock.mockClear()
+    newPortMock.mockClear()
 })
 
 const WorkerLocalFirst = (await import('./worker_thread')).WorkerLocalFirst
 
-const baseInput: ConstructorParameters<
-	typeof WorkerLocalFirst<{ [key: string]: never }, TestingTransition>
->[0] = {
+type TestMemoryModel = { [key: string]: never }
+type TestUpdate = Update
+
+// Use LocalEngineDefinition to type baseInput correctly
+const baseInput: LocalEngineDefinition<TestMemoryModel, TestingTransition, TestUpdate> & {
+    announceTransformation: (transformation: Transformation) => unknown
+} = {
 	wsUrl: 'wss://abc.xyz/socket',
 	dbName: 'db',
 	engineDef: defs,
 	initialMemoryModel: {},
 	announceTransformation,
-	pullWasmBinary,
-	localHandlers: {
+	localTransitionHandlers: {
 		shift_foo_bar: {
 			editDb: vi.fn()
 		},
@@ -100,7 +106,8 @@ const baseInput: ConstructorParameters<
 			editMemoryModel: vi.fn(),
 			revertMemoryModel: vi.fn()
 		}
-	}
+	},
+    updateHandlers: {} as unknown as (typeof baseInput)['updateHandlers']
 }
 
 const sharedCtx = self as unknown as SharedWorkerGlobalScope
@@ -108,16 +115,6 @@ const sharedCtx = self as unknown as SharedWorkerGlobalScope
 
 describe('always', () => {
 	describe('constructor', () => {
-		it('sets engineDef', () => {
-			const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
-			// @ts-expect-error We need to access private members
-			expect(workerLocalFirst.engineDef).toBe(baseInput.engineDef)
-		})
-		it('sets localHandlers', () => {
-			const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
-			// @ts-expect-error We need to access private members
-			expect(workerLocalFirst.localHandlers).toBe(baseInput.localHandlers)
-		})
 		it('sets memoryModel using output of createMemoryModel', () => {
 			const output = {}
 			createMemoryModelImpl = () =>
@@ -150,6 +147,23 @@ describe('always', () => {
 			expect(call.handleMessage).toBeTypeOf('function')
 			expect(call.syncResources).toBeTypeOf('function')
 		})
+
+
+        it('initializes autoTransitions if provided', async () => {
+            const onInit = { impact: TransitionImpact.OptimisticPush, action: 'shift_foo_bar' } as unknown as TestingTransition
+            const workerLocalFirst = new WorkerLocalFirst({
+                ...baseInput,
+                autoTransitions: {
+                    onInit
+                }
+            })
+            expect(workerLocalFirst).toBeDefined()
+            
+            // Wait for microtask
+            await Promise.resolve()
+            
+            expect(runners[TransitionImpact.OptimisticPush]).toHaveBeenCalled()
+        })
 	})
 	describe('syncResources', () => {
 		it('does nothing no resource changes have been provided', () => {
@@ -248,7 +262,8 @@ describe('always', () => {
 				() =>
 					({ syncResources: vi.fn() }) as unknown as TransitionRunner<
 						object,
-						TransitionImpact
+						TransitionImpact,
+                        TestingTransition
 					>
 			)
 			const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
@@ -272,13 +287,54 @@ describe('always', () => {
 				const call = (runner.syncResources as ReturnType<typeof vi.fn>).mock
 					.lastCall as
 					| Parameters<
-							TransitionRunner<object, TransitionImpact>['syncResources']
+							TransitionRunner<object, TransitionImpact, TestingTransition>['syncResources']
 					  >
 					| undefined
 				if (!call) throw new Error()
 				expect(call[0].ws).toBe(newWsResource)
 			}
 		})
+        
+        it('triggers autoTransitions on db connect', async () => {
+             const onDbConnect = { impact: TransitionImpact.OptimisticPush, action: 'shift_foo_bar' } as unknown as TestingTransition
+             const workerLocalFirst = new WorkerLocalFirst({
+                ...baseInput,
+                autoTransitions: {
+                    onDbConnect
+                }
+            })
+            
+            // clear runners
+            vi.mocked(runners[TransitionImpact.OptimisticPush]).mockClear()
+            
+            // @ts-expect-error Accessing private member for testing
+            workerLocalFirst.syncResources({
+                db: { status: DbResourceStatus.ConnectedAndMigrated, instance: {} } as ResourceBundle['db']
+            })
+            
+            await Promise.resolve()
+             expect(runners[TransitionImpact.OptimisticPush]).toHaveBeenCalled()
+        })
+        
+        it('triggers autoTransitions on ws connect', async () => {
+             const onWsConnect = { everyTime: { impact: TransitionImpact.OptimisticPush, action: 'shift_foo_bar' } as unknown as TestingTransition }
+             const workerLocalFirst = new WorkerLocalFirst({
+                ...baseInput,
+                autoTransitions: {
+                    onWsConnect
+                }
+            })
+            
+            vi.mocked(runners[TransitionImpact.OptimisticPush]).mockClear()
+            
+             // @ts-expect-error Accessing private member for testing
+            workerLocalFirst.syncResources({
+                ws: { status: WsResourceStatus.Connected, instance: {} } as ResourceBundle['ws']
+            })
+            
+            await Promise.resolve()
+             expect(runners[TransitionImpact.OptimisticPush]).toHaveBeenCalled()
+        })
 	})
 	describe('handleMessage', () => {
 		describe('warns and otherwise does nothing on entirely invalid input', () => {
@@ -286,7 +342,7 @@ describe('always', () => {
 				const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
 				expect(brandedLog).not.toHaveBeenCalled()
 
-				const arrayBuffer = new ArrayBuffer()
+				const arrayBuffer = new ArrayBuffer(0)
 
 				// @ts-expect-error We need to access private members
 				workerLocalFirst.handleMessage(
@@ -446,7 +502,7 @@ describe('always', () => {
 									data: SuperJSON.stringify({
 										action,
 										id: 0
-									} satisfies DownstreamWsMessage)
+									} as unknown as DownstreamWsMessage)
 								})
 							)
 						).not.toThrow()
@@ -459,7 +515,7 @@ describe('always', () => {
 
 						const mockRunner = {
 							reportWsResult: vi.fn()
-						} as unknown as OptimisticPushTransitionRunner<object>
+						} as unknown as OptimisticPushTransitionRunner<object, TestingTransition & { impact: TransitionImpact.OptimisticPush }>
 						const transitionRunnersGet = vi
 							.fn()
 							.mockImplementation((id) => (id === 0 ? mockRunner : skip()))
@@ -472,7 +528,7 @@ describe('always', () => {
 								data: SuperJSON.stringify({
 									action,
 									id: 0
-								} satisfies DownstreamWsMessage)
+								} as unknown as DownstreamWsMessage)
 							})
 						)
 
@@ -504,7 +560,7 @@ describe('always', () => {
 				// @ts-expect-error We need to access private members
 				workerLocalFirst.transitionRunners.set = transitionRunnersSet
 
-				workerLocalFirst.transition({ impact, action: 'shift_foo_bar' })
+				workerLocalFirst.transition({ impact, action: 'shift_foo_bar' } as unknown as TestingTransition)
 				expect(brandedLog).toHaveBeenCalledTimes(Number(index) + 1)
 				expect(transitionRunnersSet).not.toHaveBeenCalled()
 			}
@@ -516,8 +572,7 @@ describe('always', () => {
 				expect(runners[impact]).not.toHaveBeenCalled()
 
 				const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
-				// @ts-expect-error We don't need a definition of everything
-				workerLocalFirst.transition({ impact, action: 'shift_foo_bar' })
+				workerLocalFirst.transition({ impact, action: 'shift_foo_bar' } as unknown as TestingTransition)
 
 				expect(runners[impact]).toHaveBeenCalledOnce()
 			}
@@ -531,13 +586,12 @@ describe('always', () => {
 				expect(runners[impact]).not.toHaveBeenCalled()
 
 				const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
-				// @ts-expect-error We don't need a definition of everything
-				workerLocalFirst.transition({ impact, action: 'shift_foo_bar' })
+				workerLocalFirst.transition({ impact, action: 'shift_foo_bar' } as unknown as TestingTransition)
 
 				const call = (runners[impact] as ReturnType<typeof vi.fn>).mock
 					.lastCall as
 					| undefined
-					| [TransitionRunnerInputIngredients<object, TransitionImpact>]
+					| [TransitionRunnerInputIngredients<object, TransitionImpact, TestingTransition>]
 				if (!call) return skip()
 
 				expect(call[0].markComplete).toBeTypeOf('function')
@@ -550,7 +604,9 @@ describe('always', () => {
 			}
 		})
 	})
+    
 })
+
 describe('shared worker', () => {
 	beforeAll(() => {
 		sharedCtx.onconnect = null
@@ -567,22 +623,27 @@ describe('shared worker', () => {
 				DbResourceStatus.Disconnected
 			)
 		})
-		test('calls connectDb correctly', () => {
+		test('instantiates DbThinClient correctly', () => {
 			new WorkerLocalFirst({ ...baseInput })
-			expect(connectDb).toHaveBeenCalledOnce()
+			expect(DbThinClientMock).toHaveBeenCalledOnce()
+            
+            if (!DbThinClientMock.mock.lastCall) throw new Error('DbThinClient not called')
 
-			if (!connectDb.mock.lastCall || connectDb.mock.lastCall.length === 0)
-				throw new Error()
-			const call = connectDb.mock
-				.lastCall[0] as Parameters<OriginalConnectDb>[0]
-
-			expect(call.dbName).toBe(baseInput.dbName)
-			expect(call.migrations).toBe(baseInput.engineDef.db.migrations)
-			expect(call.pullWasmBinary).toBeTypeOf('function')
-			expect(call.syncResources).toBeTypeOf('function')
+            const call = DbThinClientMock.mock.lastCall[0]
+            expect(call.dbName).toBe(baseInput.dbName)
+            expect(call.migrations).toBe(baseInput.engineDef.db.migrations)
+            expect(call.syncResources).toBeTypeOf('function')
 		})
+        
+        test('newPort forwards to dbThinClient', () => {
+            const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+            const port = {} as MessagePort
+            workerLocalFirst.newPort(port)
+            expect(newPortMock).toHaveBeenCalledWith(port)
+        })
 	})
 })
+
 describe('dedicated worker', () => {
 	describe('constructor', () => {
 		test('sets resourceBundle.db.status to NeverConnecting', () => {
@@ -592,9 +653,16 @@ describe('dedicated worker', () => {
 				DbResourceStatus.NeverConnecting
 			)
 		})
-		test('does not call connectDb', () => {
+		test('does not instantiate DbThinClient', () => {
 			new WorkerLocalFirst({ ...baseInput })
-			expect(connectDb).not.toHaveBeenCalled()
+			expect(DbThinClientMock).not.toHaveBeenCalled()
 		})
+        
+        test('newPort does not crash (and does nothing) when dbThinClient is missing', () => {
+             const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+             const port = {} as MessagePort
+             expect(() => workerLocalFirst.newPort(port)).not.toThrow()
+             expect(newPortMock).not.toHaveBeenCalled()
+        })
 	})
 })
