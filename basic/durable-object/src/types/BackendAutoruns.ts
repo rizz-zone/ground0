@@ -21,5 +21,7 @@ export type BackendAutoruns = {
 	 * 	}
 	 * }
 	 */
-	onConnect?: ((connectionId: UUID) => unknown) | ((connectionId: UUID) => unknown)[]
+	onConnect?:
+		| ((connectionId: UUID) => unknown)
+		| ((connectionId: UUID) => unknown)[]
 }

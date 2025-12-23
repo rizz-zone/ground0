@@ -1,4 +1,4 @@
 export enum UpdateImpact {
-    Reliable,
-    Unreliable
+	Reliable,
+	Unreliable
 }

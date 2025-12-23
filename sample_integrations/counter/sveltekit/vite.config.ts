@@ -9,7 +9,7 @@ import 'dotenv/config'
 export default defineConfig({
 	plugins: [sveltekit(), sqlRaw(), devtoolsJson()],
 	worker: {
-		plugins: () => [sqlRaw()],
+		plugins: () => [sqlRaw()]
 	},
 	define: {
 		__WS_URL__: `'${process.env.PUBLIC_WS_URL as string}'`

@@ -12,7 +12,7 @@ import {
 	DownstreamWsMessageAction,
 	TransitionImpact,
 	type DownstreamWsMessage,
-    type Update
+	type Update
 } from '@ground0/shared'
 import { defs, type TestingTransition } from '@ground0/shared/testing'
 import { WsResourceStatus } from '../types/status/WsResourceStatus'
@@ -30,7 +30,7 @@ import type { Transformation } from '../types/memory_model/Tranformation'
 // Mock DbThinClient
 const newPortMock = vi.fn()
 const DbThinClientMock = vi.fn().mockImplementation(() => ({
-    newPort: newPortMock
+	newPort: newPortMock
 }))
 vi.doMock('@/resource_managers/db', () => ({ DbThinClient: DbThinClientMock }))
 
@@ -78,10 +78,10 @@ beforeEach(() => {
 	createMemoryModelImpl = () =>
 		({}) as unknown as ReturnType<typeof createMemoryModel>
 	brandedLogImpl = () => {}
-    
-    // Reset DbThinClient mock
-    DbThinClientMock.mockClear()
-    newPortMock.mockClear()
+
+	// Reset DbThinClient mock
+	DbThinClientMock.mockClear()
+	newPortMock.mockClear()
 })
 
 const WorkerLocalFirst = (await import('./worker_thread')).WorkerLocalFirst
@@ -90,8 +90,12 @@ type TestMemoryModel = { [key: string]: never }
 type TestUpdate = Update
 
 // Use LocalEngineDefinition to type baseInput correctly
-const baseInput: LocalEngineDefinition<TestMemoryModel, TestingTransition, TestUpdate> & {
-    announceTransformation: (transformation: Transformation) => unknown
+const baseInput: LocalEngineDefinition<
+	TestMemoryModel,
+	TestingTransition,
+	TestUpdate
+> & {
+	announceTransformation: (transformation: Transformation) => unknown
 } = {
 	wsUrl: 'wss://abc.xyz/socket',
 	dbName: 'db',
@@ -107,7 +111,7 @@ const baseInput: LocalEngineDefinition<TestMemoryModel, TestingTransition, TestU
 			revertMemoryModel: vi.fn()
 		}
 	},
-    updateHandlers: {} as unknown as (typeof baseInput)['updateHandlers']
+	updateHandlers: {} as unknown as (typeof baseInput)['updateHandlers']
 }
 
 const sharedCtx = self as unknown as SharedWorkerGlobalScope
@@ -148,22 +152,24 @@ describe('always', () => {
 			expect(call.syncResources).toBeTypeOf('function')
 		})
 
+		it('initializes autoTransitions if provided', async () => {
+			const onInit = {
+				impact: TransitionImpact.OptimisticPush,
+				action: 'shift_foo_bar'
+			} as unknown as TestingTransition
+			const workerLocalFirst = new WorkerLocalFirst({
+				...baseInput,
+				autoTransitions: {
+					onInit
+				}
+			})
+			expect(workerLocalFirst).toBeDefined()
 
-        it('initializes autoTransitions if provided', async () => {
-            const onInit = { impact: TransitionImpact.OptimisticPush, action: 'shift_foo_bar' } as unknown as TestingTransition
-            const workerLocalFirst = new WorkerLocalFirst({
-                ...baseInput,
-                autoTransitions: {
-                    onInit
-                }
-            })
-            expect(workerLocalFirst).toBeDefined()
-            
-            // Wait for microtask
-            await Promise.resolve()
-            
-            expect(runners[TransitionImpact.OptimisticPush]).toHaveBeenCalled()
-        })
+			// Wait for microtask
+			await Promise.resolve()
+
+			expect(runners[TransitionImpact.OptimisticPush]).toHaveBeenCalled()
+		})
 	})
 	describe('syncResources', () => {
 		it('does nothing no resource changes have been provided', () => {
@@ -263,7 +269,7 @@ describe('always', () => {
 					({ syncResources: vi.fn() }) as unknown as TransitionRunner<
 						object,
 						TransitionImpact,
-                        TestingTransition
+						TestingTransition
 					>
 			)
 			const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
@@ -287,54 +293,72 @@ describe('always', () => {
 				const call = (runner.syncResources as ReturnType<typeof vi.fn>).mock
 					.lastCall as
 					| Parameters<
-							TransitionRunner<object, TransitionImpact, TestingTransition>['syncResources']
+							TransitionRunner<
+								object,
+								TransitionImpact,
+								TestingTransition
+							>['syncResources']
 					  >
 					| undefined
 				if (!call) throw new Error()
 				expect(call[0].ws).toBe(newWsResource)
 			}
 		})
-        
-        it('triggers autoTransitions on db connect', async () => {
-             const onDbConnect = { impact: TransitionImpact.OptimisticPush, action: 'shift_foo_bar' } as unknown as TestingTransition
-             const workerLocalFirst = new WorkerLocalFirst({
-                ...baseInput,
-                autoTransitions: {
-                    onDbConnect
-                }
-            })
-            
-            // clear runners
-            vi.mocked(runners[TransitionImpact.OptimisticPush]).mockClear()
-            
-            // @ts-expect-error Accessing private member for testing
-            workerLocalFirst.syncResources({
-                db: { status: DbResourceStatus.ConnectedAndMigrated, instance: {} } as ResourceBundle['db']
-            })
-            
-            await Promise.resolve()
-             expect(runners[TransitionImpact.OptimisticPush]).toHaveBeenCalled()
-        })
-        
-        it('triggers autoTransitions on ws connect', async () => {
-             const onWsConnect = { everyTime: { impact: TransitionImpact.OptimisticPush, action: 'shift_foo_bar' } as unknown as TestingTransition }
-             const workerLocalFirst = new WorkerLocalFirst({
-                ...baseInput,
-                autoTransitions: {
-                    onWsConnect
-                }
-            })
-            
-            vi.mocked(runners[TransitionImpact.OptimisticPush]).mockClear()
-            
-             // @ts-expect-error Accessing private member for testing
-            workerLocalFirst.syncResources({
-                ws: { status: WsResourceStatus.Connected, instance: {} } as ResourceBundle['ws']
-            })
-            
-            await Promise.resolve()
-             expect(runners[TransitionImpact.OptimisticPush]).toHaveBeenCalled()
-        })
+
+		it('triggers autoTransitions on db connect', async () => {
+			const onDbConnect = {
+				impact: TransitionImpact.OptimisticPush,
+				action: 'shift_foo_bar'
+			} as unknown as TestingTransition
+			const workerLocalFirst = new WorkerLocalFirst({
+				...baseInput,
+				autoTransitions: {
+					onDbConnect
+				}
+			})
+
+			// clear runners
+			vi.mocked(runners[TransitionImpact.OptimisticPush]).mockClear()
+
+			// @ts-expect-error Accessing private member for testing
+			workerLocalFirst.syncResources({
+				db: {
+					status: DbResourceStatus.ConnectedAndMigrated,
+					instance: {}
+				} as ResourceBundle['db']
+			})
+
+			await Promise.resolve()
+			expect(runners[TransitionImpact.OptimisticPush]).toHaveBeenCalled()
+		})
+
+		it('triggers autoTransitions on ws connect', async () => {
+			const onWsConnect = {
+				everyTime: {
+					impact: TransitionImpact.OptimisticPush,
+					action: 'shift_foo_bar'
+				} as unknown as TestingTransition
+			}
+			const workerLocalFirst = new WorkerLocalFirst({
+				...baseInput,
+				autoTransitions: {
+					onWsConnect
+				}
+			})
+
+			vi.mocked(runners[TransitionImpact.OptimisticPush]).mockClear()
+
+			// @ts-expect-error Accessing private member for testing
+			workerLocalFirst.syncResources({
+				ws: {
+					status: WsResourceStatus.Connected,
+					instance: {}
+				} as ResourceBundle['ws']
+			})
+
+			await Promise.resolve()
+			expect(runners[TransitionImpact.OptimisticPush]).toHaveBeenCalled()
+		})
 	})
 	describe('handleMessage', () => {
 		describe('warns and otherwise does nothing on entirely invalid input', () => {
@@ -515,7 +539,10 @@ describe('always', () => {
 
 						const mockRunner = {
 							reportWsResult: vi.fn()
-						} as unknown as OptimisticPushTransitionRunner<object, TestingTransition & { impact: TransitionImpact.OptimisticPush }>
+						} as unknown as OptimisticPushTransitionRunner<
+							object,
+							TestingTransition & { impact: TransitionImpact.OptimisticPush }
+						>
 						const transitionRunnersGet = vi
 							.fn()
 							.mockImplementation((id) => (id === 0 ? mockRunner : skip()))
@@ -560,7 +587,10 @@ describe('always', () => {
 				// @ts-expect-error We need to access private members
 				workerLocalFirst.transitionRunners.set = transitionRunnersSet
 
-				workerLocalFirst.transition({ impact, action: 'shift_foo_bar' } as unknown as TestingTransition)
+				workerLocalFirst.transition({
+					impact,
+					action: 'shift_foo_bar'
+				} as unknown as TestingTransition)
 				expect(brandedLog).toHaveBeenCalledTimes(Number(index) + 1)
 				expect(transitionRunnersSet).not.toHaveBeenCalled()
 			}
@@ -572,7 +602,10 @@ describe('always', () => {
 				expect(runners[impact]).not.toHaveBeenCalled()
 
 				const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
-				workerLocalFirst.transition({ impact, action: 'shift_foo_bar' } as unknown as TestingTransition)
+				workerLocalFirst.transition({
+					impact,
+					action: 'shift_foo_bar'
+				} as unknown as TestingTransition)
 
 				expect(runners[impact]).toHaveBeenCalledOnce()
 			}
@@ -586,12 +619,21 @@ describe('always', () => {
 				expect(runners[impact]).not.toHaveBeenCalled()
 
 				const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
-				workerLocalFirst.transition({ impact, action: 'shift_foo_bar' } as unknown as TestingTransition)
+				workerLocalFirst.transition({
+					impact,
+					action: 'shift_foo_bar'
+				} as unknown as TestingTransition)
 
 				const call = (runners[impact] as ReturnType<typeof vi.fn>).mock
 					.lastCall as
 					| undefined
-					| [TransitionRunnerInputIngredients<object, TransitionImpact, TestingTransition>]
+					| [
+							TransitionRunnerInputIngredients<
+								object,
+								TransitionImpact,
+								TestingTransition
+							>
+					  ]
 				if (!call) return skip()
 
 				expect(call[0].markComplete).toBeTypeOf('function')
@@ -604,7 +646,6 @@ describe('always', () => {
 			}
 		})
 	})
-    
 })
 
 describe('shared worker', () => {
@@ -626,21 +667,22 @@ describe('shared worker', () => {
 		test('instantiates DbThinClient correctly', () => {
 			new WorkerLocalFirst({ ...baseInput })
 			expect(DbThinClientMock).toHaveBeenCalledOnce()
-            
-            if (!DbThinClientMock.mock.lastCall) throw new Error('DbThinClient not called')
 
-            const call = DbThinClientMock.mock.lastCall[0]
-            expect(call.dbName).toBe(baseInput.dbName)
-            expect(call.migrations).toBe(baseInput.engineDef.db.migrations)
-            expect(call.syncResources).toBeTypeOf('function')
+			if (!DbThinClientMock.mock.lastCall)
+				throw new Error('DbThinClient not called')
+
+			const call = DbThinClientMock.mock.lastCall[0]
+			expect(call.dbName).toBe(baseInput.dbName)
+			expect(call.migrations).toBe(baseInput.engineDef.db.migrations)
+			expect(call.syncResources).toBeTypeOf('function')
 		})
-        
-        test('newPort forwards to dbThinClient', () => {
-            const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
-            const port = {} as MessagePort
-            workerLocalFirst.newPort(port)
-            expect(newPortMock).toHaveBeenCalledWith(port)
-        })
+
+		test('newPort forwards to dbThinClient', () => {
+			const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+			const port = {} as MessagePort
+			workerLocalFirst.newPort(port)
+			expect(newPortMock).toHaveBeenCalledWith(port)
+		})
 	})
 })
 
@@ -657,12 +699,12 @@ describe('dedicated worker', () => {
 			new WorkerLocalFirst({ ...baseInput })
 			expect(DbThinClientMock).not.toHaveBeenCalled()
 		})
-        
-        test('newPort does not crash (and does nothing) when dbThinClient is missing', () => {
-             const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
-             const port = {} as MessagePort
-             expect(() => workerLocalFirst.newPort(port)).not.toThrow()
-             expect(newPortMock).not.toHaveBeenCalled()
-        })
+
+		test('newPort does not crash (and does nothing) when dbThinClient is missing', () => {
+			const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+			const port = {} as MessagePort
+			expect(() => workerLocalFirst.newPort(port)).not.toThrow()
+			expect(newPortMock).not.toHaveBeenCalled()
+		})
 	})
 })

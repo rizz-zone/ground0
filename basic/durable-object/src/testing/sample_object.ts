@@ -1,5 +1,10 @@
 import { SyncEngineBackend } from '@/durable_object'
-import { type TestingTransition, type TestingUpdate, defs, testingTransitionSchema } from '@ground0/shared/testing'
+import {
+	type TestingTransition,
+	type TestingUpdate,
+	defs,
+	testingTransitionSchema
+} from '@ground0/shared/testing'
 
 export class SampleObject extends SyncEngineBackend<
 	TestingTransition,

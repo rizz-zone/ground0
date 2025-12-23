@@ -10,6 +10,7 @@ bun.lock
 dist/
 drizzle/
 .svelte-kit/
+build/
 worker-configuration.d.ts
 generated/
 .wrangler/
