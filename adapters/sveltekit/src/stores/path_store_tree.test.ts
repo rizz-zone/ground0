@@ -42,6 +42,34 @@ describe('use', () => {
 				)
 			})
 		})
+		it('creates full path when no segments exist', () => {
+			instance.createPathSubscriber(thePath, () => {}, {})
+
+			let previousSegmentReference: // @ts-expect-error we're checking the method's hard work
+			| typeof instance.rawTree
+				// @ts-expect-error we're checking the method's hard work
+				| (typeof instance.rawTree)[string] = instance.rawTree
+			expect(Object.keys(previousSegmentReference).length).toBe(1)
+
+			for (const [id, segment] of Object.entries(thePath)) {
+				expect(previousSegmentReference).toHaveProperty([segment])
+				expect(previousSegmentReference[segment]).toBeTypeOf('object')
+				previousSegmentReference = previousSegmentReference[
+					segment
+					// @ts-expect-error we're checking the method's hard work
+				] as (typeof instance.rawTree)[string]
+
+				const allValues = [
+					...Object.values(previousSegmentReference),
+					...Object.getOwnPropertySymbols(previousSegmentReference).map(
+						// @ts-expect-error we're checking the method's hard work
+						(sym) => previousSegmentReference[sym]
+					)
+				]
+				expect(allValues).toContain(1)
+				expect(allValues.length).toBe(Number(id) === thePath.length - 1 ? 2 : 3)
+			}
+		})
 	})
 	describe('getPathSubscribers', () => {
 		it('traverses the path with dot-prop', () => {
