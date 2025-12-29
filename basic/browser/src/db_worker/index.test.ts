@@ -77,6 +77,14 @@ describe('dbWorkerEntrypoint', () => {
 			})
 			it('creates a port and sends it downstream', async ({ skip }) => {
 				if (!lockCallback) return skip()
+
+				// We don't want to test all of init, but we can't force it not
+				// to run at all without exporting it from index.ts (we prefer
+				// not to export things for testing purposes only unless
+				// strictly necessary), so we make the promise it returns never
+				// resolve to pause execution instead.
+				getRawSqliteDb.mockImplementation(() => new Promise(() => {}))
+
 				expect(MessageChannel).not.toHaveBeenCalled()
 				expect(ctx.postMessage).not.toHaveBeenCalled()
 				lockCallback()
@@ -86,8 +94,8 @@ describe('dbWorkerEntrypoint', () => {
 					expect(
 						(
 							(ctx.postMessage as unknown as ReturnType<typeof vi.spyOn>).mock
-								.lastCall?.[0] as MessageEvent<DownstreamDbWorkerInitMessage>
-						)?.data.port
+								.lastCall?.[0] as DownstreamDbWorkerInitMessage
+						)?.port
 					).toEqual(port2)
 				})()
 			})
@@ -95,7 +103,37 @@ describe('dbWorkerEntrypoint', () => {
 	})
 })
 describe('init', () => {
+	let induceInit: () => Promise<unknown>
+	beforeEach(({ skip }) => {
+		dbWorkerEntrypoint(DB_NAME)
+		if (!ctx.onmessage) return skip()
+		ctx.onmessage(
+			new MessageEvent('message', {
+				data: { buffer } satisfies UpstreamDbWorkerInitMessage
+			})
+		)
+		const lockCallback = requestLock.mock.lastCall?.[1] as
+			| (() => unknown & Parameters<typeof navigator.locks.request>[1])
+			| undefined
+		if (!lockCallback) return skip()
+
+		// induceInit wraps lockCallback but resolves once init will have run,
+		// instead of never resolving as lockCallback does. This allows us to
+		// simply await in tests instead of having to use queueMicrotask or
+		// manually return a promise.
+		induceInit = () => {
+			lockCallback()
+			return (async () => {})()
+		}
+	})
 	describe('db setup', () => {
-		it('acquires raw db instance', () => {})
+		it('acquires raw db instance', async () => {
+			await induceInit()
+			expect(getRawSqliteDb).toHaveBeenCalledOnce()
+			expect(getRawSqliteDb.mock.lastCall?.[0]).toMatchObject({
+				wasmBinary: buffer,
+				dbName: DB_NAME
+			})
+		})
 	})
 })
