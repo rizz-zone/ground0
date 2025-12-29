@@ -395,6 +395,50 @@ describe('baseDrizzleQuery', () => {
 				)
 			}
 		})
+
+		test('collects multiple errors if cleanup also fails', async () => {
+			const sql = 'SELECT * FROM users'
+			const params: unknown[] = []
+			const method = 'all' as const
+
+			const mockStmt1 = {} as unknown as number
+
+			// Create a generator that yields one statement and then throws in finally
+			const cleanupError = new Error('Cleanup error')
+			async function* mockStatements() {
+				try {
+					yield mockStmt1
+				} finally {
+					// This throw will be caught by the outer try-catch in baseDrizzleQuery
+					// when the for-await loop is broken
+					// eslint-disable-next-line no-unsafe-finally
+					throw cleanupError
+				}
+			}
+
+			statements.mockReturnValue(mockStatements())
+			step.mockResolvedValueOnce(DbConstants.SQLITE_ERROR)
+
+			try {
+				await baseDrizzleQuery({
+					sqlite3,
+					db,
+					sql,
+					params,
+					method
+				})
+			} catch (error) {
+				expect(error).toBeInstanceOf(LocalQueryExecutionError)
+				const cause = (error as Error).cause
+				if (!Array.isArray(cause as unknown[])) {
+					throw new Error('Expected cause to be an array')
+				}
+				const errorCauses = cause as unknown[]
+				expect(errorCauses).toHaveLength(2)
+				expect(errorCauses[0]).toBeInstanceOf(LocalQueryExecutionError)
+				expect(errorCauses[1]).toBe(cleanupError)
+			}
+		})
 	})
 
 	describe('logging', () => {
