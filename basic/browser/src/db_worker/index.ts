@@ -100,7 +100,7 @@ async function init({
 				let result: Awaited<ReturnType<typeof baseDrizzleQuery>>
 
 				try {
-					/* v8 ignore branch */
+					/* v8 ignore start */
 					if (!dbBundle) {
 						brandedLog(
 							console.error,
@@ -108,6 +108,7 @@ async function init({
 						)
 						return
 					}
+					/* v8 ignore stop */
 					const { sqlite3, db } = dbBundle
 
 					const [sql, params, method] = message.params
@@ -133,7 +134,7 @@ async function init({
 				break
 			}
 			case UpstreamDbWorkerMessageType.ExecBatch: {
-				/* v8 ignore branch */
+				/* v8 ignore start */
 				if (!dbBundle) {
 					brandedLog(
 						console.error,
@@ -141,6 +142,7 @@ async function init({
 					)
 					return
 				}
+				/* v8 ignore stop */
 				const { sqlite3, db } = dbBundle
 
 				const errors: unknown[] = []
