@@ -100,6 +100,7 @@ async function init({
 				let result: Awaited<ReturnType<typeof baseDrizzleQuery>>
 
 				try {
+					/* v8 ignore branch */
 					if (!dbBundle) {
 						brandedLog(
 							console.error,
@@ -132,6 +133,7 @@ async function init({
 				break
 			}
 			case UpstreamDbWorkerMessageType.ExecBatch: {
+				/* v8 ignore branch */
 				if (!dbBundle) {
 					brandedLog(
 						console.error,
