@@ -44,4 +44,8 @@ The Durable Object is the authoritative source of truth for the application stat
 
 - Use TypeScript.
 - Do not _avoid_ TypeScript strictness. `any`, `@ts-ignore`, etc should not be used ever. Only use `@ts-expect-error` with a justification beside the comment where necessary &mdash; this is most acceptable in test files, where we often want to access private properties/methods. Otherwise, if there is a _more type-safe_ solution, prefer it.
-- 100% coverage is required for all code. Exclusions are allowed where justifiable.
+- Data should be managed such that it cannot, or it is unlikely, to go out of sync. You can achieve this by avoiding redundancy &mdash; an easy example of this is: Instead of `exists`, `numberValue`, and `dateValue` for a value, you could encode in one value that is `Date | number | undefined`. This isn't a specific example from the codebase, but apply the philosophy.
+- 100% coverage is required for all code. Exclusions are allowed where justifiable; most coverage checks happen via c8, though istanbul is used in Durable Object tests, so apply the correct exclusion comments depending on the tool.
+- In tests, avoid being dependent on how things that the tested file imports are implemented. As unit tests, they should be testing the unit, not the entire app (except in sample integration tests, where this is acceptable).
+- Before starting to write tests, explore how other test files in the category of what you are testing are written. Aim for consistency.
+- TypeScript enums are preferred over string enums.
