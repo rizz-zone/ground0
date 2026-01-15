@@ -288,6 +288,27 @@ describe('websocket message handler', () => {
 		})
 	})
 	describe('init message handling', () => {
+		it('closes if no tags applied', async () => {
+			await runInDurableObject(stub, async (instance, ctx) => {
+				const noTagSocket = new WebSocketPair()[0]
+				ctx.acceptWebSocket(noTagSocket, [])
+				await vi.waitUntil(() => noTagSocket.readyState === WebSocket.OPEN, {
+					interval: 1,
+					timeout: 1000
+				})
+
+				const closeMock = vi.spyOn(noTagSocket, 'close')
+				await instance.webSocketMessage(
+					noTagSocket,
+					SuperJSON.stringify({
+						action: UpstreamWsMessageAction.Init,
+						version: '1.2.3'
+					} satisfies UpstreamWsMessage)
+				)
+				expect(closeMock).toHaveBeenCalledOnce()
+				expect(closeMock.mock.lastCall?.[0]).toEqual(WsCloseCode.NoTagsApplied)
+			})
+		})
 		describe('version comparison', () => {
 			describe('major version >0', () => {
 				it('closes on higher major version', async () => {

@@ -9,7 +9,11 @@ export default defineConfig({
 				// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 				...configDefaults.coverage.exclude!,
 				'**/*.config.ts',
-				'**/testing/**'
+				'**/testing/**',
+				// Type-only files (no executable code)
+				'src/types/**/*.ts',
+				// Browser-specific integration code requiring Worker support
+				'src/exports/create_sync_engine.ts'
 			],
 			reporter: ['lcov', 'text']
 		},

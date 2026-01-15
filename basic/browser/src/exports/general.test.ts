@@ -1,7 +1,9 @@
 const transitionFn = vi.fn()
+const newPortFn = vi.fn()
 const mockWorkerLocalFirst = vi.fn().mockImplementation(() => ({
 	memoryModel: {},
-	transition: transitionFn
+	transition: transitionFn,
+	newPort: newPortFn
 }))
 vi.doMock('@/helpers/worker_thread', () => ({
 	WorkerLocalFirst: mockWorkerLocalFirst
@@ -501,5 +503,25 @@ describe('message handling', ({ skip: skipSuite }) => {
 		)
 
 		expect(transitionFn).toHaveBeenCalledExactlyOnceWith(transition)
+	})
+	test('DbWorkerPrepared', ({ skip }) => {
+		if (!sharedCtx.onconnect) return skip()
+
+		const { port1: port } = new MessageChannel()
+		sharedCtx.onconnect(new MessageEvent('connect', { ports: [port] }))
+		if (!port.onmessage) return skip()
+
+		// Create a mock port that we can identify
+		const mockDbWorkerPort = {} as MessagePort
+		port.onmessage(
+			new MessageEvent<UpstreamWorkerMessage<Transition>>('message', {
+				data: {
+					type: UpstreamWorkerMessageType.DbWorkerPrepared,
+					port: mockDbWorkerPort
+				}
+			})
+		)
+
+		expect(newPortFn).toHaveBeenCalledExactlyOnceWith(mockDbWorkerPort)
 	})
 })

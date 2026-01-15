@@ -95,4 +95,97 @@ describe('use', () => {
 			}
 		})
 	})
+	describe('deletePathSubscriber', () => {
+		it('removes a subscriber from the tree', () => {
+			const fn = vi.fn()
+			const subscriberId = instance.createPathSubscriber(thePath, fn, {})
+			expect(instance.getPathSubscribers(thePath)?.size).toBe(1)
+
+			instance.deletePathSubscriber(thePath, subscriberId)
+			// The whole branch should be pruned since there are no more subscribers
+			expect(instance.getPathSubscribers(thePath)).toBeUndefined()
+		})
+		it('keeps other subscribers when deleting one from a branch with multiple', () => {
+			// Add subscribers to two different paths to ensure the branch isn't pruned
+			const fn1 = vi.fn()
+			const fn2 = vi.fn()
+			const subscriberId1 = instance.createPathSubscriber(thePath, fn1, {})
+			// Add a subscriber to a parent path to keep the branch alive
+			instance.createPathSubscriber(['foo', 4], fn2, {})
+
+			// Now delete the first one - branch should still exist because of fn2
+			instance.deletePathSubscriber(thePath, subscriberId1)
+			// The path should still exist
+			expect(instance.getPathSubscribers(['foo', 4])?.size).toBe(1)
+		})
+		it('logs error for non-existent path', () => {
+			const consoleError = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => {})
+			instance.deletePathSubscriber(['nonexistent', 'path'], Symbol())
+			expect(consoleError).toHaveBeenCalled()
+			consoleError.mockRestore()
+		})
+	})
+	describe('pushUpdateThroughPath', () => {
+		it('updates subscribers along the path', () => {
+			const memoryModel = {
+				foo: {
+					4: {
+						2: {
+							bar: 'hello'
+						}
+					}
+				}
+			}
+			const fn = vi.fn()
+			instance.createPathSubscriber(thePath, fn, memoryModel)
+			fn.mockClear()
+
+			instance.pushUpdateThroughPath(['foo', 4, 2, 'bar'], memoryModel)
+			expect(fn).toHaveBeenCalledWith('hello')
+		})
+		it('returns early for non-existent path', () => {
+			const fn = vi.fn()
+			instance.createPathSubscriber(thePath, fn, {})
+			fn.mockClear()
+
+			instance.pushUpdateThroughPath(['nonexistent'], {})
+			expect(fn).not.toHaveBeenCalled()
+		})
+		it('updates nested stores recursively', () => {
+			const memoryModel = {
+				a: {
+					b: {
+						c: 'value'
+					}
+				}
+			}
+			const fnA = vi.fn()
+			const fnB = vi.fn()
+			const fnC = vi.fn()
+			instance.createPathSubscriber(['a'], fnA, memoryModel)
+			instance.createPathSubscriber(['a', 'b'], fnB, memoryModel)
+			instance.createPathSubscriber(['a', 'b', 'c'], fnC, memoryModel)
+			fnA.mockClear()
+			fnB.mockClear()
+			fnC.mockClear()
+
+			// Push update from root - should update all nested stores
+			instance.pushUpdateThroughPath([], memoryModel)
+			expect(fnA).toHaveBeenCalledWith({ b: { c: 'value' } })
+			expect(fnB).toHaveBeenCalledWith({ c: 'value' })
+			expect(fnC).toHaveBeenCalledWith('value')
+		})
+		it('handles undefined nested values', () => {
+			const memoryModel = { a: { b: 'exists' } }
+			const fn = vi.fn()
+			// Create a subscriber for a.c which doesn't exist
+			instance.createPathSubscriber(['a'], fn, memoryModel)
+			fn.mockClear()
+
+			instance.pushUpdateThroughPath(['a'], memoryModel)
+			expect(fn).toHaveBeenCalledWith({ b: 'exists' })
+		})
+	})
 })

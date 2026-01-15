@@ -14,3 +14,6 @@ build/
 worker-configuration.d.ts
 generated/
 .wrangler/
+
+# IDE and tool-generated files
+.claude/
