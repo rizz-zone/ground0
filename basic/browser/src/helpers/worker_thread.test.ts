@@ -332,6 +332,39 @@ describe('always', () => {
 			expect(runners[TransitionImpact.OptimisticPush]).toHaveBeenCalled()
 		})
 
+		it('triggers autoTransitions on db connect with array of transitions', async () => {
+			const onDbConnect = [
+				{
+					impact: TransitionImpact.OptimisticPush,
+					action: 'shift_foo_bar'
+				},
+				{
+					impact: TransitionImpact.OptimisticPush,
+					action: 'shift_foo_bar'
+				}
+			] as unknown as TestingTransition[]
+			const workerLocalFirst = new WorkerLocalFirst({
+				...baseInput,
+				autoTransitions: {
+					onDbConnect
+				}
+			})
+
+			// clear runners
+			vi.mocked(runners[TransitionImpact.OptimisticPush]).mockClear()
+
+			// @ts-expect-error Accessing private member for testing
+			workerLocalFirst.syncResources({
+				db: {
+					status: DbResourceStatus.ConnectedAndMigrated,
+					instance: {}
+				} as ResourceBundle['db']
+			})
+
+			await Promise.resolve()
+			expect(runners[TransitionImpact.OptimisticPush]).toHaveBeenCalledTimes(2)
+		})
+
 		it('triggers autoTransitions on ws connect', async () => {
 			const onWsConnect = {
 				everyTime: {
@@ -358,6 +391,40 @@ describe('always', () => {
 
 			await Promise.resolve()
 			expect(runners[TransitionImpact.OptimisticPush]).toHaveBeenCalled()
+		})
+
+		it('triggers autoTransitions on ws connect with array of transitions', async () => {
+			const onWsConnect = {
+				everyTime: [
+					{
+						impact: TransitionImpact.OptimisticPush,
+						action: 'shift_foo_bar'
+					},
+					{
+						impact: TransitionImpact.OptimisticPush,
+						action: 'shift_foo_bar'
+					}
+				] as unknown as TestingTransition[]
+			}
+			const workerLocalFirst = new WorkerLocalFirst({
+				...baseInput,
+				autoTransitions: {
+					onWsConnect
+				}
+			})
+
+			vi.mocked(runners[TransitionImpact.OptimisticPush]).mockClear()
+
+			// @ts-expect-error Accessing private member for testing
+			workerLocalFirst.syncResources({
+				ws: {
+					status: WsResourceStatus.Connected,
+					instance: {}
+				} as ResourceBundle['ws']
+			})
+
+			await Promise.resolve()
+			expect(runners[TransitionImpact.OptimisticPush]).toHaveBeenCalledTimes(2)
 		})
 	})
 	describe('handleMessage', () => {
@@ -565,6 +632,89 @@ describe('always', () => {
 						)
 					})
 				})
+		})
+		describe('Update action', () => {
+			test('calls updateHandlers with decoded data', () => {
+				const mockUpdateHandler = vi.fn()
+				const workerLocalFirst = new WorkerLocalFirst({
+					...baseInput,
+					updateHandlers: {
+						testAction: mockUpdateHandler
+					} as unknown as (typeof baseInput)['updateHandlers']
+				})
+
+				// @ts-expect-error We need to access private members
+				workerLocalFirst.handleMessage(
+					new MessageEvent('message', {
+						data: SuperJSON.stringify({
+							action: DownstreamWsMessageAction.Update,
+							data: {
+								action: 'testAction',
+								data: { foo: 'bar' }
+							}
+						} as unknown as DownstreamWsMessage)
+					})
+				)
+
+				expect(mockUpdateHandler).toHaveBeenCalledOnce()
+				const call = mockUpdateHandler.mock.lastCall
+				if (!call) throw new Error()
+				expect(call[0]).toMatchObject({
+					data: { foo: 'bar' },
+					memoryModel: workerLocalFirst.memoryModel,
+					transition: expect.any(Function)
+				})
+			})
+		})
+		describe('AckWsNudge action', () => {
+			test('calls acknowledgeAcknowledgement on the transition runner', () => {
+				const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+
+				const mockRunner = {
+					acknowledgeAcknowledgement: vi.fn()
+				}
+				const transitionRunnersGet = vi
+					.fn()
+					.mockImplementation((id) => (id === 0 ? mockRunner : undefined))
+				// @ts-expect-error We need to access private members
+				workerLocalFirst.transitionRunners.get = transitionRunnersGet
+
+				// @ts-expect-error We need to access private members
+				workerLocalFirst.handleMessage(
+					new MessageEvent('message', {
+						data: SuperJSON.stringify({
+							action: DownstreamWsMessageAction.AckWsNudge,
+							id: 0
+						} as unknown as DownstreamWsMessage)
+					})
+				)
+
+				expect(transitionRunnersGet).toHaveBeenCalledOnce()
+				expect(transitionRunnersGet).toHaveBeenCalledWith(0)
+				expect(mockRunner.acknowledgeAcknowledgement).toHaveBeenCalledOnce()
+			})
+			test('does nothing when transition runner is not found', () => {
+				const workerLocalFirst = new WorkerLocalFirst({ ...baseInput })
+
+				const transitionRunnersGet = vi.fn().mockReturnValue(undefined)
+				// @ts-expect-error We need to access private members
+				workerLocalFirst.transitionRunners.get = transitionRunnersGet
+
+				expect(() =>
+					// @ts-expect-error We need to access private members
+					workerLocalFirst.handleMessage(
+						new MessageEvent('message', {
+							data: SuperJSON.stringify({
+								action: DownstreamWsMessageAction.AckWsNudge,
+								id: 0
+							} as unknown as DownstreamWsMessage)
+						})
+					)
+				).not.toThrow()
+
+				expect(transitionRunnersGet).toHaveBeenCalledOnce()
+				expect(transitionRunnersGet).toHaveBeenCalledWith(0)
+			})
 		})
 	})
 	describe('transition', () => {

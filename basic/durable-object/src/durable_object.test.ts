@@ -10,7 +10,8 @@ import { SyncEngineBackend } from './durable_object'
 import {
 	UpstreamWsMessageAction,
 	WsCloseCode,
-	type UpstreamWsMessage
+	type UpstreamWsMessage,
+	TransitionImpact
 } from '@ground0/shared'
 import { isUpstreamWsMessage } from '@ground0/shared/zod'
 import SuperJSON from 'superjson'
@@ -429,6 +430,106 @@ describe('websocket message handler', () => {
 						expect(closeMock).not.toHaveBeenCalled()
 					})
 				})
+			})
+		})
+	})
+	describe('transition message handling', () => {
+		it('processes valid transitions', async () => {
+			await runInDurableObject(stub, async (instance) => {
+				await wsOpen()
+				// First initialize the socket
+				await instance.webSocketMessage(
+					socket,
+					SuperJSON.stringify({
+						action: UpstreamWsMessageAction.Init,
+						version: '1.0.0'
+					} satisfies UpstreamWsMessage)
+				)
+
+				const processTransitionSpy = vi.spyOn(
+					instance,
+					// @ts-expect-error Testing private method
+					'processTransition'
+				)
+				await instance.webSocketMessage(
+					socket,
+					SuperJSON.stringify({
+						action: UpstreamWsMessageAction.Transition,
+						id: 123,
+						data: {
+							action: 3,
+							data: { foo: 'test', bar: 42 },
+							impact: TransitionImpact.OptimisticPush
+						}
+					} satisfies UpstreamWsMessage)
+				)
+				expect(processTransitionSpy).toHaveBeenCalledOnce()
+			})
+		})
+		it('logs and does not disconnect for invalid transition when logInvalidTransitions is true', async () => {
+			await runInDurableObject(stub, async (instance) => {
+				// @ts-expect-error We're modifying a protected property for testing
+				instance.logInvalidTransitions = true
+				// @ts-expect-error We're modifying a protected property for testing
+				instance.disconnectOnInvalidTransition = false
+
+				const consoleErrorSpy = vi.spyOn(console, 'error')
+				await wsOpen()
+				// First initialize the socket
+				await instance.webSocketMessage(
+					socket,
+					SuperJSON.stringify({
+						action: UpstreamWsMessageAction.Init,
+						version: '1.0.0'
+					} satisfies UpstreamWsMessage)
+				)
+				await instance.webSocketMessage(
+					socket,
+					SuperJSON.stringify({
+						action: UpstreamWsMessageAction.Transition,
+						id: 123,
+						data: {
+							action: 3,
+							data: { foo: 'test' }, // missing 'bar' property
+							impact: TransitionImpact.OptimisticPush
+						}
+					} satisfies UpstreamWsMessage)
+				)
+				expect(consoleErrorSpy).toHaveBeenCalled()
+			})
+		})
+		it('disconnects for invalid transition when disconnectOnInvalidTransition is true', async () => {
+			await runInDurableObject(stub, async (instance) => {
+				// @ts-expect-error We're modifying a protected property for testing
+				instance.logInvalidTransitions = false
+				// @ts-expect-error We're modifying a protected property for testing
+				instance.disconnectOnInvalidTransition = true
+
+				const closeSpy = vi.spyOn(socket, 'close')
+				await wsOpen()
+				// First initialize the socket
+				await instance.webSocketMessage(
+					socket,
+					SuperJSON.stringify({
+						action: UpstreamWsMessageAction.Init,
+						version: '1.0.0'
+					} satisfies UpstreamWsMessage)
+				)
+				closeSpy.mockClear() // Clear any calls from init
+				await instance.webSocketMessage(
+					socket,
+					SuperJSON.stringify({
+						action: UpstreamWsMessageAction.Transition,
+						id: 123,
+						data: {
+							action: 3,
+							data: { foo: 'test' }, // missing 'bar' property
+							impact: TransitionImpact.OptimisticPush
+						}
+					} satisfies UpstreamWsMessage)
+				)
+				expect(closeSpy).toHaveBeenCalledOnce()
+				expect(closeSpy.mock.lastCall?.[0]).toEqual(WsCloseCode.InvalidMessage)
 			})
 		})
 	})

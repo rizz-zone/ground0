@@ -203,7 +203,8 @@ describe('SharedWorker', () => {
 			postMessage: vi.fn(),
 			onmessage: null,
 			onmessageerror: null,
-			onerror: null
+			onerror: null,
+			terminate: vi.fn()
 		} as unknown as Worker
 		mockOnMessage = vi.fn()
 		baseInputs = {
@@ -329,6 +330,51 @@ describe('SharedWorker', () => {
 			mockWorker.onerror?.(new ErrorEvent('error'))
 
 			expect(brandedLog).toHaveBeenCalled()
+		})
+
+		describe('WASM binary handling', () => {
+			it('handles synchronous errors from pullWasmBinary', () => {
+				const syncError = new Error('sync error')
+				let pullWasmBinaryCallCount = 0
+				baseInputs.pullWasmBinary = () => {
+					pullWasmBinaryCallCount++
+					throw syncError
+				}
+
+				new BrowserLocalFirst<TestingTransition, object>(baseInputs)
+
+				// Verify the function was called and error was logged
+				expect(pullWasmBinaryCallCount).toBe(1)
+				expect(brandedLog).toHaveBeenCalledWith(
+					console.error,
+					'Obtaining WASM binary failed (synchronously):',
+					syncError
+				)
+				expect(mockDbWorker.terminate).toHaveBeenCalled()
+			})
+
+			it('sets up dbWorker.onmessage handler', () => {
+				new BrowserLocalFirst<TestingTransition, object>(baseInputs)
+
+				// Verify the onmessage handler is set
+				expect(mockDbWorker.onmessage).toBeDefined()
+
+				// Simulate the db worker responding with a port
+				const mockPort = { postMessage: vi.fn() } as unknown as MessagePort
+
+				mockDbWorker.onmessage?.({
+					data: { port: mockPort }
+				} as MessageEvent)
+
+				// Verify submitWorkerMessage was called with the port
+				expect(mockWorker.port.postMessage).toHaveBeenCalledWith(
+					{
+						type: UpstreamWorkerMessageType.DbWorkerPrepared,
+						port: mockPort
+					} satisfies UpstreamWorkerMessage<TestingTransition>,
+					[mockPort]
+				)
+			})
 		})
 	})
 })
