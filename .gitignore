@@ -1,4 +1,4 @@
-# dependencies (bun install)
+# dependencies (pnpm install)
 node_modules
 
 # output
@@ -32,3 +32,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Finder (MacOS) folder config
 .DS_Store
+
+.turbo/
+.wrangler/
+.claude/

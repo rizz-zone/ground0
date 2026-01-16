@@ -1,0 +1,35 @@
+{
+	"name": "test-worker",
+	"main": "sample_worker.ts",
+	"compatibility_date": "2025-07-01",
+	"workers_dev": false,
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "SAMPLE_OBJECT",
+				"class_name": "SampleObject"
+			},
+			{
+				"name": "SAMPLE_OBJECT_WITH_OPTIONS",
+				"class_name": "SampleObjectWithOptions"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["SampleObject"]
+		},
+		{
+			"tag": "v2",
+			"new_sqlite_classes": ["SampleObjectWithOptions"]
+		}
+	],
+	"rules": [
+		{
+			"type": "Text",
+			"globs": ["**/*.sql"],
+			"fallthrough": true
+		}
+	]
+}

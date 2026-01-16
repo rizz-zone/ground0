@@ -1,0 +1,40 @@
+{
+  "name": "@ground0/shared",
+  "module": "./dist/index.js",
+  "type": "module",
+  "version": "0.1.0",
+  "private": false,
+  "sideEffects": false,
+  "packageManager": "pnpm@10.18.3",
+  "peerDependencies": {
+    "typescript": "^5.8.3",
+    "drizzle-orm": "catalog:core-common"
+  },
+  "devDependencies": {
+    "@types/semver": "^7.7.0",
+    "arktype": "^2.1.20",
+    "drizzle-kit": "catalog:dev-common"
+  },
+  "scripts": {
+    "test": "vitest run --coverage",
+    "test:watch": "vitest watch --coverage",
+    "build": "tsdown",
+    "dev": "tsdown --watch --no-clean",
+    "check-types": "tsc",
+    "lint": "eslint ."
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./testing": "./dist/testing.js",
+    "./zod": "./dist/zod.js",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@standard-schema/spec": "^1.0.0",
+    "zod": "catalog:validators",
+    "semver": "^7.7.2",
+    "@cloudflare/workers-types": "^4.20250801.0"
+  }
+}

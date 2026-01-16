@@ -1,0 +1,41 @@
+{
+  "name": "@ground0/durable-object",
+  "module": "./dist/index.js",
+  "type": "module",
+  "version": "0.1.0",
+  "private": false,
+  "sideEffects": false,
+  "packageManager": "pnpm@10.18.3",
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.9.13",
+    "@standard-schema/spec": "^1.0.0",
+    "@types/semver": "^7.7.1",
+    "@vitest/coverage-istanbul": "^3.2.4"
+  },
+  "peerDependencies": {
+    "drizzle-orm": "catalog:core-common",
+    "typescript": "^5.8.3"
+  },
+  "scripts": {
+    "test": "vitest run --coverage",
+    "test:watch": "vitest watch --coverage",
+    "build": "tsdown",
+    "dev": "tsdown --watch --no-clean",
+    "check-types": "tsc",
+    "lint": "eslint .",
+    "generate-test-types": "cd ./src/testing/ && wrangler types -c ./sample_wrangler.jsonc"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@cloudflare/workers-types": "^4.20251011.0",
+    "@ground0/shared": "workspace:*",
+    "drizzle-query-logger": "^1.1.1",
+    "semver": "^7.7.2",
+    "superjson": "catalog:core-common"
+  }
+}

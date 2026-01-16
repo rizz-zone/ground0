@@ -1,0 +1,43 @@
+{
+  "name": "@ground0/browser",
+  "module": "./dist/index.js",
+  "type": "module",
+  "version": "0.1.0",
+  "private": false,
+  "sideEffects": false,
+  "packageManager": "pnpm@10.18.3",
+  "devDependencies": {
+    "jsdom": "^26.1.0",
+    "msw": "^2.10.3",
+    "vite-bundle-analyzer": "^1.2.1",
+    "zod": "catalog:validators"
+  },
+  "peerDependencies": {
+    "drizzle-orm": "catalog:core-common",
+    "typescript": "^5.8.3"
+  },
+  "scripts": {
+    "test": "vitest run --coverage",
+    "test:watch": "vitest watch --coverage",
+    "build": "tsdown",
+    "dev": "tsdown --watch --no-clean",
+    "check-types": "tsc",
+    "lint": "eslint ."
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./adapter_extras": "./dist/adapter_extras.js",
+    "./db_worker": "./dist/db_worker.js",
+    "./wasm": "./dist/wasm.js",
+    "./worker": "./dist/worker.js",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@ground0/shared": "workspace:*",
+    "superjson": "catalog:core-common",
+    "wa-sqlite": "https://github.com/rhashimoto/wa-sqlite/archive/refs/tags/v1.0.9.tar.gz",
+    "xstate": "^5.20.1"
+  }
+}

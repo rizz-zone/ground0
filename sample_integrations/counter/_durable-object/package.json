@@ -1,0 +1,28 @@
+{
+	"name": "@ground0/sample-counter-durable-object",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"test": "vitest run --coverage",
+		"test:watch": "vitest watch --coverage",
+		"build": "wrangler build",
+		"dev": "wrangler dev",
+		"check-types": "tsc",
+		"lint": "eslint ."
+	},
+	"packageManager": "pnpm@10.18.3",
+	"devDependencies": {
+		"@vitest/coverage-v8": "^3.2.4",
+		"drizzle-kit": "catalog:dev-common",
+		"typescript": "^5.9.2",
+		"vitest": "^3.2.4",
+		"wrangler": "^4.46.0"
+	},
+	"dependencies": {
+		"@ground0/sample-counter-shared": "workspace:*",
+		"drizzle-orm": "catalog:core-common",
+		"ground0": "workspace:*",
+		"zod": "^4.1.12"
+	}
+}
