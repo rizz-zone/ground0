@@ -30,6 +30,5 @@ export default ts.config(
 	},
 	globalIgnores([
 		'**/worker-configuration.d.ts',
-		'Cloudflare Workers type definitions'
 	])
 )
