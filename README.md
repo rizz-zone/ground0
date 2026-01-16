@@ -1,5 +1,7 @@
 # ground0
 
+[![Coverage Status](https://coveralls.io/repos/github/rizz-zone/ground0/badge.svg?branch=main)](https://coveralls.io/github/rizz-zone/ground0?branch=main)
+
 > [!CAUTION]
 >
 > `ground0` is not ready for production use **at all** &mdash; it is in active development and cannot be used yet.
