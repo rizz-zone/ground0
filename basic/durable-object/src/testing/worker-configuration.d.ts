@@ -4,10 +4,11 @@
 declare namespace Cloudflare {
 	interface GlobalProps {
 		mainModule: typeof import("./sample_worker");
-		durableNamespaces: "SampleObject";
+		durableNamespaces: "SampleObject" | "SampleObjectWithOptions";
 	}
 	interface Env {
 		SAMPLE_OBJECT: DurableObjectNamespace<import("./sample_worker").SampleObject>;
+		SAMPLE_OBJECT_WITH_OPTIONS: DurableObjectNamespace<import("./sample_worker").SampleObjectWithOptions>;
 	}
 }
 interface Env extends Cloudflare.Env {}

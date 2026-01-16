@@ -144,12 +144,12 @@ export abstract class SyncEngineBackend<
 				CREATE TABLE IF NOT EXISTS ${sql.identifier('__ground0_connections')} (
 				  id STRING PRIMARY KEY NOT NULL
 				)`)
-			;(await this.db.select().from(connectionsTable).values()).forEach(
-				(entry) => {
-					if (!entry[0] || typeof entry[0] !== 'string') return
-					this.initialisedSockets.push(entry[0] as UUID)
-				}
-			)
+			const entries = await this.db.select().from(connectionsTable).values()
+			for (const entry of entries) {
+				const id = entry[0]
+				if (!id || typeof id !== 'string') continue
+				this.initialisedSockets.push(id as UUID)
+			}
 		})
 	}
 

@@ -18,3 +18,20 @@ export class SampleObject extends SyncEngineBackend<
 	}
 	protected override appTransitionSchema = testingTransitionSchema
 }
+
+export class SampleObjectWithOptions extends SyncEngineBackend<
+	TestingTransition,
+	TestingUpdate
+> {
+	protected override engineDef = defs
+	protected override backendHandlers = {
+		3: {
+			confirm: () => true
+		}
+	}
+	protected override appTransitionSchema = testingTransitionSchema
+
+	constructor(ctx: DurableObjectState, env: Env) {
+		super(ctx, env, { drizzleVerbose: true })
+	}
+}

@@ -5,7 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { env } from 'cloudflare:test'
 import { runInDurableObject } from 'cloudflare:test'
 import { migrate } from 'drizzle-orm/durable-sqlite/migrator'
-import type { SampleObject } from './testing/sample_object'
+import type {
+	SampleObject,
+	SampleObjectWithOptions
+} from './testing/sample_object'
 import { SyncEngineBackend } from './durable_object'
 import {
 	UpstreamWsMessageAction,
@@ -39,11 +42,55 @@ beforeEach(() => {
 	stub = env.SAMPLE_OBJECT.get(id)
 })
 
+describe('send helper function', () => {
+	it('does not send when websocket is not OPEN', async () => {
+		await runInDurableObject(stub, async (instance, ctx) => {
+			const handleSpy = vi.fn().mockResolvedValue(false)
+			// @ts-expect-error Testing private/protected
+			instance.backendHandlers['test-action'] = { confirm: handleSpy }
+			vi.spyOn(ctx, 'getTags').mockReturnValue(['id1' as UUID])
+			// Create a socket that's not OPEN (readyState 0 = CONNECTING)
+			const mockWs = { readyState: 0, send: vi.fn() } as unknown as WebSocket
+
+			await (
+				instance as unknown as {
+					processTransition: (
+						t: unknown,
+						id: number,
+						ws: WebSocket
+					) => Promise<void>
+				}
+			).processTransition(
+				{
+					action: 'test-action',
+					data: {},
+					impact: TransitionImpact.OptimisticPush
+				},
+				123,
+				mockWs
+			)
+
+			// Handler was called, but send should NOT be called because ws is not OPEN
+			expect(handleSpy).toHaveBeenCalled()
+			expect(mockWs.send).not.toHaveBeenCalled()
+		})
+	})
+})
 describe('constructor', () => {
 	it('assigns this.db', async () => {
 		await runInDurableObject(stub, (instance) => {
 			// @ts-expect-error We need to acces private members for testing.
 			expect(instance.db).toBeDefined()
+		})
+	})
+	it('assigns options when passed to constructor', async () => {
+		const stubWithOptions: DurableObjectStub<SampleObjectWithOptions> =
+			env.SAMPLE_OBJECT_WITH_OPTIONS.get(
+				env.SAMPLE_OBJECT_WITH_OPTIONS.newUniqueId()
+			)
+		await runInDurableObject(stubWithOptions, (instance) => {
+			// @ts-expect-error We need to acces private members for testing.
+			expect(instance.drizzleVerbose).toBe(true)
 		})
 	})
 	it('calls for a migration', async () => {
@@ -101,6 +148,25 @@ describe('constructor', () => {
 
 			// @ts-expect-error Accessing private member
 			expect(newInstance.initialisedSockets).toContain(socketId)
+		})
+	})
+	it('handles empty id values when recovering sockets', async () => {
+		await runInDurableObject(stub, async (instance, ctx) => {
+			// Use raw SQL to insert an empty string (which is technically allowed by NOT NULL but is falsy)
+			// @ts-expect-error Accessing private member
+			await instance.db.run(sql`INSERT INTO __ground0_connections (id) VALUES ('')`)
+
+			// Create a new instance which should skip the empty entry
+			const newInstance = new (instance.constructor as unknown as new (
+				...args: unknown[]
+			) => unknown)(ctx, env) as typeof instance
+
+			// Wait for blockConcurrencyWhile to complete
+			await new Promise((resolve) => setTimeout(resolve, 100))
+
+			// Empty string should not be in initialisedSockets
+			// @ts-expect-error Accessing private member
+			expect(newInstance.initialisedSockets).not.toContain('')
 		})
 	})
 })
@@ -357,6 +423,51 @@ describe('websocket message handler', () => {
 					expect(closeMock).not.toHaveBeenCalled()
 				})
 			})
+			it('closes on 0.x.x minor version mismatch', async () => {
+				await runInDurableObject(stub, async (instance, ctx) => {
+					// @ts-expect-error Testing private/protected - modify engine version to 0.x.x
+					instance.engineDef = {
+						// @ts-expect-error Testing private/protected
+						...instance.engineDef,
+						version: { current: '0.5.0' }
+					}
+
+					const pair = new WebSocketPair()
+					ctx.acceptWebSocket(pair[1], [crypto.randomUUID()])
+					const closeMock = vi.spyOn(pair[1], 'close')
+					await instance.webSocketMessage(
+						pair[1],
+						SuperJSON.stringify({
+							action: UpstreamWsMessageAction.Init,
+							version: '0.3.0' // Different minor version in 0.x.x range
+						} satisfies UpstreamWsMessage)
+					)
+					expect(closeMock).toHaveBeenCalledOnce()
+					expect(closeMock.mock.lastCall?.[0]).toEqual(WsCloseCode.Incompatible)
+				})
+			})
+			it('does not close on 0.x.x matching minor version', async () => {
+				await runInDurableObject(stub, async (instance, ctx) => {
+					// @ts-expect-error Testing private/protected - modify engine version to 0.x.x
+					instance.engineDef = {
+						// @ts-expect-error Testing private/protected
+						...instance.engineDef,
+						version: { current: '0.5.2' }
+					}
+
+					const pair = new WebSocketPair()
+					ctx.acceptWebSocket(pair[1], [crypto.randomUUID()])
+					const closeMock = vi.spyOn(pair[1], 'close')
+					await instance.webSocketMessage(
+						pair[1],
+						SuperJSON.stringify({
+							action: UpstreamWsMessageAction.Init,
+							version: '0.5.8' // Same minor version in 0.x.x range, different patch
+						} satisfies UpstreamWsMessage)
+					)
+					expect(closeMock).not.toHaveBeenCalled()
+				})
+			})
 		})
 		it('calls autorun onConnect handlers', async () => {
 			await runInDurableObject(stub, async (instance, ctx) => {
@@ -432,6 +543,122 @@ describe('websocket message handler', () => {
 				)
 			})
 		})
+		it('logs invalid transitions when logInvalidTransitions is true', async () => {
+			await runInDurableObject(stub, async (instance, ctx) => {
+				const consoleErrorSpy = vi
+					.spyOn(console, 'error')
+					.mockImplementation(() => {})
+
+				const pair = new WebSocketPair()
+				ctx.acceptWebSocket(pair[1], [crypto.randomUUID()])
+
+				// Send init first
+				await instance.webSocketMessage(
+					pair[1],
+					SuperJSON.stringify({
+						action: UpstreamWsMessageAction.Init,
+						version: '1.0.0'
+					} satisfies UpstreamWsMessage)
+				)
+
+				// Send an invalid transition (wrong action type that won't match schema)
+				await instance.webSocketMessage(
+					pair[1],
+					SuperJSON.stringify({
+						action: UpstreamWsMessageAction.Transition,
+						id: 1,
+						data: {
+							action: 'invalid-action',
+							data: { invalid: true },
+							impact: TransitionImpact.OptimisticPush
+						}
+					} satisfies UpstreamWsMessage)
+				)
+
+				expect(consoleErrorSpy).toHaveBeenCalledWith(
+					'Invalid transition sent:\n',
+					expect.anything()
+				)
+				expect(consoleErrorSpy).toHaveBeenCalledWith('\nIssues:')
+				expect(consoleErrorSpy).toHaveBeenCalledWith()
+			})
+		})
+		it('closes connection when disconnectOnInvalidTransition is true', async () => {
+			await runInDurableObject(stub, async (instance, ctx) => {
+				vi.spyOn(console, 'error').mockImplementation(() => {})
+				// @ts-expect-error Testing private/protected
+				instance.disconnectOnInvalidTransition = true
+
+				const pair = new WebSocketPair()
+				ctx.acceptWebSocket(pair[1], [crypto.randomUUID()])
+				const closeMock = vi.spyOn(pair[1], 'close')
+
+				// Send init first
+				await instance.webSocketMessage(
+					pair[1],
+					SuperJSON.stringify({
+						action: UpstreamWsMessageAction.Init,
+						version: '1.0.0'
+					} satisfies UpstreamWsMessage)
+				)
+
+				// Send an invalid transition
+				await instance.webSocketMessage(
+					pair[1],
+					SuperJSON.stringify({
+						action: UpstreamWsMessageAction.Transition,
+						id: 1,
+						data: {
+							action: 'invalid-action',
+							data: { invalid: true },
+							impact: TransitionImpact.OptimisticPush
+						}
+					} satisfies UpstreamWsMessage)
+				)
+
+				expect(closeMock).toHaveBeenCalledWith(WsCloseCode.InvalidMessage)
+			})
+		})
+		it('does not log when logInvalidTransitions is false', async () => {
+			await runInDurableObject(stub, async (instance, ctx) => {
+				const consoleErrorSpy = vi
+					.spyOn(console, 'error')
+					.mockImplementation(() => {})
+				// @ts-expect-error Testing private/protected
+				instance.logInvalidTransitions = false
+
+				const pair = new WebSocketPair()
+				ctx.acceptWebSocket(pair[1], [crypto.randomUUID()])
+
+				// Send init first
+				await instance.webSocketMessage(
+					pair[1],
+					SuperJSON.stringify({
+						action: UpstreamWsMessageAction.Init,
+						version: '1.0.0'
+					} satisfies UpstreamWsMessage)
+				)
+
+				// Send an invalid transition
+				await instance.webSocketMessage(
+					pair[1],
+					SuperJSON.stringify({
+						action: UpstreamWsMessageAction.Transition,
+						id: 1,
+						data: {
+							action: 'invalid-action',
+							data: { invalid: true },
+							impact: TransitionImpact.OptimisticPush
+						}
+					} satisfies UpstreamWsMessage)
+				)
+
+				expect(consoleErrorSpy).not.toHaveBeenCalledWith(
+					'Invalid transition sent:\n',
+					expect.anything()
+				)
+			})
+		})
 	})
 })
 describe('update method and logic branches', () => {
@@ -452,6 +679,43 @@ describe('update method and logic branches', () => {
 			expect(mockWs1.send).toHaveBeenCalled()
 			expect(mockWs2.send).toHaveBeenCalled()
 			getWebSocketsSpy.mockRestore()
+		})
+	})
+	it('sends OptimisticCancel when confirm returns false', async () => {
+		await runInDurableObject(stub, async (instance, ctx) => {
+			const confirmSpy = vi.fn().mockResolvedValue(false)
+			// @ts-expect-error Testing private/protected
+			instance.backendHandlers['test-reject'] = { confirm: confirmSpy }
+			vi.spyOn(ctx, 'getTags').mockReturnValue(['id1' as UUID])
+			const mockWs = { readyState: 1, send: vi.fn() } as unknown as WebSocket
+
+			await (
+				instance as unknown as {
+					processTransition: (
+						t: unknown,
+						id: number,
+						ws: WebSocket
+					) => Promise<void>
+				}
+			).processTransition(
+				{
+					action: 'test-reject',
+					data: {},
+					impact: TransitionImpact.OptimisticPush
+				},
+				999,
+				mockWs
+			)
+
+			expect(confirmSpy).toHaveBeenCalled()
+			expect(mockWs.send).toHaveBeenCalled()
+			const sendMock = mockWs.send as ReturnType<typeof vi.fn>
+			const response = SuperJSON.parse(
+				sendMock.mock.calls[0]?.[0] as string
+			) as {
+				action: DownstreamWsMessageAction
+			}
+			expect(response.action).toBe(DownstreamWsMessageAction.OptimisticCancel)
 		})
 	})
 	it('handles missing handlers gracefully', async () => {
@@ -577,6 +841,243 @@ describe('update method and logic branches', () => {
 			)
 
 			expect(handleSpy).toHaveBeenCalled()
+			expect(mockWs.send).not.toHaveBeenCalled()
+		})
+	})
+	it('skips closed sockets in update', async () => {
+		await runInDurableObject(stub, async (instance, ctx) => {
+			const mockWsClosed = {
+				readyState: 3,
+				send: vi.fn()
+			} as unknown as WebSocket
+			const mockWsOpen = { readyState: 1, send: vi.fn() } as unknown as WebSocket
+
+			vi.spyOn(ctx, 'getWebSockets').mockReturnValue([mockWsClosed, mockWsOpen])
+			vi.spyOn(ctx, 'getTags').mockReturnValue([crypto.randomUUID()])
+
+			// @ts-expect-error Testing protected method
+			instance.update({ some: 'data' })
+
+			expect(mockWsClosed.send).not.toHaveBeenCalled()
+			expect(mockWsOpen.send).toHaveBeenCalled()
+		})
+	})
+	it('skips sockets without string id in update', async () => {
+		await runInDurableObject(stub, async (instance, ctx) => {
+			const mockWs = { readyState: 1, send: vi.fn() } as unknown as WebSocket
+
+			vi.spyOn(ctx, 'getWebSockets').mockReturnValue([mockWs])
+			vi.spyOn(ctx, 'getTags').mockReturnValue([123 as unknown as string])
+
+			// @ts-expect-error Testing protected method
+			instance.update({ some: 'data' })
+
+			expect(mockWs.send).not.toHaveBeenCalled()
+		})
+	})
+	it('sends to single target when target option is specified', async () => {
+		await runInDurableObject(stub, async (instance, ctx) => {
+			const targetId = crypto.randomUUID() as UUID
+			const otherId = crypto.randomUUID() as UUID
+
+			const mockWsTarget = {
+				readyState: 1,
+				send: vi.fn()
+			} as unknown as WebSocket
+			const mockWsOther = {
+				readyState: 1,
+				send: vi.fn()
+			} as unknown as WebSocket
+
+			vi.spyOn(ctx, 'getWebSockets').mockReturnValue([mockWsTarget, mockWsOther])
+			const getTagsSpy = vi.spyOn(ctx, 'getTags')
+			getTagsSpy.mockImplementation((ws) =>
+				ws === mockWsTarget ? [targetId] : [otherId]
+			)
+
+			// @ts-expect-error Testing protected method
+			instance.update({ some: 'data' }, { target: targetId })
+
+			expect(mockWsTarget.send).toHaveBeenCalled()
+			expect(mockWsOther.send).not.toHaveBeenCalled()
+		})
+	})
+	it('sends to array of targets when target option is array', async () => {
+		await runInDurableObject(stub, async (instance, ctx) => {
+			const targetId1 = crypto.randomUUID() as UUID
+			const targetId2 = crypto.randomUUID() as UUID
+			const otherId = crypto.randomUUID() as UUID
+
+			const mockWsTarget1 = {
+				readyState: 1,
+				send: vi.fn()
+			} as unknown as WebSocket
+			const mockWsTarget2 = {
+				readyState: 1,
+				send: vi.fn()
+			} as unknown as WebSocket
+			const mockWsOther = {
+				readyState: 1,
+				send: vi.fn()
+			} as unknown as WebSocket
+
+			vi.spyOn(ctx, 'getWebSockets').mockReturnValue([
+				mockWsTarget1,
+				mockWsTarget2,
+				mockWsOther
+			])
+			const getTagsSpy = vi.spyOn(ctx, 'getTags')
+			getTagsSpy.mockImplementation((ws) => {
+				if (ws === mockWsTarget1) return [targetId1]
+				if (ws === mockWsTarget2) return [targetId2]
+				return [otherId]
+			})
+
+			// @ts-expect-error Testing protected method
+			instance.update({ some: 'data' }, { target: [targetId1, targetId2] })
+
+			expect(mockWsTarget1.send).toHaveBeenCalled()
+			expect(mockWsTarget2.send).toHaveBeenCalled()
+			expect(mockWsOther.send).not.toHaveBeenCalled()
+		})
+	})
+	it('excludes single target when doNotTarget option is specified', async () => {
+		await runInDurableObject(stub, async (instance, ctx) => {
+			const excludeId = crypto.randomUUID() as UUID
+			const otherId = crypto.randomUUID() as UUID
+
+			const mockWsExcluded = {
+				readyState: 1,
+				send: vi.fn()
+			} as unknown as WebSocket
+			const mockWsOther = {
+				readyState: 1,
+				send: vi.fn()
+			} as unknown as WebSocket
+
+			// Add otherId to initialisedSockets so it passes requireConnectionInitComplete check
+			// @ts-expect-error Testing private/protected
+			instance.initialisedSockets = [excludeId, otherId]
+
+			vi.spyOn(ctx, 'getWebSockets').mockReturnValue([
+				mockWsExcluded,
+				mockWsOther
+			])
+			const getTagsSpy = vi.spyOn(ctx, 'getTags')
+			getTagsSpy.mockImplementation((ws) =>
+				ws === mockWsExcluded ? [excludeId] : [otherId]
+			)
+
+			// @ts-expect-error Testing protected method
+			instance.update(
+				{ some: 'data' },
+				{ doNotTarget: excludeId, requireConnectionInitComplete: true }
+			)
+
+			expect(mockWsExcluded.send).not.toHaveBeenCalled()
+			expect(mockWsOther.send).toHaveBeenCalled()
+		})
+	})
+	it('excludes array of targets when doNotTarget option is array', async () => {
+		await runInDurableObject(stub, async (instance, ctx) => {
+			const excludeId1 = crypto.randomUUID() as UUID
+			const excludeId2 = crypto.randomUUID() as UUID
+			const otherId = crypto.randomUUID() as UUID
+
+			const mockWsExcluded1 = {
+				readyState: 1,
+				send: vi.fn()
+			} as unknown as WebSocket
+			const mockWsExcluded2 = {
+				readyState: 1,
+				send: vi.fn()
+			} as unknown as WebSocket
+			const mockWsOther = {
+				readyState: 1,
+				send: vi.fn()
+			} as unknown as WebSocket
+
+			// Add otherId to initialisedSockets
+			// @ts-expect-error Testing private/protected
+			instance.initialisedSockets = [excludeId1, excludeId2, otherId]
+
+			vi.spyOn(ctx, 'getWebSockets').mockReturnValue([
+				mockWsExcluded1,
+				mockWsExcluded2,
+				mockWsOther
+			])
+			const getTagsSpy = vi.spyOn(ctx, 'getTags')
+			getTagsSpy.mockImplementation((ws) => {
+				if (ws === mockWsExcluded1) return [excludeId1]
+				if (ws === mockWsExcluded2) return [excludeId2]
+				return [otherId]
+			})
+
+			// @ts-expect-error Testing protected method
+			instance.update(
+				{ some: 'data' },
+				{
+					doNotTarget: [excludeId1, excludeId2],
+					requireConnectionInitComplete: true
+				}
+			)
+
+			expect(mockWsExcluded1.send).not.toHaveBeenCalled()
+			expect(mockWsExcluded2.send).not.toHaveBeenCalled()
+			expect(mockWsOther.send).toHaveBeenCalled()
+		})
+	})
+	it('skips uninitialised sockets when requireConnectionInitComplete is true', async () => {
+		await runInDurableObject(stub, async (instance, ctx) => {
+			const initialisedId = crypto.randomUUID() as UUID
+			const uninitialisedId = crypto.randomUUID() as UUID
+
+			const mockWsInitialised = {
+				readyState: 1,
+				send: vi.fn()
+			} as unknown as WebSocket
+			const mockWsUninitialised = {
+				readyState: 1,
+				send: vi.fn()
+			} as unknown as WebSocket
+
+			// Only add initialisedId to initialisedSockets
+			// @ts-expect-error Testing private/protected
+			instance.initialisedSockets = [initialisedId]
+
+			vi.spyOn(ctx, 'getWebSockets').mockReturnValue([
+				mockWsInitialised,
+				mockWsUninitialised
+			])
+			const getTagsSpy = vi.spyOn(ctx, 'getTags')
+			getTagsSpy.mockImplementation((ws) =>
+				ws === mockWsInitialised ? [initialisedId] : [uninitialisedId]
+			)
+
+			// @ts-expect-error Testing protected method
+			instance.update({ some: 'data' }, { requireConnectionInitComplete: true })
+
+			expect(mockWsInitialised.send).toHaveBeenCalled()
+			expect(mockWsUninitialised.send).not.toHaveBeenCalled()
+		})
+	})
+	it('continues without sending if opts is present but does not match any condition', async () => {
+		await runInDurableObject(stub, async (instance, ctx) => {
+			const someId = crypto.randomUUID() as UUID
+			const mockWs = { readyState: 1, send: vi.fn() } as unknown as WebSocket
+
+			// Socket is not in initialisedSockets
+			// @ts-expect-error Testing private/protected
+			instance.initialisedSockets = []
+
+			vi.spyOn(ctx, 'getWebSockets').mockReturnValue([mockWs])
+			vi.spyOn(ctx, 'getTags').mockReturnValue([someId])
+
+			// Pass opts without requireConnectionInitComplete key - this tests the !('requireConnectionInitComplete' in opts) branch
+			// @ts-expect-error Testing protected method
+			instance.update({ some: 'data' }, {})
+
+			// With empty opts, it should continue (not send) because requireConnectionInitComplete is not in opts
 			expect(mockWs.send).not.toHaveBeenCalled()
 		})
 	})
