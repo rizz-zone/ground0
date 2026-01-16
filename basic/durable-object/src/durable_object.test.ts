@@ -978,10 +978,10 @@ describe('update method and logic branches', () => {
 			)
 
 			// @ts-expect-error Testing protected method
-			instance.update(
-				{ some: 'data' } as unknown as TestingUpdate,
-				{ doNotTarget: excludeId, requireConnectionInitComplete: true }
-			)
+			instance.update({ some: 'data' } as unknown as TestingUpdate, {
+				doNotTarget: excludeId,
+				requireConnectionInitComplete: true
+			})
 
 			expect(mockWsExcluded.send).not.toHaveBeenCalled()
 			expect(mockWsOther.send).toHaveBeenCalled()
@@ -1023,13 +1023,10 @@ describe('update method and logic branches', () => {
 			})
 
 			// @ts-expect-error Testing protected method
-			instance.update(
-				{ some: 'data' } as unknown as TestingUpdate,
-				{
-					doNotTarget: [excludeId1, excludeId2],
-					requireConnectionInitComplete: true
-				}
-			)
+			instance.update({ some: 'data' } as unknown as TestingUpdate, {
+				doNotTarget: [excludeId1, excludeId2],
+				requireConnectionInitComplete: true
+			})
 
 			expect(mockWsExcluded1.send).not.toHaveBeenCalled()
 			expect(mockWsExcluded2.send).not.toHaveBeenCalled()
