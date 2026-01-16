@@ -73,7 +73,6 @@ export class PathStoreTree {
 		path: PopulatedArbitraryPath,
 		subscriberId: symbol
 	): void {
-		const finalIndex = path.length
 		let previous: typeof this.rawTree | TreeAgent = this.rawTree
 
 		for (const [index, pathSegment] of path.entries()) {

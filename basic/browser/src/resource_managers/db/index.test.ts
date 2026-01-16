@@ -6,7 +6,7 @@ import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import type { ResourceBundle } from '@/types/status/ResourceBundle'
 import type { LocalDatabase } from '@ground0/shared'
 import { migrations } from '@ground0/shared/testing'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DbThinClient as DbThinClientType } from './'
 import {
 	UpstreamDbWorkerMessageType,
@@ -34,15 +34,17 @@ const brandedLog = vi.fn()
 vi.doMock('@/common/branded_log', () => ({ brandedLog }))
 
 // Mock drizzle to capture the callbacks
-let capturedSingleCallback: ((...input: unknown[]) => unknown) | null = null
-let capturedBatchCallback: ((...input: unknown[]) => unknown) | null = null
-const realDrizzle = await import('drizzle-orm/sqlite-proxy').then(m => m.drizzle)
+type DrizzleCallback = (...input: unknown[]) => unknown
+let capturedSingleCallback: DrizzleCallback | null = null
+let capturedBatchCallback: DrizzleCallback | null = null
 vi.mock('drizzle-orm/sqlite-proxy', () => ({
-	drizzle: vi.fn((singleCallback: (...input: unknown[]) => unknown, batchCallback: (...input: unknown[]) => unknown) => {
-		capturedSingleCallback = singleCallback
-		capturedBatchCallback = batchCallback
-		return {} // Return a mock db instance
-	})
+	drizzle: vi.fn(
+		(singleCallback: DrizzleCallback, batchCallback: DrizzleCallback) => {
+			capturedSingleCallback = singleCallback
+			capturedBatchCallback = batchCallback
+			return {} // Return a mock db instance
+		}
+	)
 }))
 
 const syncResources = vi.fn()
@@ -596,7 +598,7 @@ describe('drizzle proxy callbacks', () => {
 			// Create a new client that will capture callbacks
 			capturedSingleCallback = null
 			capturedBatchCallback = null
-			
+
 			const testClient = new DbThinClient(inputs)
 			testClient.newPort(mockPort)
 			postMessage.mockClear()
@@ -608,7 +610,8 @@ describe('drizzle proxy callbacks', () => {
 
 			const queryParams = ['SELECT * FROM test', [], 'run']
 			// Invoke the captured callback directly - it returns a promise
-			const promise = capturedSingleCallback(...queryParams)
+			const callback = capturedSingleCallback as DrizzleCallback
+			const promise = callback(...queryParams)
 
 			// Wait for the promise and async operations
 			await Promise.resolve()
@@ -625,7 +628,7 @@ describe('drizzle proxy callbacks', () => {
 				type: UpstreamDbWorkerMessageType.ExecOne,
 				params: queryParams
 			})
-			
+
 			// Verify it returns the lockedThenable
 			expect(promise).toHaveProperty('then')
 		})
@@ -634,7 +637,7 @@ describe('drizzle proxy callbacks', () => {
 			// Create a new client that will capture callbacks
 			capturedSingleCallback = null
 			capturedBatchCallback = null
-			
+
 			const testClient = new DbThinClient(inputs)
 			testClient.newPort(mockPort)
 			postMessage.mockClear()
@@ -650,7 +653,8 @@ describe('drizzle proxy callbacks', () => {
 				'values'
 			]
 			// Invoke the captured callback directly - it returns a promise
-			const promise = capturedBatchCallback(...batchParams)
+			const batchCallback = capturedBatchCallback as DrizzleCallback
+			const promise = batchCallback(...batchParams)
 
 			// Wait for the promise and async operations
 			await Promise.resolve()
@@ -667,10 +671,9 @@ describe('drizzle proxy callbacks', () => {
 				type: UpstreamDbWorkerMessageType.ExecBatch,
 				params: batchParams
 			})
-			
+
 			// Verify it returns the lockedThenable
 			expect(promise).toHaveProperty('then')
 		})
 	})
-
 })

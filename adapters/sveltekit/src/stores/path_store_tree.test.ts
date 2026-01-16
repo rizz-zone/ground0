@@ -139,17 +139,21 @@ describe('use', () => {
 			const consoleError = vi
 				.spyOn(console, 'error')
 				.mockImplementation(() => {})
-			
+
 			// Create a subscriber
-			const subscriberId = instance.createPathSubscriber(['a', 'b'], () => {}, {})
-			
+			const subscriberId = instance.createPathSubscriber(
+				['a', 'b'],
+				() => {},
+				{}
+			)
+
 			// Manually corrupt the tree by deleting a segment in the middle
 			// @ts-expect-error Accessing private for corruption
 			delete instance.rawTree['a']
-			
+
 			// Try to delete the subscriber - should trigger the brandedLog error
 			instance.deletePathSubscriber(['a', 'b'], subscriberId)
-			
+
 			expect(consoleError).toHaveBeenCalled()
 			consoleError.mockRestore()
 		})

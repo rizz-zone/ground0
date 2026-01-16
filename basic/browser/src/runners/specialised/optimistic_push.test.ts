@@ -651,7 +651,7 @@ describe('error handling for missing handlers (defensive checks)', () => {
 			// but we test the defensive check
 			const runner = new OptimisticPushTransitionRunner({
 				...bareMinimumIngredients,
-				localHandler: {} // No editMemoryModel
+				localHandler: {} as typeof bareMinimumIngredients.localHandler // No editMemoryModel
 			})
 
 			// @ts-expect-error We need to access private members
@@ -680,7 +680,7 @@ describe('error handling for missing handlers (defensive checks)', () => {
 					},
 					ws: { status: WsResourceStatus.Disconnected }
 				},
-				localHandler: {} // No editDb
+				localHandler: {} as typeof bareMinimumIngredients.localHandler // No editDb
 			})
 
 			// @ts-expect-error We need to access private members
@@ -728,7 +728,7 @@ describe('error handling for missing handlers (defensive checks)', () => {
 				localHandler: {
 					editMemoryModel: vi.fn()
 					// No revertMemoryModel
-				}
+				} as unknown as typeof bareMinimumIngredients.localHandler
 			})
 
 			// @ts-expect-error We need to access private members
@@ -759,7 +759,7 @@ describe('error handling for missing handlers (defensive checks)', () => {
 				localHandler: {
 					editDb: vi.fn()
 					// No revertDb
-				}
+				} as unknown as typeof bareMinimumIngredients.localHandler
 			})
 
 			// @ts-expect-error We need to access private members
@@ -769,7 +769,9 @@ describe('error handling for missing handlers (defensive checks)', () => {
 
 			expect(() => {
 				// @ts-expect-error We need to access the actions
-				machine.implementations.actions.revertDb.call(runner, { self: actorRef })
+				machine.implementations.actions.revertDb.call(runner, {
+					self: actorRef
+				})
 			}).toThrow(InternalStateError)
 		})
 	})
@@ -795,7 +797,9 @@ describe('error handling for missing handlers (defensive checks)', () => {
 
 			expect(() => {
 				// @ts-expect-error We need to access the actions
-				machine.implementations.actions.revertDb.call(runner, { self: actorRef })
+				machine.implementations.actions.revertDb.call(runner, {
+					self: actorRef
+				})
 			}).toThrow(InternalStateError)
 		})
 	})

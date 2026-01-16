@@ -15,19 +15,13 @@ vi.doMock('@/helpers/deep_unwrap_memory_model', () => ({
 import {
 	afterAll,
 	afterEach,
-	beforeAll,
 	beforeEach,
 	describe,
 	expect,
 	test,
-	vi,
-	type Mock
+	vi
 } from 'vitest'
-import {
-	NoPortsError,
-	TransitionImpact,
-	type Transition
-} from '@ground0/shared'
+import { NoPortsError, TransitionImpact } from '@ground0/shared'
 import type { LocalEngineDefinition } from '@/types/LocalEngineDefinition'
 import type { WorkerLocalFirst } from '@/helpers/worker_thread'
 import {
@@ -52,7 +46,6 @@ dedicatedCtx.postMessage = postMessageMock
 
 afterEach(() => {
 	vi.clearAllMocks()
-	sharedCtx.onconnect = null
 	// @ts-expect-error Resetting listeners
 	dedicatedCtx.onmessage = undefined
 	// @ts-expect-error Resetting listeners
@@ -98,14 +91,6 @@ const minimumInput: LocalEngineDefinition<
 	dbName: 'dave'
 }
 
-// For announcement testing
-function randomPath() {
-	return Array.from(
-		{ length: Math.max(Math.floor(Math.random() * 10), 1) },
-		() => crypto.randomUUID()
-	)
-}
-
 describe('always', () => {
 	test('creates a WorkerLocalFirst', ({ skip }) => {
 		expect(mockWorkerLocalFirst).not.toHaveBeenCalled()
@@ -124,6 +109,13 @@ describe('always', () => {
 	})
 })
 describe('shared worker', () => {
+	beforeEach(() => {
+		// Ensure onconnect property exists so 'onconnect' in ctx returns true
+		sharedCtx.onconnect = null
+	})
+	afterEach(() => {
+		sharedCtx.onconnect = null
+	})
 	describe('onconnect', () => {
 		test('is set', () => {
 			expect(sharedCtx.onconnect).not.toBeTypeOf('function')
@@ -145,7 +137,7 @@ describe('shared worker', () => {
 			const mockPort1 = {
 				...channel.port1,
 				postMessage: portPostMessage
-			} as any
+			} as unknown as MessagePort
 			sharedCtx.onconnect(new MessageEvent('connect', { ports: [mockPort1] }))
 			expect(mockPort1.onmessage).toBeTypeOf('function')
 			expect(mockPort1.onmessageerror).toBeTypeOf('function')
@@ -168,11 +160,196 @@ describe('shared worker', () => {
 	})
 })
 describe('dedicated worker', () => {
+	beforeEach(() => {
+		// Ensure onconnect property does NOT exist so 'onconnect' in ctx returns false
+		// @ts-expect-error Removing property
+		delete sharedCtx.onconnect
+	})
 	test('on init, onmessage and onmessageerror are set and message is posted', () => {
 		workerEntrypoint(minimumInput)
 		expect(postMessageMock).toHaveBeenCalledWith({
 			type: DownstreamWorkerMessageType.InitMemoryModel,
 			memoryModel: minimumInput.initialMemoryModel
 		} satisfies DownstreamWorkerMessage<object>)
+	})
+	describe('onmessage', () => {
+		test('handles Transition messages', ({ skip }) => {
+			workerEntrypoint(minimumInput)
+			if (!dedicatedCtx.onmessage) return skip()
+			const testTransition = {
+				action: 'abc',
+				impact: TransitionImpact.LocalOnly
+			} as OurTransition
+			dedicatedCtx.onmessage(
+				new MessageEvent('message', {
+					data: {
+						type: UpstreamWorkerMessageType.Transition,
+						data: testTransition
+					} satisfies UpstreamWorkerMessage<OurTransition>
+				})
+			)
+			expect(transitionFn).toHaveBeenCalledWith(testTransition)
+		})
+		test('handles Close messages (no-op for dedicated worker)', ({ skip }) => {
+			workerEntrypoint(minimumInput)
+			if (!dedicatedCtx.onmessage) return skip()
+			// This should not throw - just silently return
+			dedicatedCtx.onmessage(
+				new MessageEvent('message', {
+					data: {
+						type: UpstreamWorkerMessageType.Close
+					} satisfies UpstreamWorkerMessage<OurTransition>
+				})
+			)
+		})
+		test('handles DebugLog messages', ({ skip }) => {
+			const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {})
+			workerEntrypoint(minimumInput)
+			if (!dedicatedCtx.onmessage) return skip()
+			dedicatedCtx.onmessage(
+				new MessageEvent('message', {
+					data: {
+						type: UpstreamWorkerMessageType.DebugLog,
+						message: 'test debug message'
+					} satisfies UpstreamWorkerMessage<OurTransition>
+				})
+			)
+			expect(debugSpy).toHaveBeenCalled()
+		})
+		test('handles DbWorkerPrepared messages', ({ skip }) => {
+			workerEntrypoint(minimumInput)
+			if (!dedicatedCtx.onmessage) return skip()
+			const mockPort = { postMessage: vi.fn() } as unknown as MessagePort
+			dedicatedCtx.onmessage(
+				new MessageEvent('message', {
+					data: {
+						type: UpstreamWorkerMessageType.DbWorkerPrepared,
+						port: mockPort
+					} satisfies UpstreamWorkerMessage<OurTransition>
+				})
+			)
+			expect(newPortFn).toHaveBeenCalledWith(mockPort)
+		})
+		test('handles DbWorkerPrepared without port (no-op)', ({ skip }) => {
+			workerEntrypoint(minimumInput)
+			if (!dedicatedCtx.onmessage) return skip()
+			// Should not throw when port is undefined
+			dedicatedCtx.onmessage(
+				new MessageEvent('message', {
+					data: {
+						type: UpstreamWorkerMessageType.DbWorkerPrepared,
+						port: undefined
+					} as unknown as UpstreamWorkerMessage<OurTransition>
+				})
+			)
+		})
+	})
+	test('announceTransformation broadcasts Transformation message', () => {
+		workerEntrypoint(minimumInput)
+		const call = mockWorkerLocalFirst.mock
+			.lastCall?.[0] as ConstructorParameters<typeof WorkerLocalFirst>[0]
+		const testTransformation: Transformation = {
+			action: TransformationAction.Set,
+			path: ['test', 'path'],
+			newValue: { foo: 'bar' }
+		}
+		call.announceTransformation(testTransformation)
+		expect(postMessageMock).toHaveBeenCalledWith({
+			type: DownstreamWorkerMessageType.Transformation,
+			transformation: testTransformation
+		})
+	})
+})
+describe('shared worker broadcasts', () => {
+	beforeEach(() => {
+		// Ensure onconnect property exists so 'onconnect' in ctx returns true
+		sharedCtx.onconnect = null
+	})
+	afterEach(() => {
+		sharedCtx.onconnect = null
+	})
+	test('announceTransformation broadcasts to all connected ports', ({
+		skip
+	}) => {
+		workerEntrypoint(minimumInput)
+		if (typeof sharedCtx.onconnect !== 'function') return skip()
+
+		// Connect multiple ports
+		const channel1 = new MessageChannel()
+		const channel2 = new MessageChannel()
+		const postMessage1 = vi.fn()
+		const postMessage2 = vi.fn()
+		const mockPort1 = {
+			...channel1.port1,
+			postMessage: postMessage1
+		} as unknown as MessagePort
+		const mockPort2 = {
+			...channel2.port1,
+			postMessage: postMessage2
+		} as unknown as MessagePort
+
+		sharedCtx.onconnect(new MessageEvent('connect', { ports: [mockPort1] }))
+		sharedCtx.onconnect(new MessageEvent('connect', { ports: [mockPort2] }))
+
+		// Clear the init message calls
+		postMessage1.mockClear()
+		postMessage2.mockClear()
+
+		// Trigger announceTransformation
+		const call = mockWorkerLocalFirst.mock
+			.lastCall?.[0] as ConstructorParameters<typeof WorkerLocalFirst>[0]
+		const testTransformation: Transformation = {
+			action: TransformationAction.Set,
+			path: ['test'],
+			newValue: 'broadcast-test'
+		}
+		call.announceTransformation(testTransformation)
+
+		// Both ports should receive the message
+		expect(postMessage1).toHaveBeenCalledWith({
+			type: DownstreamWorkerMessageType.Transformation,
+			transformation: testTransformation
+		})
+		expect(postMessage2).toHaveBeenCalledWith({
+			type: DownstreamWorkerMessageType.Transformation,
+			transformation: testTransformation
+		})
+	})
+	test('Close message removes port from broadcast list', ({ skip }) => {
+		workerEntrypoint(minimumInput)
+		if (typeof sharedCtx.onconnect !== 'function') return skip()
+
+		const channel = new MessageChannel()
+		const portPostMessage = vi.fn()
+		const mockPort = {
+			...channel.port1,
+			postMessage: portPostMessage
+		} as unknown as MessagePort
+
+		sharedCtx.onconnect(new MessageEvent('connect', { ports: [mockPort] }))
+		if (!mockPort.onmessage) return skip()
+
+		// Clear init message call
+		portPostMessage.mockClear()
+
+		// Send Close message to remove this port
+		mockPort.onmessage(
+			new MessageEvent('message', {
+				data: {
+					type: UpstreamWorkerMessageType.Close
+				} satisfies UpstreamWorkerMessage<OurTransition>
+			})
+		)
+
+		// Now broadcast - this port should not receive it
+		const call = mockWorkerLocalFirst.mock
+			.lastCall?.[0] as ConstructorParameters<typeof WorkerLocalFirst>[0]
+		call.announceTransformation({
+			action: TransformationAction.Set,
+			path: ['test'],
+			newValue: 'after-close'
+		})
+
+		expect(portPostMessage).not.toHaveBeenCalled()
 	})
 })

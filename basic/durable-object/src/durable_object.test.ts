@@ -71,7 +71,9 @@ describe('constructor', () => {
 			ctx.setWebSocketAutoResponse(existingPair)
 
 			// @ts-expect-error Accessing protected/private for testing
-			const newInstance = new (instance.constructor as any)(ctx, env)
+			const _newInstance = new (instance.constructor as unknown as new (
+				...args: unknown[]
+			) => unknown)(ctx, env)
 			expect(ctx.getWebSocketAutoResponse()).toStrictEqual(existingPair)
 		})
 	})
@@ -79,12 +81,14 @@ describe('constructor', () => {
 		const socketId = crypto.randomUUID()
 		await runInDurableObject(stub, async (instance, ctx) => {
 			// @ts-expect-error Accessing private member
-			await instance.db
-				.run(sql`INSERT INTO __ground0_connections (id) VALUES (${socketId})`)
+			await instance.db.run(
+				sql`INSERT INTO __ground0_connections (id) VALUES (${socketId})`
+			)
 
 			// Create a new instance which should load from DB
-			// @ts-expect-error Accessing protected/private for testing
-			const newInstance = new (instance.constructor as any)(ctx, env)
+			const newInstance = new (instance.constructor as unknown as new (
+				...args: unknown[]
+			) => unknown)(ctx, env)
 
 			// Wait for the async blockConcurrencyWhile to complete
 			await vi.waitUntil(
@@ -377,7 +381,9 @@ describe('websocket message handler', () => {
 		})
 		it('handles throwing autorun onConnect handlers', async () => {
 			await runInDurableObject(stub, async (instance, ctx) => {
-				const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+				const consoleErrorSpy = vi
+					.spyOn(console, 'error')
+					.mockImplementation(() => {})
 				const error = new Error('boom')
 				const onConnect = vi.fn().mockRejectedValue(error)
 				// @ts-expect-error Testing private/protected
@@ -415,9 +421,13 @@ describe('websocket message handler', () => {
 				await instance.webSocketMessage(
 					pair[1],
 					SuperJSON.stringify({
-						action: 3,
-						data: { foo: 'test', bar: 42 },
-						impact: TransitionImpact.OptimisticPush
+						action: UpstreamWsMessageAction.Transition,
+						id: 1,
+						data: {
+							action: 3,
+							data: { foo: 'test', bar: 42 },
+							impact: TransitionImpact.OptimisticPush
+						}
 					} satisfies UpstreamWsMessage)
 				)
 			})
@@ -427,10 +437,12 @@ describe('websocket message handler', () => {
 describe('update method and logic branches', () => {
 	it('sends updates to all connected sockets', async () => {
 		await runInDurableObject(stub, async (instance, ctx) => {
-			const mockWs1 = { readyState: 1, send: vi.fn() } as any
-			const mockWs2 = { readyState: 1, send: vi.fn() } as any
-			
-			const getWebSocketsSpy = vi.spyOn(ctx, 'getWebSockets').mockReturnValue([mockWs1, mockWs2])
+			const mockWs1 = { readyState: 1, send: vi.fn() } as unknown as WebSocket
+			const mockWs2 = { readyState: 1, send: vi.fn() } as unknown as WebSocket
+
+			const getWebSocketsSpy = vi
+				.spyOn(ctx, 'getWebSockets')
+				.mockReturnValue([mockWs1, mockWs2])
 			vi.spyOn(ctx, 'getTags').mockReturnValue([crypto.randomUUID()])
 
 			const updateData = { some: 'update' }
@@ -444,26 +456,60 @@ describe('update method and logic branches', () => {
 	})
 	it('handles missing handlers gracefully', async () => {
 		await runInDurableObject(stub, async (instance, ctx) => {
-			const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+			const consoleErrorSpy = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => {})
 			// @ts-expect-error Testing private/protected
 			instance.backendHandlers = {} // Remove handlers
 
 			// Create a mock socket
-			const mockWs = { readyState: 1, send: vi.fn() } as any
+			const mockWs = { readyState: 1, send: vi.fn() } as unknown as WebSocket
 			vi.spyOn(ctx, 'getTags').mockReturnValue(['id1' as UUID])
 
-			// @ts-expect-error Testing private method
-			await instance.processTransition({ action: 'non-existent', data: {}, impact: TransitionImpact.OptimisticPush }, 123, mockWs)
-			
-			expect(consoleErrorSpy).toHaveBeenCalledWith('No handler found for action: non-existent')
+			await (
+				instance as unknown as {
+					processTransition: (
+						t: unknown,
+						id: number,
+						ws: WebSocket
+					) => Promise<void>
+				}
+			).processTransition(
+				{
+					action: 'non-existent',
+					data: {},
+					impact: TransitionImpact.OptimisticPush
+				},
+				123,
+				mockWs
+			)
+
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				'No handler found for action: non-existent'
+			)
 		})
 	})
 	it('handles missing connectionId gracefully', async () => {
 		await runInDurableObject(stub, async (instance, ctx) => {
 			vi.spyOn(ctx, 'getTags').mockReturnValue([]) // No tags
-			const mockWs = { readyState: 1, send: vi.fn() } as any
-			// @ts-expect-error Testing private method
-			const result = await instance.processTransition({ action: 3, data: {}, impact: TransitionImpact.OptimisticPush }, 123, mockWs)
+			const mockWs = { readyState: 1, send: vi.fn() } as unknown as WebSocket
+			const result = await (
+				instance as unknown as {
+					processTransition: (
+						t: unknown,
+						id: number,
+						ws: WebSocket
+					) => Promise<void>
+				}
+			).processTransition(
+				{
+					action: 3,
+					data: { foo: 'x', bar: 0 },
+					impact: TransitionImpact.OptimisticPush
+				},
+				123,
+				mockWs
+			)
 			expect(result).toBeUndefined()
 		})
 	})
@@ -473,14 +519,34 @@ describe('update method and logic branches', () => {
 			// @ts-expect-error Testing private/protected
 			instance.backendHandlers['test-nudge'] = { handle: handleSpy }
 			vi.spyOn(ctx, 'getTags').mockReturnValue(['id1' as UUID])
-			const mockWs = { readyState: 1, send: vi.fn() } as any
+			const mockWs = { readyState: 1, send: vi.fn() } as unknown as WebSocket
 
-			// @ts-expect-error Testing private method
-			await instance.processTransition({ action: 'test-nudge', data: {}, impact: TransitionImpact.WsOnlyNudge }, 456, mockWs)
-			
+			await (
+				instance as unknown as {
+					processTransition: (
+						t: unknown,
+						id: number,
+						ws: WebSocket
+					) => Promise<void>
+				}
+			).processTransition(
+				{
+					action: 'test-nudge',
+					data: {},
+					impact: TransitionImpact.WsOnlyNudge
+				},
+				456,
+				mockWs
+			)
+
 			expect(handleSpy).toHaveBeenCalled()
 			expect(mockWs.send).toHaveBeenCalled()
-			const response = SuperJSON.parse(mockWs.send.mock.calls[0][0]) as any
+			const sendMock = mockWs.send as ReturnType<typeof vi.fn>
+			const response = SuperJSON.parse(
+				sendMock.mock.calls[0]?.[0] as string
+			) as {
+				action: DownstreamWsMessageAction
+			}
 			expect(response.action).toBe(DownstreamWsMessageAction.AckWsNudge)
 		})
 	})
@@ -490,11 +556,26 @@ describe('update method and logic branches', () => {
 			// @ts-expect-error Testing private/protected
 			instance.backendHandlers['test-unreliable'] = { handle: handleSpy }
 			vi.spyOn(ctx, 'getTags').mockReturnValue(['id1' as UUID])
-			const mockWs = { readyState: 1, send: vi.fn() } as any
+			const mockWs = { readyState: 1, send: vi.fn() } as unknown as WebSocket
 
-			// @ts-expect-error Testing private method
-			await instance.processTransition({ action: 'test-unreliable', data: {}, impact: TransitionImpact.UnreliableWsOnlyNudge }, 789, mockWs)
-			
+			await (
+				instance as unknown as {
+					processTransition: (
+						t: unknown,
+						id: number,
+						ws: WebSocket
+					) => Promise<void>
+				}
+			).processTransition(
+				{
+					action: 'test-unreliable',
+					data: {},
+					impact: TransitionImpact.UnreliableWsOnlyNudge
+				},
+				789,
+				mockWs
+			)
+
 			expect(handleSpy).toHaveBeenCalled()
 			expect(mockWs.send).not.toHaveBeenCalled()
 		})
