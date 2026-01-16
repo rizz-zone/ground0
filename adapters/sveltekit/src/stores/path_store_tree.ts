@@ -94,7 +94,7 @@ export class PathStoreTree {
 				delete previous[pathSegment]
 				return
 			}
-			if (index === finalIndex) {
+			if (index === path.length - 1) {
 				item[stores].delete(subscriberId)
 			}
 			previous = item

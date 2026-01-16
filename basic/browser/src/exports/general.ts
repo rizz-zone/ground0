@@ -51,7 +51,7 @@ export function workerEntrypoint<
 				workerLocalFirst.transition(message.data)
 				return
 			case UpstreamWorkerMessageType.Close: {
-				if (!port) /* v8 ignore next */ return
+				if (!port) return
 				const idx = ports.indexOf(port)
 				if (idx !== -1) ports.splice(idx, 1)
 				return
@@ -59,9 +59,12 @@ export function workerEntrypoint<
 			case UpstreamWorkerMessageType.DebugLog:
 				brandedLog(console.debug, message.message)
 				return
-			case UpstreamWorkerMessageType.DbWorkerPrepared:
-				workerLocalFirst.newPort(message.port)
+			case UpstreamWorkerMessageType.DbWorkerPrepared: {
+				const { port } = message
+				if (!port) return
+				workerLocalFirst.newPort(port)
 				return
+			}
 		}
 	}
 	function onmessageerror() {

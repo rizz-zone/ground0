@@ -17,12 +17,33 @@ const TIMEOUT_NUMBER = 23443
 const setTimeoutMock = vi.spyOn(globalThis, 'setTimeout')
 const clearTimeoutMock = vi.spyOn(globalThis, 'clearTimeout')
 
+// Stub navigator.locks if it doesn't exist
+if (!navigator.locks) {
+	Object.defineProperty(navigator, 'locks', {
+		value: { request: vi.fn() },
+		writable: true,
+		configurable: true
+	})
+}
+
 const migrateThen = vi.fn()
 const migrate = vi.fn()
 vi.doMock('./migrate', () => ({ migrate }))
 
 const brandedLog = vi.fn()
 vi.doMock('@/common/branded_log', () => ({ brandedLog }))
+
+// Mock drizzle to capture the callbacks
+let capturedSingleCallback: ((...input: unknown[]) => unknown) | null = null
+let capturedBatchCallback: ((...input: unknown[]) => unknown) | null = null
+const realDrizzle = await import('drizzle-orm/sqlite-proxy').then(m => m.drizzle)
+vi.mock('drizzle-orm/sqlite-proxy', () => ({
+	drizzle: vi.fn((singleCallback: (...input: unknown[]) => unknown, batchCallback: (...input: unknown[]) => unknown) => {
+		capturedSingleCallback = singleCallback
+		capturedBatchCallback = batchCallback
+		return {} // Return a mock db instance
+	})
+}))
 
 const syncResources = vi.fn()
 const inputs = {
@@ -190,6 +211,23 @@ describe('newPort', () => {
 				})
 			})
 			describe('Ready, when status is currently', () => {
+				describe('NeverConnecting', () => {
+					beforeEach(() => {
+						// @ts-expect-error We want to ensure that it is NeverConnecting
+						client.status = DbResourceStatus.NeverConnecting
+					})
+					it('returns early without doing anything', () => {
+						expect(migrate).not.toHaveBeenCalled()
+						expect(postMessage).not.toHaveBeenCalled()
+						onmessage(
+							new MessageEvent<DownstreamDbWorkerMessage>('message', {
+								data: { type: DownstreamDbWorkerMessageType.Ready }
+							})
+						)
+						expect(migrate).not.toHaveBeenCalled()
+						expect(postMessage).not.toHaveBeenCalled()
+					})
+				})
 				describe('Disconnected', () => {
 					beforeEach(() => {
 						// @ts-expect-error We want to ensure that it is
@@ -486,4 +524,153 @@ describe('newPort', () => {
 			})
 		})
 	})
+})
+
+describe('drizzle proxy callbacks', () => {
+	let client: DbThinClientType
+	let mockPort: MessagePort
+	const postMessage = vi.fn()
+	let navigatorLocksRequest: typeof navigator.locks.request
+
+	beforeEach(() => {
+		mockPort = { postMessage } as unknown as MessagePort
+		client = new DbThinClient(inputs)
+		client.newPort(mockPort)
+		postMessage.mockClear()
+
+		// Store and mock navigator.locks.request
+		navigatorLocksRequest = navigator.locks.request
+		// @ts-expect-error Mocking navigator.locks.request
+		navigator.locks.request = vi.fn((name, callback) => {
+			// Execute the callback immediately for testing
+			return Promise.resolve(callback())
+		})
+	})
+
+	afterEach(() => {
+		// Restore navigator.locks.request
+		navigator.locks.request = navigatorLocksRequest
+	})
+
+	describe('lockedThenable.then', () => {
+		it('adds handlers to thenableQueue', () => {
+			// @ts-expect-error We need to access the private member
+			const { lockedThenable } = client
+			const successHandler = vi.fn()
+			const rejectHandler = vi.fn()
+
+			// @ts-expect-error We need to access the private member
+			expect(client.thenableQueue.size).toBe(0)
+
+			lockedThenable.then(successHandler, rejectHandler)
+
+			// @ts-expect-error We need to access the private member
+			expect(client.thenableQueue.size).toBe(1)
+			// @ts-expect-error We need to access the private member
+			const firstEntry = [...client.thenableQueue][0]
+			if (!firstEntry) expect.fail('No entry in thenableQueue')
+			const [queuedSuccess, queuedReject] = firstEntry
+			expect(queuedSuccess).toBe(successHandler)
+			expect(queuedReject).toBe(rejectHandler)
+		})
+	})
+
+	describe('opLocked', () => {
+		it('calls navigator.locks.request with correct lock name', async () => {
+			const lockRequestSpy = vi.mocked(navigator.locks.request)
+			const callback = vi.fn(() => Promise.resolve('result'))
+
+			// @ts-expect-error We need to access the private member
+			await client.opLocked(callback)
+
+			expect(lockRequestSpy).toHaveBeenCalledOnce()
+			expect(lockRequestSpy.mock.calls[0]?.[0]).toBe(
+				`ground0::dbop_${inputs.dbName}`
+			)
+			expect(callback).toHaveBeenCalledOnce()
+		})
+	})
+
+	describe('drizzle proxy callbacks', () => {
+		it('single query callback sets ExecOne message and posts to port', async () => {
+			// Create a new client that will capture callbacks
+			capturedSingleCallback = null
+			capturedBatchCallback = null
+			
+			const testClient = new DbThinClient(inputs)
+			testClient.newPort(mockPort)
+			postMessage.mockClear()
+
+			// The callbacks should have been captured during construction
+			if (!capturedSingleCallback) {
+				throw new Error('Single callback was not captured')
+			}
+
+			const queryParams = ['SELECT * FROM test', [], 'run']
+			// Invoke the captured callback directly - it returns a promise
+			const promise = capturedSingleCallback(...queryParams)
+
+			// Wait for the promise and async operations
+			await Promise.resolve()
+
+			expect(postMessage).toHaveBeenCalledOnce()
+			const message = postMessage.mock.calls[0]?.[0]
+			expect(message).toMatchObject({
+				type: UpstreamDbWorkerMessageType.ExecOne,
+				params: queryParams
+			})
+
+			// @ts-expect-error We need to access the private member
+			expect(testClient.currentHotMessage).toMatchObject({
+				type: UpstreamDbWorkerMessageType.ExecOne,
+				params: queryParams
+			})
+			
+			// Verify it returns the lockedThenable
+			expect(promise).toHaveProperty('then')
+		})
+
+		it('batch query callback sets ExecBatch message and posts to port', async () => {
+			// Create a new client that will capture callbacks
+			capturedSingleCallback = null
+			capturedBatchCallback = null
+			
+			const testClient = new DbThinClient(inputs)
+			testClient.newPort(mockPort)
+			postMessage.mockClear()
+
+			// The callbacks should have been captured during construction
+			if (!capturedBatchCallback) {
+				throw new Error('Batch callback was not captured')
+			}
+
+			const batchParams = [
+				['INSERT INTO test VALUES (?)', 'INSERT INTO test VALUES (?)'],
+				[['value1'], ['value2']],
+				'values'
+			]
+			// Invoke the captured callback directly - it returns a promise
+			const promise = capturedBatchCallback(...batchParams)
+
+			// Wait for the promise and async operations
+			await Promise.resolve()
+
+			expect(postMessage).toHaveBeenCalledOnce()
+			const message = postMessage.mock.calls[0]?.[0]
+			expect(message).toMatchObject({
+				type: UpstreamDbWorkerMessageType.ExecBatch,
+				params: batchParams
+			})
+
+			// @ts-expect-error We need to access the private member
+			expect(testClient.currentHotMessage).toMatchObject({
+				type: UpstreamDbWorkerMessageType.ExecBatch,
+				params: batchParams
+			})
+			
+			// Verify it returns the lockedThenable
+			expect(promise).toHaveProperty('then')
+		})
+	})
+
 })

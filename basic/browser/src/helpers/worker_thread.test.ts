@@ -170,6 +170,31 @@ describe('always', () => {
 
 			expect(runners[TransitionImpact.OptimisticPush]).toHaveBeenCalled()
 		})
+		it('initializes autoTransitions with array of onInit transitions', async () => {
+			const onInit = [
+				{
+					impact: TransitionImpact.OptimisticPush,
+					action: 'shift_foo_bar'
+				} as unknown as TestingTransition,
+				{
+					impact: TransitionImpact.OptimisticPush,
+					action: 'shift_bar_baz'
+				} as unknown as TestingTransition
+			]
+			const workerLocalFirst = new WorkerLocalFirst({
+				...baseInput,
+				autoTransitions: {
+					onInit
+				}
+			})
+			expect(workerLocalFirst).toBeDefined()
+
+			// Wait for microtasks
+			await Promise.resolve()
+			await Promise.resolve()
+
+			expect(runners[TransitionImpact.OptimisticPush]).toHaveBeenCalledTimes(2)
+		})
 	})
 	describe('syncResources', () => {
 		it('does nothing no resource changes have been provided', () => {

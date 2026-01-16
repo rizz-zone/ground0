@@ -1,6 +1,7 @@
 import { DbResourceStatus } from '@/types/status/DbResourceStatus'
 import { WsResourceStatus } from '@/types/status/WsResourceStatus'
 import {
+	InternalStateError,
 	TransitionImpact,
 	UpstreamWsMessageAction,
 	type LocalDatabase,
@@ -21,7 +22,7 @@ const bareMinimumIngredients = {
 		ws: { status: WsResourceStatus.Disconnected }
 	},
 	id: 3,
-	markComplete: {},
+	markComplete: () => {},
 	localHandler: {},
 	transition: {
 		action: 'transition4',
@@ -542,6 +543,262 @@ describe('execution', () => {
 			}
 		})
 	}
+})
+
+describe('revert synchronous error handling', () => {
+	describe('memory model revert throws synchronously', () => {
+		test('sends revert failed message and transitions to failed state', async () => {
+			const editMemoryModel = vi.fn().mockResolvedValue(undefined)
+			const revertMemoryModel = vi.fn().mockImplementation(() => {
+				throw new Error('sync revert error')
+			})
+			const wsSend = vi.fn()
+
+			const runner = new OptimisticPushTransitionRunner({
+				...bareMinimumIngredients,
+				resources: {
+					db: { status: DbResourceStatus.NeverConnecting },
+					ws: {
+						status: WsResourceStatus.Connected,
+						instance: { send: wsSend } as unknown as WebSocket
+					}
+				},
+				localHandler: {
+					editMemoryModel,
+					revertMemoryModel
+				}
+			})
+
+			// Wait for microtasks to complete (editMemoryModel uses Promise.resolve)
+			await new Promise<void>((resolve) => queueMicrotask(() => resolve()))
+
+			// @ts-expect-error We need to see the private stuff
+			const snapshot = runner.machineActorRef.getSnapshot()
+			expect(snapshot.matches({ 'memory model': 'completed' })).toBeTruthy()
+
+			// Clear the wsSend calls from the initial transition
+			wsSend.mockClear()
+
+			// Simulate WS rejection to trigger revert
+			runner.reportWsResult(false)
+
+			// Wait for microtasks to complete (revertMemoryModel uses Promise.resolve)
+			await new Promise<void>((resolve) => queueMicrotask(() => resolve()))
+
+			// @ts-expect-error We need to see the private stuff
+			const finalSnapshot = runner.machineActorRef.getSnapshot()
+			expect(finalSnapshot.matches({ 'memory model': 'failed' })).toBeTruthy()
+			// The catch block should have sent 'memory model revert failed' event
+			expect(revertMemoryModel).toHaveBeenCalledOnce()
+		})
+	})
+
+	describe('db revert throws synchronously', () => {
+		test('sends revert failed message and transitions to failed state', async () => {
+			const editDb = vi.fn().mockResolvedValue(undefined)
+			const revertDb = vi.fn().mockImplementation(() => {
+				throw new Error('sync revert error')
+			})
+			const wsSend = vi.fn()
+
+			const runner = new OptimisticPushTransitionRunner({
+				...bareMinimumIngredients,
+				resources: {
+					db: {
+						status: DbResourceStatus.ConnectedAndMigrated,
+						instance: {} as LocalDatabase
+					},
+					ws: {
+						status: WsResourceStatus.Connected,
+						instance: { send: wsSend } as unknown as WebSocket
+					}
+				},
+				localHandler: {
+					editDb,
+					revertDb
+				}
+			})
+
+			// Wait for microtasks to complete (editDb uses Promise.resolve)
+			await new Promise<void>((resolve) => queueMicrotask(() => resolve()))
+
+			// @ts-expect-error We need to see the private stuff
+			const snapshot = runner.machineActorRef.getSnapshot()
+			expect(snapshot.matches({ db: 'completed' })).toBeTruthy()
+
+			// Clear the wsSend calls from the initial transition
+			wsSend.mockClear()
+
+			// Simulate WS rejection to trigger revert
+			runner.reportWsResult(false)
+
+			// Wait for microtasks to complete (revertDb uses Promise.resolve)
+			await new Promise<void>((resolve) => queueMicrotask(() => resolve()))
+
+			// @ts-expect-error We need to see the private stuff
+			const finalSnapshot = runner.machineActorRef.getSnapshot()
+			expect(finalSnapshot.matches({ db: 'failed' })).toBeTruthy()
+			// The catch block should have sent 'db revert failed' event
+			expect(revertDb).toHaveBeenCalledOnce()
+		})
+	})
+})
+
+describe('error handling for missing handlers (defensive checks)', () => {
+	describe('editMemoryModel throws when handler missing', () => {
+		test('throws InternalStateError', () => {
+			// This should never happen in practice because the machine guards against it
+			// but we test the defensive check
+			const runner = new OptimisticPushTransitionRunner({
+				...bareMinimumIngredients,
+				localHandler: {} // No editMemoryModel
+			})
+
+			// @ts-expect-error We need to access private members
+			const machine = runner.machine
+			// @ts-expect-error We need to access private members
+			const actorRef = runner.machineActorRef
+
+			// Directly invoke the action to bypass guards
+			expect(() => {
+				// @ts-expect-error We need to access the actions
+				machine.implementations.actions.editMemoryModel.call(runner, {
+					self: actorRef
+				})
+			}).toThrow(InternalStateError)
+		})
+	})
+
+	describe('editDb throws when handler missing', () => {
+		test('throws InternalStateError', () => {
+			const runner = new OptimisticPushTransitionRunner({
+				...bareMinimumIngredients,
+				resources: {
+					db: {
+						status: DbResourceStatus.ConnectedAndMigrated,
+						instance: {} as LocalDatabase
+					},
+					ws: { status: WsResourceStatus.Disconnected }
+				},
+				localHandler: {} // No editDb
+			})
+
+			// @ts-expect-error We need to access private members
+			const machine = runner.machine
+			// @ts-expect-error We need to access private members
+			const actorRef = runner.machineActorRef
+
+			expect(() => {
+				// @ts-expect-error We need to access the actions
+				machine.implementations.actions.editDb.call(runner, { self: actorRef })
+			}).toThrow(InternalStateError)
+		})
+	})
+
+	describe('editDb throws when db not connected', () => {
+		test('throws InternalStateError', () => {
+			const runner = new OptimisticPushTransitionRunner({
+				...bareMinimumIngredients,
+				resources: {
+					db: { status: DbResourceStatus.Disconnected },
+					ws: { status: WsResourceStatus.Disconnected }
+				},
+				localHandler: {
+					editDb: vi.fn(),
+					revertDb: vi.fn()
+				}
+			})
+
+			// @ts-expect-error We need to access private members
+			const machine = runner.machine
+			// @ts-expect-error We need to access private members
+			const actorRef = runner.machineActorRef
+
+			expect(() => {
+				// @ts-expect-error We need to access the actions
+				machine.implementations.actions.editDb.call(runner, { self: actorRef })
+			}).toThrow(InternalStateError)
+		})
+	})
+
+	describe('revertMemoryModel throws when handler missing', () => {
+		test('throws InternalStateError', () => {
+			const runner = new OptimisticPushTransitionRunner({
+				...bareMinimumIngredients,
+				localHandler: {
+					editMemoryModel: vi.fn()
+					// No revertMemoryModel
+				}
+			})
+
+			// @ts-expect-error We need to access private members
+			const machine = runner.machine
+			// @ts-expect-error We need to access private members
+			const actorRef = runner.machineActorRef
+
+			expect(() => {
+				// @ts-expect-error We need to access the actions
+				machine.implementations.actions.revertMemoryModel.call(runner, {
+					self: actorRef
+				})
+			}).toThrow(InternalStateError)
+		})
+	})
+
+	describe('revertDb throws when handler missing', () => {
+		test('throws InternalStateError', () => {
+			const runner = new OptimisticPushTransitionRunner({
+				...bareMinimumIngredients,
+				resources: {
+					db: {
+						status: DbResourceStatus.ConnectedAndMigrated,
+						instance: {} as LocalDatabase
+					},
+					ws: { status: WsResourceStatus.Disconnected }
+				},
+				localHandler: {
+					editDb: vi.fn()
+					// No revertDb
+				}
+			})
+
+			// @ts-expect-error We need to access private members
+			const machine = runner.machine
+			// @ts-expect-error We need to access private members
+			const actorRef = runner.machineActorRef
+
+			expect(() => {
+				// @ts-expect-error We need to access the actions
+				machine.implementations.actions.revertDb.call(runner, { self: actorRef })
+			}).toThrow(InternalStateError)
+		})
+	})
+
+	describe('revertDb throws when db not connected', () => {
+		test('throws InternalStateError', () => {
+			const runner = new OptimisticPushTransitionRunner({
+				...bareMinimumIngredients,
+				resources: {
+					db: { status: DbResourceStatus.Disconnected },
+					ws: { status: WsResourceStatus.Disconnected }
+				},
+				localHandler: {
+					editDb: vi.fn(),
+					revertDb: vi.fn()
+				}
+			})
+
+			// @ts-expect-error We need to access private members
+			const machine = runner.machine
+			// @ts-expect-error We need to access private members
+			const actorRef = runner.machineActorRef
+
+			expect(() => {
+				// @ts-expect-error We need to access the actions
+				machine.implementations.actions.revertDb.call(runner, { self: actorRef })
+			}).toThrow(InternalStateError)
+		})
+	})
 })
 
 // TODO: Test `did not begin executing before rejection` situations. or just

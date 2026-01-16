@@ -118,11 +118,38 @@ describe('use', () => {
 			// The path should still exist
 			expect(instance.getPathSubscribers(['foo', 4])?.size).toBe(1)
 		})
-		it('logs error for non-existent path', () => {
+		it('deletes only the specific subscriber when there are multiple at the same path', () => {
+			const fn1 = vi.fn()
+			const fn2 = vi.fn()
+			const subscriberId1 = instance.createPathSubscriber(thePath, fn1, {})
+			const subscriberId2 = instance.createPathSubscriber(thePath, fn2, {})
+
+			expect(instance.getPathSubscribers(thePath)?.size).toBe(2)
+
+			// Delete only the first subscriber
+			instance.deletePathSubscriber(thePath, subscriberId1)
+
+			// Should have 1 subscriber remaining
+			const remaining = instance.getPathSubscribers(thePath)
+			expect(remaining?.size).toBe(1)
+			expect(remaining?.has(subscriberId1)).toBe(false)
+			expect(remaining?.has(subscriberId2)).toBe(true)
+		})
+		it('handles corrupted tree during deletion (path segment mismatch)', () => {
 			const consoleError = vi
 				.spyOn(console, 'error')
 				.mockImplementation(() => {})
-			instance.deletePathSubscriber(['nonexistent', 'path'], Symbol())
+			
+			// Create a subscriber
+			const subscriberId = instance.createPathSubscriber(['a', 'b'], () => {}, {})
+			
+			// Manually corrupt the tree by deleting a segment in the middle
+			// @ts-expect-error Accessing private for corruption
+			delete instance.rawTree['a']
+			
+			// Try to delete the subscriber - should trigger the brandedLog error
+			instance.deletePathSubscriber(['a', 'b'], subscriberId)
+			
 			expect(consoleError).toHaveBeenCalled()
 			consoleError.mockRestore()
 		})
@@ -186,6 +213,72 @@ describe('use', () => {
 
 			instance.pushUpdateThroughPath(['a'], memoryModel)
 			expect(fn).toHaveBeenCalledWith({ b: 'exists' })
+		})
+		it('handles subscriber errors gracefully', () => {
+			const memoryModel = { a: { b: 'exists' } }
+			const throwingFn = vi.fn().mockImplementation(() => {
+				throw new Error('Subscriber error')
+			})
+			const normalFn = vi.fn()
+			instance.createPathSubscriber(['a'], throwingFn, memoryModel)
+			instance.createPathSubscriber(['a', 'b'], normalFn, memoryModel)
+			throwingFn.mockClear()
+			normalFn.mockClear()
+
+			// Should not throw even though throwingFn throws
+			expect(() =>
+				instance.pushUpdateThroughPath(['a'], memoryModel)
+			).not.toThrow()
+			expect(throwingFn).toHaveBeenCalled()
+			expect(normalFn).toHaveBeenCalled()
+		})
+		it('handles undefined values in nested updates when parent is null', () => {
+			const memoryModel = { a: null }
+			const fn = vi.fn()
+			instance.createPathSubscriber(['a', 'b'], fn, {})
+			fn.mockClear()
+
+			instance.pushUpdateThroughPath([], memoryModel)
+			// fn should be called with undefined because a is null so a.b doesn't exist
+			expect(fn).toHaveBeenCalledWith(undefined)
+		})
+		it('handles undefined values in nested updates when key does not exist', () => {
+			const memoryModel = { a: { c: 'value' } }
+			const fn = vi.fn()
+			instance.createPathSubscriber(['a', 'b'], fn, {})
+			fn.mockClear()
+
+			// Update the tree from the root
+			instance.pushUpdateThroughPath([], memoryModel)
+			// fn should be called with undefined because a.b doesn't exist
+			expect(fn).toHaveBeenCalledWith(undefined)
+		})
+		it('handles undefined values when previousOriginal is not an object', () => {
+			const memoryModel = { a: 'string_value' }
+			const fn = vi.fn()
+			instance.createPathSubscriber(['a', 'b'], fn, {})
+			fn.mockClear()
+
+			// Push update through path where 'a' is a string, not an object
+			instance.pushUpdateThroughPath(['a', 'b'], memoryModel)
+			// fn should be called with undefined because 'a' is not an object
+			expect(fn).toHaveBeenCalledWith(undefined)
+		})
+	})
+	describe('updateAllNestedStores', () => {
+		it('handles subscriber errors gracefully in recursive updates', () => {
+			const memoryModel = { a: { b: { c: 'value' } } }
+			const throwingFn = vi.fn().mockImplementation(() => {
+				throw new Error('Subscriber error')
+			})
+			instance.createPathSubscriber(['a', 'b'], throwingFn, memoryModel)
+			throwingFn.mockClear()
+
+			// Should not throw even though the subscriber throws
+			expect(() =>
+				instance.pushUpdateThroughPath([], memoryModel)
+			).not.toThrow()
+			expect(throwingFn).toHaveBeenCalled()
 		})
 	})
 })

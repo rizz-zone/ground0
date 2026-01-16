@@ -28,7 +28,7 @@ export async function connectWs({
 			await reconnectCooldown
 			// Worth checking because we're doing a lot of async/await. It
 			// probably won't be necessary though, so it's not tested
-			if (ourConnectionId !== currentConnectionId) /* v8 ignore next */ return
+			if (ourConnectionId !== currentConnectionId) return
 			reconnectCooldown = new Promise((resolve) => setTimeout(resolve, 500))
 
 			const ws = new WebSocket(wsUrl)

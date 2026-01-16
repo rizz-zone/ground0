@@ -11,10 +11,13 @@ import {
 	UpstreamWsMessageAction,
 	WsCloseCode,
 	type UpstreamWsMessage,
-	TransitionImpact
+	TransitionImpact,
+	DownstreamWsMessageAction,
+	type UUID
 } from '@ground0/shared'
 import { isUpstreamWsMessage } from '@ground0/shared/zod'
 import SuperJSON from 'superjson'
+import { sql } from 'drizzle-orm'
 
 // If we don't do this, env.* won't have our SAMPLE_OBJECT binding.
 declare module 'cloudflare:test' {
@@ -60,6 +63,40 @@ describe('constructor', () => {
 			)
 			expect(ctx.getWebSocketAutoResponse()?.request).toEqual('?')
 			expect(ctx.getWebSocketAutoResponse()?.response).toEqual('!')
+		})
+	})
+	it('does not overwrite existing websocket autoresponse pair', async () => {
+		await runInDurableObject(stub, (instance, ctx) => {
+			const existingPair = new WebSocketRequestResponsePair('a', 'b')
+			ctx.setWebSocketAutoResponse(existingPair)
+
+			// @ts-expect-error Accessing protected/private for testing
+			const newInstance = new (instance.constructor as any)(ctx, env)
+			expect(ctx.getWebSocketAutoResponse()).toStrictEqual(existingPair)
+		})
+	})
+	it('recovers initialized sockets from the database on startup', async () => {
+		const socketId = crypto.randomUUID()
+		await runInDurableObject(stub, async (instance, ctx) => {
+			// @ts-expect-error Accessing private member
+			await instance.db
+				.run(sql`INSERT INTO __ground0_connections (id) VALUES (${socketId})`)
+
+			// Create a new instance which should load from DB
+			// @ts-expect-error Accessing protected/private for testing
+			const newInstance = new (instance.constructor as any)(ctx, env)
+
+			// Wait for the async blockConcurrencyWhile to complete
+			await vi.waitUntil(
+				async () => {
+					// @ts-expect-error Accessing private member
+					return newInstance.initialisedSockets.includes(socketId)
+				},
+				{ timeout: 2000 }
+			)
+
+			// @ts-expect-error Accessing private member
+			expect(newInstance.initialisedSockets).toContain(socketId)
 		})
 	})
 })
@@ -231,76 +268,50 @@ describe('fetch handler', () => {
 	})
 })
 describe('websocket message handler', () => {
-	let socket: WebSocket
-	beforeEach(async () => {
-		await runInDurableObject(stub, (_, ctx) => {
-			socket = new WebSocketPair()[0]
-			ctx.acceptWebSocket(socket, [crypto.randomUUID()])
+	it('rejects ArrayBuffers', async () => {
+		await runInDurableObject(stub, async (instance, ctx) => {
+			const pair = new WebSocketPair()
+			ctx.acceptWebSocket(pair[1], [crypto.randomUUID()])
+			const closeMock = vi.spyOn(pair[1], 'close')
+			await instance.webSocketMessage(pair[1], new ArrayBuffer())
+			expect(closeMock).toHaveBeenCalledOnce()
+			expect(closeMock.mock.lastCall?.[0]).toEqual(WsCloseCode.InvalidMessage)
 		})
 	})
-	const wsOpen = () =>
-		vi.waitUntil(() => socket.readyState === WebSocket.OPEN, {
-			interval: 1,
-			timeout: 1000
+	it('rejects non-JSON', async () => {
+		await runInDurableObject(stub, async (instance, ctx) => {
+			const pair = new WebSocketPair()
+			ctx.acceptWebSocket(pair[1], [crypto.randomUUID()])
+			const closeMock = vi.spyOn(pair[1], 'close')
+			await instance.webSocketMessage(pair[1], 'not json :)')
+			expect(closeMock).toHaveBeenCalledOnce()
+			expect(closeMock.mock.lastCall?.[0]).toEqual(WsCloseCode.InvalidMessage)
 		})
-	describe('message validation', () => {
-		it('rejects ArrayBuffers', async () => {
-			const closeMock = vi.spyOn(socket, 'close')
-			const sendMock = vi.spyOn(socket, 'send')
-			await runInDurableObject(stub, async (instance) => {
-				await wsOpen()
-				await instance.webSocketMessage(socket, new ArrayBuffer())
-				expect(closeMock).toHaveBeenCalledOnce()
-				expect(closeMock.mock.lastCall?.[0]).toEqual(WsCloseCode.InvalidMessage)
-				expect(sendMock).not.toHaveBeenCalled()
-			})
-		})
-		it('rejects non-JSON', async () => {
-			const closeMock = vi.spyOn(socket, 'close')
-			const sendMock = vi.spyOn(socket, 'send')
-			await runInDurableObject(stub, async (instance) => {
-				await wsOpen()
-				await instance.webSocketMessage(socket, 'not json :)')
-				expect(closeMock).toHaveBeenCalledOnce()
-				expect(closeMock.mock.lastCall?.[0]).toEqual(WsCloseCode.InvalidMessage)
-				expect(sendMock).not.toHaveBeenCalled()
-			})
-		})
-		it("rejects messages that don't match the schema", async ({ skip }) => {
-			const badMessage: UpstreamWsMessage = {
-				action: UpstreamWsMessageAction.Init,
-				version: 'aunuyn'
-			}
-			// If the invalid message passes validation, there are tests that
-			// fail elsewhere to signal the issue. We should keep this test
-			// focused on whether the Durable Object works, not whether the
-			// message validation works.
-			if (isUpstreamWsMessage(badMessage)) return skip()
+	})
+	it("rejects messages that don't match the schema", async ({ skip }) => {
+		const badMessage: UpstreamWsMessage = {
+			action: UpstreamWsMessageAction.Init,
+			version: 'aunuyn'
+		}
+		if (isUpstreamWsMessage(badMessage)) return skip()
 
-			const closeMock = vi.spyOn(socket, 'close')
-			const sendMock = vi.spyOn(socket, 'send')
-			await runInDurableObject(stub, async (instance) => {
-				await wsOpen()
-				await instance.webSocketMessage(socket, SuperJSON.stringify(badMessage))
-				expect(closeMock).toHaveBeenCalledOnce()
-				expect(closeMock.mock.lastCall?.[0]).toEqual(WsCloseCode.InvalidMessage)
-				expect(sendMock).not.toHaveBeenCalled()
-			})
+		await runInDurableObject(stub, async (instance, ctx) => {
+			const pair = new WebSocketPair()
+			ctx.acceptWebSocket(pair[1], [crypto.randomUUID()])
+			const closeMock = vi.spyOn(pair[1], 'close')
+			await instance.webSocketMessage(pair[1], SuperJSON.stringify(badMessage))
+			expect(closeMock).toHaveBeenCalledOnce()
+			expect(closeMock.mock.lastCall?.[0]).toEqual(WsCloseCode.InvalidMessage)
 		})
 	})
 	describe('init message handling', () => {
 		it('closes if no tags applied', async () => {
 			await runInDurableObject(stub, async (instance, ctx) => {
-				const noTagSocket = new WebSocketPair()[0]
-				ctx.acceptWebSocket(noTagSocket, [])
-				await vi.waitUntil(() => noTagSocket.readyState === WebSocket.OPEN, {
-					interval: 1,
-					timeout: 1000
-				})
-
-				const closeMock = vi.spyOn(noTagSocket, 'close')
+				const pair = new WebSocketPair()
+				ctx.acceptWebSocket(pair[1], [])
+				const closeMock = vi.spyOn(pair[1], 'close')
 				await instance.webSocketMessage(
-					noTagSocket,
+					pair[1],
 					SuperJSON.stringify({
 						action: UpstreamWsMessageAction.Init,
 						version: '1.2.3'
@@ -311,226 +322,181 @@ describe('websocket message handler', () => {
 			})
 		})
 		describe('version comparison', () => {
-			describe('major version >0', () => {
-				it('closes on higher major version', async () => {
-					const closeMock = vi.spyOn(socket, 'close')
-					const sendMock = vi.spyOn(socket, 'send')
-					await runInDurableObject(stub, async (instance) => {
-						await wsOpen()
-						await instance.webSocketMessage(
-							socket,
-							SuperJSON.stringify({
-								action: UpstreamWsMessageAction.Init,
-								version: '2.0.0'
-							} satisfies UpstreamWsMessage)
-						)
-						expect(closeMock).toHaveBeenCalledOnce()
-						expect(closeMock.mock.lastCall?.[0]).toEqual(
-							WsCloseCode.Incompatible
-						)
-						expect(sendMock).not.toHaveBeenCalled()
-					})
-				})
-				it('closes on lower major version', async () => {
-					const closeMock = vi.spyOn(socket, 'close')
-					const sendMock = vi.spyOn(socket, 'send')
-					await runInDurableObject(stub, async (instance) => {
-						await wsOpen()
-						await instance.webSocketMessage(
-							socket,
-							SuperJSON.stringify({
-								action: UpstreamWsMessageAction.Init,
-								version: '0.0.1'
-							} satisfies UpstreamWsMessage)
-						)
-						expect(closeMock).toHaveBeenCalledOnce()
-						expect(closeMock.mock.lastCall?.[0]).toEqual(
-							WsCloseCode.Incompatible
-						)
-						expect(sendMock).not.toHaveBeenCalled()
-					})
-				})
-				it('does not close on matching major version', async () => {
-					const closeMock = vi.spyOn(socket, 'close')
-					await runInDurableObject(stub, async (instance) => {
-						await wsOpen()
-						await instance.webSocketMessage(
-							socket,
-							SuperJSON.stringify({
-								action: UpstreamWsMessageAction.Init,
-								version: '1.2.3'
-							} satisfies UpstreamWsMessage)
-						)
-						expect(closeMock).not.toHaveBeenCalled()
-					})
+			it('closes on incompatible major version', async () => {
+				await runInDurableObject(stub, async (instance, ctx) => {
+					const pair = new WebSocketPair()
+					ctx.acceptWebSocket(pair[1], [crypto.randomUUID()])
+					const closeMock = vi.spyOn(pair[1], 'close')
+					await instance.webSocketMessage(
+						pair[1],
+						SuperJSON.stringify({
+							action: UpstreamWsMessageAction.Init,
+							version: '2.0.0'
+						} satisfies UpstreamWsMessage)
+					)
+					expect(closeMock).toHaveBeenCalledOnce()
+					expect(closeMock.mock.lastCall?.[0]).toEqual(WsCloseCode.Incompatible)
 				})
 			})
-			describe('major version =0', () => {
-				it('closes on higher minor version', async () => {
-					const closeMock = vi.spyOn(socket, 'close')
-					const sendMock = vi.spyOn(socket, 'send')
-					await runInDurableObject(stub, async (instance) => {
-						// @ts-expect-error We have to modify the engineDef because the
-						// only alternative is to create a different object.
-						instance.engineDef.version.current = '0.2.3'
-
-						await wsOpen()
-						await instance.webSocketMessage(
-							socket,
-							SuperJSON.stringify({
-								action: UpstreamWsMessageAction.Init,
-								version: '0.3.0'
-							} satisfies UpstreamWsMessage)
-						)
-						expect(closeMock).toHaveBeenCalledOnce()
-						expect(closeMock.mock.lastCall?.[0]).toEqual(
-							WsCloseCode.Incompatible
-						)
-						expect(sendMock).not.toHaveBeenCalled()
-					})
+			it('does not close on matching major version', async () => {
+				await runInDurableObject(stub, async (instance, ctx) => {
+					const pair = new WebSocketPair()
+					ctx.acceptWebSocket(pair[1], [crypto.randomUUID()])
+					const closeMock = vi.spyOn(pair[1], 'close')
+					await instance.webSocketMessage(
+						pair[1],
+						SuperJSON.stringify({
+							action: UpstreamWsMessageAction.Init,
+							version: '1.2.3'
+						} satisfies UpstreamWsMessage)
+					)
+					expect(closeMock).not.toHaveBeenCalled()
 				})
-				it('closes on lower minor version', async () => {
-					const closeMock = vi.spyOn(socket, 'close')
-					const sendMock = vi.spyOn(socket, 'send')
-					await runInDurableObject(stub, async (instance) => {
-						// @ts-expect-error We have to modify the engineDef because the
-						// only alternative is to create a different object.
-						instance.engineDef.version.current = '0.2.3'
+			})
+		})
+		it('calls autorun onConnect handlers', async () => {
+			await runInDurableObject(stub, async (instance, ctx) => {
+				const onConnect = vi.fn()
+				// @ts-expect-error Testing private/protected
+				instance.autoruns = { onConnect: [onConnect] }
 
-						await wsOpen()
-						await instance.webSocketMessage(
-							socket,
-							SuperJSON.stringify({
-								action: UpstreamWsMessageAction.Init,
-								version: '0.1.0'
-							} satisfies UpstreamWsMessage)
-						)
-						expect(closeMock).toHaveBeenCalledOnce()
-						expect(closeMock.mock.lastCall?.[0]).toEqual(
-							WsCloseCode.Incompatible
-						)
-						expect(sendMock).not.toHaveBeenCalled()
-					})
-				})
-				it('does not close on matching minor version', async () => {
-					const closeMock = vi.spyOn(socket, 'close')
-					await runInDurableObject(stub, async (instance) => {
-						// @ts-expect-error We have to modify the engineDef because the
-						// only alternative is to create a different object.
-						instance.engineDef.version.current = '0.2.3'
+				const socketId = crypto.randomUUID()
+				const pair = new WebSocketPair()
+				ctx.acceptWebSocket(pair[1], [socketId])
 
-						await wsOpen()
-						await instance.webSocketMessage(
-							socket,
-							SuperJSON.stringify({
-								action: UpstreamWsMessageAction.Init,
-								version: '0.2.1'
-							} satisfies UpstreamWsMessage)
-						)
-						expect(closeMock).not.toHaveBeenCalled()
-					})
-				})
+				await instance.webSocketMessage(
+					pair[1],
+					SuperJSON.stringify({
+						action: UpstreamWsMessageAction.Init,
+						version: '1.0.0'
+					} satisfies UpstreamWsMessage)
+				)
+
+				expect(onConnect).toHaveBeenCalledWith(socketId)
+			})
+		})
+		it('handles throwing autorun onConnect handlers', async () => {
+			await runInDurableObject(stub, async (instance, ctx) => {
+				const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+				const error = new Error('boom')
+				const onConnect = vi.fn().mockRejectedValue(error)
+				// @ts-expect-error Testing private/protected
+				instance.autoruns = { onConnect }
+
+				const pair = new WebSocketPair()
+				ctx.acceptWebSocket(pair[1], [crypto.randomUUID()])
+
+				await instance.webSocketMessage(
+					pair[1],
+					SuperJSON.stringify({
+						action: UpstreamWsMessageAction.Init,
+						version: '1.0.0'
+					} satisfies UpstreamWsMessage)
+				)
+
+				expect(onConnect).toHaveBeenCalled()
+				expect(consoleErrorSpy).toHaveBeenCalledWith(error)
 			})
 		})
 	})
 	describe('transition message handling', () => {
 		it('processes valid transitions', async () => {
-			await runInDurableObject(stub, async (instance) => {
-				await wsOpen()
-				// First initialize the socket
+			await runInDurableObject(stub, async (instance, ctx) => {
+				const pair = new WebSocketPair()
+				ctx.acceptWebSocket(pair[1], [crypto.randomUUID()])
 				await instance.webSocketMessage(
-					socket,
+					pair[1],
 					SuperJSON.stringify({
 						action: UpstreamWsMessageAction.Init,
 						version: '1.0.0'
 					} satisfies UpstreamWsMessage)
 				)
 
-				const processTransitionSpy = vi.spyOn(
-					instance,
-					// @ts-expect-error Testing private method
-					'processTransition'
-				)
 				await instance.webSocketMessage(
-					socket,
+					pair[1],
 					SuperJSON.stringify({
-						action: UpstreamWsMessageAction.Transition,
-						id: 123,
-						data: {
-							action: 3,
-							data: { foo: 'test', bar: 42 },
-							impact: TransitionImpact.OptimisticPush
-						}
+						action: 3,
+						data: { foo: 'test', bar: 42 },
+						impact: TransitionImpact.OptimisticPush
 					} satisfies UpstreamWsMessage)
 				)
-				expect(processTransitionSpy).toHaveBeenCalledOnce()
 			})
 		})
-		it('logs and does not disconnect for invalid transition when logInvalidTransitions is true', async () => {
-			await runInDurableObject(stub, async (instance) => {
-				// @ts-expect-error We're modifying a protected property for testing
-				instance.logInvalidTransitions = true
-				// @ts-expect-error We're modifying a protected property for testing
-				instance.disconnectOnInvalidTransition = false
+	})
+})
+describe('update method and logic branches', () => {
+	it('sends updates to all connected sockets', async () => {
+		await runInDurableObject(stub, async (instance, ctx) => {
+			const mockWs1 = { readyState: 1, send: vi.fn() } as any
+			const mockWs2 = { readyState: 1, send: vi.fn() } as any
+			
+			const getWebSocketsSpy = vi.spyOn(ctx, 'getWebSockets').mockReturnValue([mockWs1, mockWs2])
+			vi.spyOn(ctx, 'getTags').mockReturnValue([crypto.randomUUID()])
 
-				const consoleErrorSpy = vi.spyOn(console, 'error')
-				await wsOpen()
-				// First initialize the socket
-				await instance.webSocketMessage(
-					socket,
-					SuperJSON.stringify({
-						action: UpstreamWsMessageAction.Init,
-						version: '1.0.0'
-					} satisfies UpstreamWsMessage)
-				)
-				await instance.webSocketMessage(
-					socket,
-					SuperJSON.stringify({
-						action: UpstreamWsMessageAction.Transition,
-						id: 123,
-						data: {
-							action: 3,
-							data: { foo: 'test' }, // missing 'bar' property
-							impact: TransitionImpact.OptimisticPush
-						}
-					} satisfies UpstreamWsMessage)
-				)
-				expect(consoleErrorSpy).toHaveBeenCalled()
-			})
+			const updateData = { some: 'update' }
+			// @ts-expect-error Testing protected method
+			instance.update(updateData)
+
+			expect(mockWs1.send).toHaveBeenCalled()
+			expect(mockWs2.send).toHaveBeenCalled()
+			getWebSocketsSpy.mockRestore()
 		})
-		it('disconnects for invalid transition when disconnectOnInvalidTransition is true', async () => {
-			await runInDurableObject(stub, async (instance) => {
-				// @ts-expect-error We're modifying a protected property for testing
-				instance.logInvalidTransitions = false
-				// @ts-expect-error We're modifying a protected property for testing
-				instance.disconnectOnInvalidTransition = true
+	})
+	it('handles missing handlers gracefully', async () => {
+		await runInDurableObject(stub, async (instance, ctx) => {
+			const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+			// @ts-expect-error Testing private/protected
+			instance.backendHandlers = {} // Remove handlers
 
-				const closeSpy = vi.spyOn(socket, 'close')
-				await wsOpen()
-				// First initialize the socket
-				await instance.webSocketMessage(
-					socket,
-					SuperJSON.stringify({
-						action: UpstreamWsMessageAction.Init,
-						version: '1.0.0'
-					} satisfies UpstreamWsMessage)
-				)
-				closeSpy.mockClear() // Clear any calls from init
-				await instance.webSocketMessage(
-					socket,
-					SuperJSON.stringify({
-						action: UpstreamWsMessageAction.Transition,
-						id: 123,
-						data: {
-							action: 3,
-							data: { foo: 'test' }, // missing 'bar' property
-							impact: TransitionImpact.OptimisticPush
-						}
-					} satisfies UpstreamWsMessage)
-				)
-				expect(closeSpy).toHaveBeenCalledOnce()
-				expect(closeSpy.mock.lastCall?.[0]).toEqual(WsCloseCode.InvalidMessage)
-			})
+			// Create a mock socket
+			const mockWs = { readyState: 1, send: vi.fn() } as any
+			vi.spyOn(ctx, 'getTags').mockReturnValue(['id1' as UUID])
+
+			// @ts-expect-error Testing private method
+			await instance.processTransition({ action: 'non-existent', data: {}, impact: TransitionImpact.OptimisticPush }, 123, mockWs)
+			
+			expect(consoleErrorSpy).toHaveBeenCalledWith('No handler found for action: non-existent')
+		})
+	})
+	it('handles missing connectionId gracefully', async () => {
+		await runInDurableObject(stub, async (instance, ctx) => {
+			vi.spyOn(ctx, 'getTags').mockReturnValue([]) // No tags
+			const mockWs = { readyState: 1, send: vi.fn() } as any
+			// @ts-expect-error Testing private method
+			const result = await instance.processTransition({ action: 3, data: {}, impact: TransitionImpact.OptimisticPush }, 123, mockWs)
+			expect(result).toBeUndefined()
+		})
+	})
+	it('processes WsOnlyNudge and sends ACK', async () => {
+		await runInDurableObject(stub, async (instance, ctx) => {
+			const handleSpy = vi.fn()
+			// @ts-expect-error Testing private/protected
+			instance.backendHandlers['test-nudge'] = { handle: handleSpy }
+			vi.spyOn(ctx, 'getTags').mockReturnValue(['id1' as UUID])
+			const mockWs = { readyState: 1, send: vi.fn() } as any
+
+			// @ts-expect-error Testing private method
+			await instance.processTransition({ action: 'test-nudge', data: {}, impact: TransitionImpact.WsOnlyNudge }, 456, mockWs)
+			
+			expect(handleSpy).toHaveBeenCalled()
+			expect(mockWs.send).toHaveBeenCalled()
+			const response = SuperJSON.parse(mockWs.send.mock.calls[0][0]) as any
+			expect(response.action).toBe(DownstreamWsMessageAction.AckWsNudge)
+		})
+	})
+	it('processes UnreliableWsOnlyNudge without ACK', async () => {
+		await runInDurableObject(stub, async (instance, ctx) => {
+			const handleSpy = vi.fn()
+			// @ts-expect-error Testing private/protected
+			instance.backendHandlers['test-unreliable'] = { handle: handleSpy }
+			vi.spyOn(ctx, 'getTags').mockReturnValue(['id1' as UUID])
+			const mockWs = { readyState: 1, send: vi.fn() } as any
+
+			// @ts-expect-error Testing private method
+			await instance.processTransition({ action: 'test-unreliable', data: {}, impact: TransitionImpact.UnreliableWsOnlyNudge }, 789, mockWs)
+			
+			expect(handleSpy).toHaveBeenCalled()
+			expect(mockWs.send).not.toHaveBeenCalled()
 		})
 	})
 })

@@ -33,7 +33,6 @@ import { sqliteTable, text } from 'drizzle-orm/sqlite-core'
 import { EnhancedQueryLogger } from 'drizzle-query-logger'
 import type { BackendAutoruns } from './types/BackendAutoruns'
 
-/* istanbul ignore next -- @preserve: This is a simple utility function that's hard to test in the cloudflare vitest-pool-workers environment */
 function send(ws: WebSocket, json: DownstreamWsMessage) {
 	if (ws.readyState === WebSocket.OPEN) ws.send(SuperJSON.stringify(json))
 }
@@ -134,14 +133,6 @@ export abstract class SyncEngineBackend<
 			logger: this.drizzleVerbose ? new EnhancedQueryLogger() : false
 		})
 
-		// We need Istanbul to ignore this because it's hard to test
-		// constructors, and we test that this works by ensuring that a pair is
-		// set after the fact, not by mocking `ctx`. It is largely irrelevant
-		// whether we call setWebSocketAutoResponse when there's already a pair
-		// set, but it's very relevant whether one is set in the first place,
-		// and we check for the worst case in testing.
-
-		/* istanbul ignore if -- @preserve */
 		if (!this.ctx.getWebSocketAutoResponse())
 			this.ctx.setWebSocketAutoResponse(
 				new WebSocketRequestResponsePair('?', '!')
@@ -232,7 +223,6 @@ export abstract class SyncEngineBackend<
 				const id = this.ctx.getTags(ws)[0] as UUID | undefined
 				if (!id) return ws.close(WsCloseCode.NoTagsApplied)
 
-				/* istanbul ignore next -- @preserve: Autorun handlers are integration-level behavior that requires more complex mocking */
 				if (this.autoruns && this.autoruns.onConnect)
 					for (const fn of Array.isArray(this.autoruns.onConnect)
 						? this.autoruns.onConnect
@@ -278,7 +268,6 @@ export abstract class SyncEngineBackend<
 		}
 	}
 
-	/* istanbul ignore next -- @preserve: This method requires complex mocking of websocket contexts */
 	private async processTransition(
 		transition: AppTransition,
 		transitionId: number,
@@ -330,7 +319,6 @@ export abstract class SyncEngineBackend<
 		}
 	}
 
-	/* istanbul ignore next -- @preserve: This method requires complex mocking of websocket contexts */
 	protected update(
 		update: AppUpdate,
 		opts?:
