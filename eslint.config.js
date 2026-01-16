@@ -28,7 +28,5 @@ export default ts.config(
 			]
 		}
 	},
-	globalIgnores([
-		'**/worker-configuration.d.ts',
-	])
+	globalIgnores(['**/worker-configuration.d.ts'])
 )
