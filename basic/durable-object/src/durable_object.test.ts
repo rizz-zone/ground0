@@ -21,6 +21,7 @@ import {
 import { isUpstreamWsMessage } from '@ground0/shared/zod'
 import SuperJSON from 'superjson'
 import { sql } from 'drizzle-orm'
+import type { TestingUpdate } from '@ground0/shared/testing'
 
 // If we don't do this, env.* won't have our SAMPLE_OBJECT binding.
 declare module 'cloudflare:test' {
@@ -154,7 +155,9 @@ describe('constructor', () => {
 		await runInDurableObject(stub, async (instance, ctx) => {
 			// Use raw SQL to insert an empty string (which is technically allowed by NOT NULL but is falsy)
 			// @ts-expect-error Accessing private member
-			await instance.db.run(sql`INSERT INTO __ground0_connections (id) VALUES ('')`)
+			await instance.db.run(
+				sql`INSERT INTO __ground0_connections (id) VALUES ('')`
+			)
 
 			// Create a new instance which should skip the empty entry
 			const newInstance = new (instance.constructor as unknown as new (
@@ -850,7 +853,10 @@ describe('update method and logic branches', () => {
 				readyState: 3,
 				send: vi.fn()
 			} as unknown as WebSocket
-			const mockWsOpen = { readyState: 1, send: vi.fn() } as unknown as WebSocket
+			const mockWsOpen = {
+				readyState: 1,
+				send: vi.fn()
+			} as unknown as WebSocket
 
 			vi.spyOn(ctx, 'getWebSockets').mockReturnValue([mockWsClosed, mockWsOpen])
 			vi.spyOn(ctx, 'getTags').mockReturnValue([crypto.randomUUID()])
@@ -889,7 +895,10 @@ describe('update method and logic branches', () => {
 				send: vi.fn()
 			} as unknown as WebSocket
 
-			vi.spyOn(ctx, 'getWebSockets').mockReturnValue([mockWsTarget, mockWsOther])
+			vi.spyOn(ctx, 'getWebSockets').mockReturnValue([
+				mockWsTarget,
+				mockWsOther
+			])
 			const getTagsSpy = vi.spyOn(ctx, 'getTags')
 			getTagsSpy.mockImplementation((ws) =>
 				ws === mockWsTarget ? [targetId] : [otherId]
@@ -970,7 +979,7 @@ describe('update method and logic branches', () => {
 
 			// @ts-expect-error Testing protected method
 			instance.update(
-				{ some: 'data' },
+				{ some: 'data' } as unknown as TestingUpdate,
 				{ doNotTarget: excludeId, requireConnectionInitComplete: true }
 			)
 
@@ -1015,7 +1024,7 @@ describe('update method and logic branches', () => {
 
 			// @ts-expect-error Testing protected method
 			instance.update(
-				{ some: 'data' },
+				{ some: 'data' } as unknown as TestingUpdate,
 				{
 					doNotTarget: [excludeId1, excludeId2],
 					requireConnectionInitComplete: true

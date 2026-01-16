@@ -46,7 +46,7 @@ describe('use', () => {
 			instance.createPathSubscriber(thePath, () => {}, {})
 
 			let previousSegmentReference: // @ts-expect-error we're checking the method's hard work
-			| typeof instance.rawTree
+				| typeof instance.rawTree
 				// @ts-expect-error we're checking the method's hard work
 				| (typeof instance.rawTree)[string] = instance.rawTree
 			expect(Object.keys(previousSegmentReference).length).toBe(1)
