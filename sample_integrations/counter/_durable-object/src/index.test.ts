@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { TransitionAction, UpdateAction } from '@ground0/sample-counter-shared'
 import { UpdateImpact } from 'ground0'
-import '../cloudflare-workers'
+import { cloudflareWorkersLoaded } from '../cloudflare-workers'
 
 type TestDb = {
 	select: () => {
@@ -132,6 +132,10 @@ const getIncrementConfirm = (instance: SyncEngineDO) => {
 }
 
 describe('SyncEngineDO autoruns', () => {
+	it('loads the cloudflare workers stub module', () => {
+		expect(cloudflareWorkersLoaded).toBe(true)
+	})
+
 	it('sends the default value when no db record exists', async () => {
 		const { instance, waitForBlock } = createInstance()
 		await waitForBlock()
