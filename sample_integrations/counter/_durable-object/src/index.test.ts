@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { TransitionAction, UpdateAction } from '@ground0/sample-counter-shared'
 import { UpdateImpact } from 'ground0'
+import '../cloudflare-workers'
 
 type TestDb = {
 	select: () => {
