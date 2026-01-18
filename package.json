@@ -32,7 +32,8 @@
     "test:watch": "turbo test:watch",
     "build": "turbo build --continue=dependencies-successful",
     "dev": "turbo dev",
-    "check-types": "turbo check-types --continue=dependencies-successful"
+    "check-types": "turbo check-types --continue=dependencies-successful",
+    "release": "turbo build && changeset publish"
   },
   "sideEffects": false,
   "type": "module"
