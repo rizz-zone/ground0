@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "module": "./dist/index.js",
   "devDependencies": {
+    "@changesets/cli": "^2.29.8",
     "@eslint/compat": "^1.4.0",
     "@eslint/js": "^9.37.0",
     "@vitest/coverage-v8": "3.2.4",
