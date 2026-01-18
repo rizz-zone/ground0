@@ -1,6 +1,9 @@
 {
   "name": "ground0",
   "version": "0.1.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "module": "./dist/index.js",
   "devDependencies": {
     "@changesets/cli": "^2.29.8",
