@@ -1,9 +1,8 @@
-# ground0 License (Open Source Software Alliance License)
+# ground0 License (Modified Open Source Software Alliance License)
 
 All of the documentation and software included in ground0 is copyrighted by the ground0 contributors.
 
-Copyright 2026
-the ground0 contributors. All rights reserved.
+Copyright 2026 ground0 contributors. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -16,7 +15,7 @@ met:
    documentation and/or other materials provided with the distribution.
 3. All advertising materials mentioning features or use of this software
    should, in good faith, display the following acknowledgment:
-   > This product includes software developed by the ground0 contributors and its contributors.
+   > This product includes software developed by the ground0 contributors.
 4. Redistributions of source code must not be used in conjunction
    with any software license that requires disclosure of source
    code (ex: the GNU Public License, hereafter known as the GPL).
@@ -24,13 +23,13 @@ met:
    binary or object form, etc.) must not be linked to software that is
    released with a license that requires disclosure of source code
    (ex: the GPL).
-6. Redistributions of source code must be licensed under more than one
-   license and must not have the terms of the OSSAL removed.
+6. Redistributions of source code may be licensed under more than one
+   license, but must not have the terms of the Modified OSSAL removed.
 
-THIS SOFTWARE IS PROVIDED BY THE GROUND0 CONTRIBUTORS AND CONTRIBUTORS 'AS IS' AND
+THIS SOFTWARE IS PROVIDED BY THE GROUND0 CONTRIBUTORS 'AS IS' AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE GROUND0 CONTRIBUTORS OR CONTRIBUTORS BE
+PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE GROUND0 CONTRIBUTORS BE
 LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
 CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
 SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
