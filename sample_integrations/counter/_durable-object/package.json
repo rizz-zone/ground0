@@ -2,6 +2,11 @@
 	"name": "@ground0/sample-counter-durable-object",
 	"private": true,
 	"version": "0.0.1",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/rizz-zone/ground0",
+		"directory": "sample_integrations/counter/_durable-object"
+	},
 	"type": "module",
 	"scripts": {
 		"test": "vitest run --coverage",
