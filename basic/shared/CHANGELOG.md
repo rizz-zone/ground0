@@ -1,5 +1,11 @@
 # @ground0/shared
 
+## 0.1.2
+
+### Patch Changes
+
+- 1126405: add license to all packages
+
 ## 0.1.1
 
 ### Patch Changes

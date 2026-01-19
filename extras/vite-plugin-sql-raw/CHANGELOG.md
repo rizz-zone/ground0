@@ -1,5 +1,11 @@
 # vite-plugin-sql-raw
 
+## 1.0.2
+
+### Patch Changes
+
+- 1126405: add license to all packages
+
 ## 1.0.1
 
 ### Patch Changes
