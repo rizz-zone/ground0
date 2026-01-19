@@ -1,7 +1,7 @@
 {
 	"name": "@ground0/sample-counter-durable-object",
 	"private": true,
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/rizz-zone/ground0",

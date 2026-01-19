@@ -1,24 +1,24 @@
 {
-    "name": "sql-dts",
-    "type": "module",
-    "version": "1.0.0",
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/rizz-zone/ground0",
-      "directory": "extras/sql-dts"
-    },
-    "publishConfig": {
-        "access": "public"
-    },
-    "private": false,
-    "sideEffects": false,
-    "packageManager": "pnpm@10.18.3",
-    "peerDependencies": {
-      "typescript": "^5.8.3"
-    },
-    "scripts": {
-      "check-types": "tsc",
-      "lint": "eslint ."
-    },
-    "types": "./src/index.d.ts"
-  }
+  "name": "sql-dts",
+  "type": "module",
+  "version": "1.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rizz-zone/ground0",
+    "directory": "extras/sql-dts"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "private": false,
+  "sideEffects": false,
+  "packageManager": "pnpm@10.18.3",
+  "peerDependencies": {
+    "typescript": "^5.8.3"
+  },
+  "scripts": {
+    "check-types": "tsc",
+    "lint": "eslint ."
+  },
+  "types": "./src/index.d.ts"
+}
