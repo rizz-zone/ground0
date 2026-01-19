@@ -1,5 +1,14 @@
 # @ground0/adapter-svelte
 
+## 0.1.2
+
+### Patch Changes
+
+- 1126405: add license to all packages
+- Updated dependencies [1126405]
+  - @ground0/browser@0.1.2
+  - @ground0/shared@0.1.2
+
 ## 0.1.1
 
 ### Patch Changes

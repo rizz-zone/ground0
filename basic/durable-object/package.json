@@ -2,7 +2,7 @@
   "name": "@ground0/durable-object",
   "module": "./dist/index.js",
   "type": "module",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "SEE LICENSE IN LICENSE.md",
   "repository": {
     "type": "git",

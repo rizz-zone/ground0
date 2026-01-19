@@ -1,5 +1,13 @@
 # @ground0/durable-object
 
+## 0.1.2
+
+### Patch Changes
+
+- 1126405: add license to all packages
+- Updated dependencies [1126405]
+  - @ground0/shared@0.1.2
+
 ## 0.1.1
 
 ### Patch Changes

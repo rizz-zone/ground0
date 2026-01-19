@@ -1,5 +1,13 @@
 # @ground0/sample-counter-shared
 
+## 0.0.3
+
+### Patch Changes
+
+- 1126405: add license to all packages
+- Updated dependencies [1126405]
+  - ground0@0.1.2
+
 ## 0.0.2
 
 ### Patch Changes
