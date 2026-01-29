@@ -1,0 +1,42 @@
+{
+	"name": "vite-plugin-sveltekit-cf-websockets",
+	"version": "0.1.0",
+	"license": "SEE LICENSE IN LICENSE.md",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/rizz-zone/ground0",
+		"directory": "extras/vite-plugin-sveltekit-cf-websockets"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"private": false,
+	"sideEffects": false,
+	"packageManager": "pnpm@10.18.3",
+	"type": "module",
+	"scripts": {
+		"build": "tsdown",
+		"dev": "tsdown --watch --no-clean",
+		"check-types": "tsc",
+		"lint": "eslint ."
+	},
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": "./dist/index.js",
+		"./package.json": "./package.json"
+	},
+	"dependencies": {
+		"ws": "^8.18.0"
+	},
+	"devDependencies": {
+		"@cloudflare/workers-types": "^4.20260120.0",
+		"@types/ws": "^8.18.0"
+	},
+	"peerDependencies": {
+		"@sveltejs/kit": "^2.0.0",
+		"typescript": "^5.8.3",
+		"vite": "^5.0.0 || ^6.0.0 || ^7.0.0"
+	}
+}
