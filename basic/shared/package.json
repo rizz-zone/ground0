@@ -44,6 +44,6 @@
     "@standard-schema/spec": "^1.0.0",
     "zod": "catalog:validators",
     "semver": "^7.7.2",
-    "@cloudflare/workers-types": "^4.20250801.0"
+    "@cloudflare/workers-types": "catalog:core-common"
   }
 }

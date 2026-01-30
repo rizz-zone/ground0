@@ -7,6 +7,7 @@ catalogs:
   core-common:
     drizzle-orm: ^0.44.6
     superjson: ^2.2.2
+    '@cloudflare/workers-types': ^4.20260129.0
   dev-common:
     drizzle-kit: ^0.31.4
   validators:
