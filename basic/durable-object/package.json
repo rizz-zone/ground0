@@ -41,7 +41,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@cloudflare/workers-types": "^4.20251011.0",
+    "@cloudflare/workers-types": "catalog:core-common",
     "@ground0/shared": "workspace:*",
     "drizzle-query-logger": "^1.1.1",
     "semver": "^7.7.2",
