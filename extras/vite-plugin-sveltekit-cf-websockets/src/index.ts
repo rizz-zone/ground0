@@ -512,9 +512,7 @@ function setupUpgradeHandler(
 
 						// Handle close from Cloudflare WebSocket
 						cfWebSocket.addEventListener('close', (event) => {
-							log(
-								`[sveltekit-ws] Cloudflare WebSocket closed: ${event.code}`
-							)
+							log(`[sveltekit-ws] Cloudflare WebSocket closed: ${event.code}`)
 							try {
 								if (nodeWs.readyState === nodeWs.OPEN) {
 									nodeWs.close(event.code, event.reason)
