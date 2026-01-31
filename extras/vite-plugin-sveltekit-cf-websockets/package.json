@@ -1,6 +1,6 @@
 {
 	"name": "vite-plugin-sveltekit-cf-websockets",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"license": "SEE LICENSE IN LICENSE.md",
 	"repository": {
 		"type": "git",
