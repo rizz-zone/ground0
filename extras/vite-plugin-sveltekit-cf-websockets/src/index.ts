@@ -569,7 +569,9 @@ export interface PluginOptions {
  * through SvelteKit's request handling pipeline, preserving the Response
  * object (including any `webSocket` property from Cloudflare-style handlers).
  */
-export function svelteKitWebSockets(options: PluginOptions = {}): Plugin {
+export default function svelteKitWebSockets(
+	options: PluginOptions = {}
+): Plugin {
 	const { verbose = false } = options
 
 	return {
